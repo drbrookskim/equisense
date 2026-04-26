@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhiskyMBTI — Find Your Dram</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="whisky-data.js?v=3"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg: #080604; --surface: #120c04; --card: rgba(22,14,4,0.97);
+  --accent: #FF6B1A; --accent-dim: rgba(255,107,26,0.12);
+  --accent-glow: rgba(255,107,26,0.35); --gold: #C8962A;
+  --text: #F0EAD6; --text-dim: rgba(240,234,214,0.6);
+  --text-muted: rgba(240,234,214,0.32);
+  --border: rgba(255,107,26,0.18); --border-soft: rgba(240,234,214,0.08);
+  --pill: rgba(255,107,26,0.1);
+}
+body {
+  background: var(--bg); min-height: 100vh;
+  font-family: 'Noto Sans KR', sans-serif;
+  color: var(--text); overflow-x: hidden;
+}
+::-webkit-scrollbar { width: 0; }
+.app-shell { max-width: 440px; margin: 0 auto; min-height: 100vh; position: relative; }
+@keyframes fadeSlideIn { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+.tab-bar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 440px;
+  background: rgba(8,6,4,0.92); border-top: 1px solid var(--border-soft);
+  backdrop-filter: blur(24px);
+  display: flex; z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.tab-item {
+  flex: 1; padding: 10px 0 12px; border: none; background: none;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: pointer; font-family: inherit; color: var(--text-muted);
+  font-size: 10px; letter-spacing: 0.3px; transition: color 0.2s;
+}
+.tab-item.active { color: var(--accent); }
+.tab-icon { font-size: 18px; line-height: 1; }
+
+body.light {
+  --bg: #F5F0E8; --surface: #EDE6D8; --card: rgba(255,252,247,0.97);
+  --text: #1A100A; --text-dim: rgba(26,16,10,0.6); --text-muted: rgba(26,16,10,0.35);
+  --border: rgba(200,150,42,0.25); --border-soft: rgba(26,16,10,0.08);
+  --pill: rgba(200,150,42,0.12); --accent-dim: rgba(200,150,42,0.12);
+  --accent-glow: rgba(200,150,42,0.3);
+}
+body.light .tab-bar { background: rgba(245,240,232,0.93); }
+body.light #tweaks-panel { background: rgba(245,240,232,0.97); }
+
+#tweaks-panel {
+  display: none; position: fixed; bottom: 76px; right: 16px;
+  background: rgba(8,6,4,0.97); border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px; width: 224px; z-index: 9999;
+  font-size: 12px; backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+#tweaks-panel h3 { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 14px; letter-spacing: 1px; }
+.tw-row { margin-bottom: 12px; }
+.tw-label { color: var(--text-muted); margin-bottom: 7px; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
+.tw-opts { display: flex; gap: 5px; flex-wrap: wrap; }
+.tw-btn { padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,107,26,0.2); background: transparent; color: var(--text-dim); font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.18s; }
+.tw-btn.on { background: rgba(255,107,26,0.2); color: var(--accent); border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Tweaks Panel -->
+<div id="tweaks-panel">
+  <h3>✦ Tweaks</h3>
+  <div class="tw-row">
+    <div class="tw-label">Theme</div>
+    <div class="tw-opts">
+      <button class="tw-btn on" id="tw-dark"  onclick="applyTheme('dark')">Dark</button>
+      <button class="tw-btn"    id="tw-light" onclick="applyTheme('light')">Light</button>
+    </div>
+  </div>
+  <div class="tw-row">
+    <div class="tw-label">Card Style</div>
+    <div class="tw-opts">
+      <button class="tw-btn on" id="tw-glass" onclick="applyCard('glass')">Glass</button>
+      <button class="tw-btn"    id="tw-solid" onclick="applyCard('solid')">Solid</button>
+    </div>
+  </div>
+  <div class="tw-row">
+    <div class="tw-label">Result Layout</div>
+    <div class="tw-opts">
+      <button class="tw-btn on" id="tw-card"    onclick="applyLayout('card')">Card</button>
+      <button class="tw-btn"    id="tw-minimal" onclick="applyLayout('minimal')">Minimal</button>
+    </div>
+  </div>
+  <div class="tw-row">
+    <div class="tw-label">Accent Color</div>
+    <div class="tw-opts">
+      <button class="tw-btn on" id="tw-orange" onclick="applyAccent('orange')">🔶 Orange</button>
+      <button class="tw-btn"    id="tw-gold"   onclick="applyAccent('gold')">🟡 Gold</button>
+      <button class="tw-btn"    id="tw-teal"   onclick="applyAccent('teal')">🩵 Teal</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "dark",
+  "card": "glass",
+  "layout": "card",
+  "accent": "teal"
+}/*EDITMODE-END*/;
+let tweaks = {...TWEAK_DEFAULTS};
+
+function applyTheme(v) {
+  tweaks.theme = v;
+  document.body.classList.toggle('light', v==='light');
+  ['dark','light'].forEach(x => document.getElementById('tw-'+x)?.classList.toggle('on', x===v));
+  postTweak();
+}
+function applyCard(v) {
+  tweaks.card = v;
+  ['glass','solid'].forEach(x => document.getElementById('tw-'+x)?.classList.toggle('on', x===v));
+  window._tweakCard = v; window.dispatchEvent(new Event('tweakchange'));
+  postTweak();
+}
+function applyLayout(v) {
+  tweaks.layout = v;
+  ['card','minimal'].forEach(x => document.getElementById('tw-'+x)?.classList.toggle('on', x===v));
+  window._tweakLayout = v; window.dispatchEvent(new Event('tweakchange'));
+  postTweak();
+}
+function applyAccent(v) {
+  const colors  = { orange:'#FF6B1A', gold:'#C8962A', teal:'#4ABFBF' };
+  const glows   = { orange:'rgba(255,107,26,0.35)', gold:'rgba(200,150,42,0.3)', teal:'rgba(74,191,191,0.28)' };
+  const dims    = { orange:'rgba(255,107,26,0.12)', gold:'rgba(200,150,42,0.12)', teal:'rgba(74,191,191,0.11)' };
+  const borders = { orange:'rgba(255,107,26,0.18)', gold:'rgba(200,150,42,0.2)', teal:'rgba(74,191,191,0.18)' };
+  const r = document.documentElement.style;
+  r.setProperty('--accent', colors[v]);
+  r.setProperty('--accent-glow', glows[v]);
+  r.setProperty('--accent-dim', dims[v]);
+  r.setProperty('--border', borders[v]);
+  tweaks.accent = v;
+  ['orange','gold','teal'].forEach(x => document.getElementById('tw-'+x)?.classList.toggle('on', x===v));
+  postTweak();
+}
+function postTweak() {
+  window.parent.postMessage({ type:'__edit_mode_set_keys', edits:tweaks }, '*');
+}
+window.addEventListener('message', e => {
+  if (e.data?.type === '__activate_edit_mode')   document.getElementById('tweaks-panel').style.display='block';
+  if (e.data?.type === '__deactivate_edit_mode') document.getElementById('tweaks-panel').style.display='none';
+});
+
+// Apply saved defaults on load
+applyTheme(tweaks.theme);
+applyAccent(tweaks.accent);
+window._tweakCard   = tweaks.card;
+window._tweakLayout = tweaks.layout;
+window.parent.postMessage({ type:'__edit_mode_available' }, '*');
+</script>
+
+<!-- Component files (order matters: data → ui → screens → app) -->
+<script type="text/babel" src="whisky-ui.jsx"></script>
+<script type="text/babel" src="whisky-screens.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function App() {
+  const [screen, setScreen] = useState(() => localStorage.getItem('wm_screen') || 'splash');
+  const [mbti, setMbtiRaw]  = useState(() => localStorage.getItem('wm_mbti')   || null);
+  const [lang, setLang]     = useState(() => localStorage.getItem('wm_lang')   || 'ko');
+  const [profile, setProfileRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wm_profile')) || { mbti:null, history:[], birthdate:null }; }
+    catch { return { mbti:null, history:[], birthdate:null }; }
+  });
+
+  const go = (s) => {
+    setScreen(s);
+    localStorage.setItem('wm_screen', s);
+  };
+
+  const setMBTI = (m) => {
+    setMbtiRaw(m);
+    localStorage.setItem('wm_mbti', m);
+  };
+
+  const setProfile = (fn) => {
+    setProfileRaw(prev => {
+      const next = typeof fn === 'function' ? fn(prev) : fn;
+      localStorage.setItem('wm_profile', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const switchLang = (l) => {
+    setLang(l);
+    localStorage.setItem('wm_lang', l);
+  };
+
+  const props = { go, lang, mbti, setMBTI, profile, setProfile };
+
+  const TABS = [
+    { id:'onboarding', icon:'🏠', ko:'홈',    en:'Home'    },
+    { id:'quiz',       icon:'📝', ko:'테스트', en:'Quiz'    },
+    { id:'collection', icon:'🗂️', ko:'컬렉션', en:'List'   },
+    { id:'profile',    icon:'👤', ko:'프로필', en:'Profile' },
+  ];
+
+  const renderScreen = () => {
+    const p = { ...props, key: screen };
+    switch (screen) {
+      case 'splash':      return <SplashScreen      {...p}/>;
+      case 'onboarding':  return <OnboardingScreen  {...p}/>;
+      case 'quiz':        return <QuizScreen        {...p}/>;
+      case 'direct':      return <DirectScreen      {...p} currentMBTI={mbti}/>;
+      case 'biorhythm':   return <BiorythmScreen    {...p}/>;
+      case 'result':      return <ResultScreen      {...p}/>;
+      case 'detail':      return <DetailScreen      {...p}/>;
+      case 'collection':  return <CollectionScreen  {...p}/>;
+      case 'profile':     return <ProfileScreen     {...p} currentMBTI={mbti}/>;
+      default:            return <SplashScreen      {...p}/>;
+    }
+  };
+
+  const showTabs = screen !== 'splash';
+
+  return (
+    <div className="app-shell">
+      {/* Lang toggle */}
+      <div style={{
+        position:'fixed', top:12, right:16, zIndex:200,
+        display:'flex', gap:4,
+      }}>
+        {['ko','en'].map(l => (
+          <button key={l} onClick={()=>switchLang(l)} style={{
+            background: lang===l ? 'var(--accent-dim)' : 'transparent',
+            border: `1px solid ${lang===l ? 'var(--border)' : 'transparent'}`,
+            borderRadius: 6, padding: '4px 8px',
+            color: lang===l ? 'var(--accent)' : 'var(--text-muted)',
+            fontSize: 11, cursor: 'pointer', fontFamily: 'Noto Sans KR',
+            letterSpacing: 0.5, transition: 'all 0.2s',
+          }}>{l.toUpperCase()}</button>
+        ))}
+      </div>
+
+      {/* Screen */}
+      <div style={{ animation:'fadeSlideIn 0.3s ease both' }} key={screen}>
+        {renderScreen()}
+      </div>
+
+      {/* Tab bar */}
+      {showTabs && (
+        <div className="tab-bar">
+          {TABS.map(t => (
+            <button key={t.id}
+              onClick={()=>go(t.id)}
+              className={`tab-item${screen===t.id ? ' active' : ''}`}
+            >
+              <span className="tab-icon">{t.icon}</span>
+              <span>{lang==='en' ? t.en : t.ko}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

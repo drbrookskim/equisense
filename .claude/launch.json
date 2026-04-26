@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "FastAPI Backend",
+      "runtimeExecutable": "/opt/homebrew/bin/python3.12",
+      "runtimeArgs": ["-m", "uvicorn", "api:app", "--port", "8000", "--loop", "asyncio", "--http", "h11"],
+      "cwd": "/Users/nelcome/Documents/Claude_code_repository/stock_analyzer",
+      "port": 8000
+    },
+    {
+      "name": "Streamlit Dashboard",
+      "runtimeExecutable": "/opt/homebrew/bin/python3.12",
+      "runtimeArgs": ["-m", "streamlit", "run", "dashboard.py", "--server.port", "8501", "--server.headless", "true"],
+      "cwd": "/Users/nelcome/Documents/Claude_code_repository/stock_analyzer",
+      "port": 8501
+    }
+  ]
+}
