@@ -328,7 +328,9 @@
 </footer>
 
 <script>
-const API = 'http://localhost:8000';
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : 'https://todaysstockanalyzer-production.up.railway.app';  // ← Railway 배포 후 URL로 교체
 
 function setTicker(t) {
   document.getElementById('ticker-input').value = t;
