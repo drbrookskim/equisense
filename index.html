@@ -343,34 +343,52 @@ function pct(n) {
 //  데이터 수집 (Yahoo Finance via CORS Proxy)
 // ══════════════════════════════════════════════════════
 async function fetchOHLCV(ticker, period) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${period}`;
+  // includePrePost=false 로 정규장 데이터만, 오늘 미완성 봉 포함
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${period}&includePrePost=false`;
   const resp = await fetchWithProxy(url);
   if (!resp.ok) throw new Error(`가격 데이터 조회 실패 (${resp.status})`);
   const json = await resp.json();
   const result = json.chart?.result?.[0];
   if (!result) throw new Error('데이터 없음 — 티커를 확인하세요 (예: AAPL, 005930.KS)');
 
-  const ts  = result.timestamp || [];
-  const q   = result.indicators.quote[0];
-  const adj = result.indicators.adjclose?.[0]?.adjclose;
+  const ts   = result.timestamp || [];
+  const q    = result.indicators.quote[0];
+  const adj  = result.indicators.adjclose?.[0]?.adjclose;
   const meta = result.meta || {};
 
-  const bars = ts.map((t, i) => ({
+  // 오늘 미완성 봉 제거 (close가 null인 마지막 봉)
+  const rawBars = ts.map((t, i) => ({
     date:   new Date(t * 1000),
     open:   q.open[i],
     high:   q.high[i],
     low:    q.low[i],
     close:  (adj && adj[i]) ? adj[i] : q.close[i],
     volume: q.volume[i] || 0,
-  })).filter(b => b.close != null && b.high != null && b.low != null && !isNaN(b.close));
+  }));
+  const bars = rawBars.filter(b => b.close != null && b.high != null && b.low != null && !isNaN(b.close));
 
   if (bars.length < 30) throw new Error('데이터 부족 — 기간을 늘리거나 티커를 확인하세요');
 
   return {
     bars,
-    currency:    meta.currency || 'USD',
-    regularPrice: meta.regularMarketPrice || bars[bars.length-1].close,
+    currency:           meta.currency || 'USD',
+    regularMarketPrice: meta.regularMarketPrice,           // 최신 실시간 가격
+    previousClose:      meta.chartPreviousClose || meta.previousClose,
+    marketState:        meta.marketState || 'CLOSED',      // REGULAR / PRE / POST / CLOSED
+    dataUpdatedAt:      meta.regularMarketTime             // Unix timestamp
+      ? new Date(meta.regularMarketTime * 1000) : new Date(),
   };
+}
+
+// ── 실시간 시세 (현재가·등락률·52주 고저) ──
+async function fetchQuote(ticker) {
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,fiftyTwoWeekHigh,fiftyTwoWeekLow,marketState,regularMarketTime`;
+  try {
+    const resp = await fetchWithProxy(url);
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    return json.quoteResponse?.result?.[0] || null;
+  } catch { return null; }
 }
 
 async function fetchFundamentals(ticker) {
@@ -672,14 +690,25 @@ async function runAnalysis() {
   dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${ticker} 데이터 수집 중…</div></div>`;
 
   try {
-    const [ohlcvData, fundInfo] = await Promise.all([
+    const [ohlcvData, fundInfo, quote] = await Promise.all([
       fetchOHLCV(ticker, period),
-      fetchFundamentals(ticker)
+      fetchFundamentals(ticker),
+      fetchQuote(ticker),
     ]);
 
-    const { bars, currency } = ohlcvData;
-    const price = bars[bars.length-1].close;
-    const isKr  = currency === 'KRW';
+    const { bars, currency, regularMarketPrice, previousClose, marketState, dataUpdatedAt } = ohlcvData;
+
+    // 최신 가격 우선순위: 실시간 quote → chart meta → 마지막 봉 종가
+    const price   = quote?.regularMarketPrice || regularMarketPrice || bars[bars.length-1].close;
+    const prevClose = quote?.regularMarketPreviousClose || previousClose || bars[bars.length-2]?.close;
+    const changeAmt = prevClose ? price - prevClose : null;
+    const changePct = prevClose ? (price / prevClose - 1) * 100 : null;
+    const high52w   = quote?.fiftyTwoWeekHigh || null;
+    const low52w    = quote?.fiftyTwoWeekLow  || null;
+    const mktState  = quote?.marketState || marketState;
+    const updatedAt = quote?.regularMarketTime
+      ? new Date(quote.regularMarketTime * 1000) : dataUpdatedAt;
+    const isKr = currency === 'KRW';
 
     dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${ticker} 분석 중…</div></div>`;
 
@@ -688,9 +717,11 @@ async function runAnalysis() {
     const fund     = scoreFundamental(fundInfo, price);
     const decision = makeDecision(tech, fund, style, price);
 
-    renderDashboard({ ticker, bars, ind, tech, fund, decision, price, isKr, currency,
+    renderDashboard({
+      ticker, bars, ind, tech, fund, decision, price, isKr, currency,
       companyName: fundInfo.companyName || ticker,
-      sector: fundInfo.sector || '-'
+      sector: fundInfo.sector || '-',
+      changeAmt, changePct, high52w, low52w, mktState, updatedAt,
     });
 
   } catch(e) {
@@ -709,7 +740,8 @@ async function runAnalysis() {
 // ══════════════════════════════════════════════════════
 //  렌더링
 // ══════════════════════════════════════════════════════
-function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency, companyName, sector }) {
+function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency,
+    companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt }) {
   const flag      = isKr ? '🇰🇷' : '🇺🇸';
   const badgeCls  = {BUY:'buy',SELL:'sell',HOLD:'hold'}[d.action]||'hold';
   const badgeLbl  = {BUY:'● 매수 BUY',SELL:'● 매도 SELL',HOLD:'● 관망 HOLD'}[d.action];
@@ -722,6 +754,23 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   const I         = tech.indicators;
   const M         = fund.metrics;
 
+  // 등락 표시
+  const chgColor  = changeAmt >= 0 ? 'var(--green)' : 'var(--red)';
+  const chgArrow  = changeAmt >= 0 ? '▲' : '▼';
+  const chgHtml   = changeAmt != null
+    ? `<span style="color:${chgColor};font-size:0.9rem;font-weight:600;margin-left:8px">
+         ${chgArrow} ${fmt(Math.abs(changeAmt),isKr)} (${changePct>=0?'+':''}${changePct?.toFixed(2)}%)
+       </span>` : '';
+
+  // 장 상태 뱃지
+  const stateMap = { REGULAR:'🟢 장중', PRE:'🟡 프리마켓', POST:'🟡 애프터마켓', CLOSED:'⚫ 장마감' };
+  const mktBadge = `<span style="font-size:0.7rem;color:var(--muted)">${stateMap[mktState]||mktState||''}</span>`;
+
+  // 데이터 기준 시각
+  const timeStr = updatedAt
+    ? updatedAt.toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
+    : '';
+
   const labels  = bars.map(b=>`${b.date.getMonth()+1}/${b.date.getDate()}`);
   const closes  = bars.map(b=>b.close);
 
@@ -732,15 +781,29 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       <div class="card-header"><span class="dot" style="background:var(--blue)"></span>current-state</div>
       <div style="margin-bottom:10px">
         <div style="font-size:1rem;font-weight:700">${flag} ${companyName}</div>
-        <div style="font-size:0.73rem;color:var(--muted);margin-top:3px">
-          ${ticker} <span class="sector-pill">${sector}</span>
+        <div style="font-size:0.73rem;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px">
+          ${ticker} <span class="sector-pill">${sector}</span> ${mktBadge}
         </div>
       </div>
       <div class="badge ${badgeCls}">${badgeLbl}</div>
       <div style="margin-top:12px">
-        <div class="label">현재가</div>
+        <div class="label">현재가 <span style="font-size:0.65rem;color:var(--muted);font-weight:400">${timeStr} 기준</span></div>
         <div class="big-num">${fmt(price,isKr)} <span style="font-size:0.85rem;color:var(--muted)">${currency}</span></div>
+        <div style="margin-top:2px">${chgHtml}</div>
       </div>
+      ${high52w!=null?`
+      <div style="margin-top:12px;font-size:0.78rem;color:var(--muted)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span>52주 저가</span><span style="color:#cbd5e1">${fmt(low52w,isKr)}</span>
+        </div>
+        <div style="position:relative;background:var(--border);border-radius:4px;height:5px">
+          <div style="position:absolute;left:0;height:5px;border-radius:4px;background:linear-gradient(90deg,var(--red),var(--green));
+            width:${Math.min(100,Math.max(0,((price-low52w)/(high52w-low52w))*100)).toFixed(1)}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span>52주 고가</span><span style="color:#cbd5e1">${fmt(high52w,isKr)}</span>
+        </div>
+      </div>`:''}
       <div style="margin-top:12px">
         <div class="label">신뢰도</div>
         <div style="font-size:1.1rem;font-weight:700">${(d.confidence*100).toFixed(1)}%</div>
