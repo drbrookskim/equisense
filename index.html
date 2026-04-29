@@ -697,7 +697,7 @@ async function fetchFundamentals(ticker) {
     const g = (obj, key) => { const v = obj?.[key]; return (v && typeof v==='object') ? v.raw : v; };
 
     return {
-      companyName:   r.quoteType?.longName || r.quoteType?.shortName || ticker,
+      companyName:   r.quoteType?.longName || r.quoteType?.shortName || resolveTickerName(ticker) || ticker,
       sector:        r.assetProfile?.sector || '-',
       trailingPE:    g(r.summaryDetail,      'trailingPE'),
       priceToBook:   g(r.defaultKeyStatistics,'priceToBook'),
@@ -1026,7 +1026,7 @@ async function runAnalysis() {
 
     renderDashboard({
       ticker, bars, ind, tech, fund, decision, price, isKr, currency,
-      companyName: fundInfo.companyName || ticker,
+      companyName: fundInfo.companyName || resolveTickerName(ticker) || ticker,
       sector: fundInfo.sector || '-',
       changeAmt, changePct, high52w, low52w, mktState, updatedAt,
       fundInfo,
@@ -1332,6 +1332,28 @@ const KR_DICT = {
   'ks한국조선해양':'009540.KS','한국조선해양':'009540.KS',
   '두산로보틱스':'454910.KS',
 };
+
+// 역방향: 티커 → 대표 종목명 (중복 키 중 첫 번째 값 사용)
+const TICKER_NAME = {};
+for (const [name, sym] of Object.entries(KR_DICT)) {
+  if (!TICKER_NAME[sym]) TICKER_NAME[sym] = name;
+}
+// 영어 회사명도 추가
+const EN_TICKER_NAME = {
+  'AAPL':'Apple','MSFT':'Microsoft','NVDA':'NVIDIA','GOOGL':'Alphabet',
+  'AMZN':'Amazon','META':'Meta','TSLA':'Tesla','NFLX':'Netflix',
+  'ADBE':'Adobe','CRM':'Salesforce','INTC':'Intel','AMD':'AMD',
+  'QCOM':'Qualcomm','AVGO':'Broadcom','TSM':'TSMC','GS':'Goldman Sachs',
+  'JPM':'JPMorgan','BAC':'Bank of America','V':'Visa','MA':'Mastercard',
+  'JNJ':'Johnson & Johnson','PFE':'Pfizer','UNH':'UnitedHealth',
+  'XOM':'Exxon','CVX':'Chevron','WMT':'Walmart','COST':'Costco',
+  'DIS':'Disney','NKE':'Nike','SBUX':'Starbucks','MCD':'McDonald\'s',
+  'SPY':'S&P 500 ETF','QQQ':'NASDAQ 100 ETF','DIA':'Dow Jones ETF',
+};
+
+function resolveTickerName(ticker) {
+  return TICKER_NAME[ticker] || EN_TICKER_NAME[ticker] || null;
+}
 
 function krDictSearch(q) {
   const key = q.trim().toLowerCase();
