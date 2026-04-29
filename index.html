@@ -616,10 +616,16 @@ function looksLikeTicker(q) {
 async function resolveTicker(input) {
   const q = input.trim();
   if (looksLikeTicker(q)) return q.toUpperCase();
-  // 종목명으로 검색해서 첫 번째 결과 반환
+
+  // 1) 내장 사전 정확 일치
+  const dictHit = krDictSearch(q);
+  if (dictHit.length) return dictHit[0].symbol;
+
+  // 2) Yahoo Finance 검색
   const results = await searchTickers(q);
-  if (!results.length) throw new Error(`"${q}"에 해당하는 종목을 찾을 수 없습니다`);
-  return results[0].symbol;
+  if (results.length) return results[0].symbol;
+
+  throw new Error(`"${q}"에 해당하는 종목을 찾을 수 없습니다. 티커로 직접 입력해보세요 (예: 042700.KS)`);
 }
 
 async function runAnalysis() {
@@ -876,12 +882,96 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 // ══════════════════════════════════════════════════════
 let acTimer = null, acIdx = -1;
 
+// ── 한국 종목 내장 사전 (Yahoo Finance 검색 실패 시 폴백) ──
+const KR_DICT = {
+  // KOSPI 대형주
+  '삼성전자':'005930.KS','삼성전자우':'005935.KS',
+  'sk하이닉스':'000660.KS','sk 하이닉스':'000660.KS',
+  'lg에너지솔루션':'373220.KS',
+  '삼성바이오로직스':'207940.KS',
+  '현대차':'005380.KS','현대자동차':'005380.KS',
+  '셀트리온':'068270.KS',
+  '기아':'000270.KS','기아차':'000270.KS',
+  'kb금융':'105560.KS',
+  '신한지주':'055550.KS',
+  'lg화학':'051910.KS',
+  '삼성sdi':'006400.KS',
+  '현대모비스':'012330.KS',
+  '포스코홀딩스':'005490.KS','포스코':'005490.KS',
+  '카카오':'035720.KS',
+  '네이버':'035420.KS','naver':'035420.KS',
+  'sk이노베이션':'096770.KS',
+  '하나금융지주':'086790.KS',
+  '우리금융지주':'316140.KS',
+  '삼성물산':'028260.KS',
+  'lg전자':'066570.KS',
+  'sk텔레콤':'017670.KS',
+  'kt':'030200.KS',
+  '롯데케미칼':'011170.KS',
+  '고려아연':'010130.KS',
+  '두산에너빌리티':'034020.KS',
+  // KOSDAQ
+  '에코프로':'086520.KQ',
+  '에코프로비엠':'247540.KQ',
+  '셀트리온헬스케어':'091990.KQ',
+  'hlo':'028300.KQ',
+  '카카오게임즈':'293490.KQ',
+  '펄어비스':'263750.KQ',
+  '엔씨소프트':'036570.KS',
+  'cj제일제당':'097950.KS',
+  '한미반도체':'042700.KS',
+  '리노공업':'058470.KQ',
+  '이오테크닉스':'039030.KQ',
+  '솔브레인':'357780.KQ',
+  'sk바이오팜':'326030.KS',
+  '레인보우로보틱스':'277810.KQ',
+  '클래시스':'214150.KQ',
+  '알테오젠':'196170.KQ',
+  '휴젤':'145020.KQ',
+  '오스템임플란트':'048260.KQ',
+  '한화에어로스페이스':'012450.KS','한화에어로':'012450.KS',
+  '한화오션':'042660.KS',
+  '현대중공업':'329180.KS',
+  'ks한국조선해양':'009540.KS','한국조선해양':'009540.KS',
+  '두산로보틱스':'454910.KS',
+};
+
+function krDictSearch(q) {
+  const key = q.trim().toLowerCase();
+  // 정확히 일치
+  if (KR_DICT[key]) return [{ symbol: KR_DICT[key], longname: q, exchDisp: 'KRX' }];
+  // 부분 일치
+  const matches = Object.entries(KR_DICT)
+    .filter(([name]) => name.includes(key) || key.includes(name))
+    .map(([name, sym]) => ({ symbol: sym, longname: name, exchDisp: 'KRX' }));
+  return matches;
+}
+
 async function searchTickers(q) {
-  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&lang=ko-KR&region=KR&quotesCount=8&newsCount=0&enableFuzzyQuery=true`;
-  const resp = await fetch(PROXY + encodeURIComponent(url));
-  if (!resp.ok) return [];
-  const json = await resp.json();
-  return (json.quotes || []).filter(r => r.symbol && r.quoteType !== 'OPTION');
+  // 1) 내장 한국 사전 먼저 확인
+  const dictHits = krDictSearch(q);
+
+  // 2) Yahoo Finance 검색 (두 endpoint 시도)
+  const endpoints = [
+    `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&lang=ko-KR&region=KR&quotesCount=8&newsCount=0&enableFuzzyQuery=true`,
+    `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`,
+  ];
+
+  let apiHits = [];
+  for (const url of endpoints) {
+    try {
+      const resp = await fetch(PROXY + encodeURIComponent(url));
+      if (!resp.ok) continue;
+      const json = await resp.json();
+      apiHits = (json.quotes || []).filter(r => r.symbol && r.quoteType !== 'OPTION');
+      if (apiHits.length) break;
+    } catch { /* 다음 endpoint 시도 */ }
+  }
+
+  // 사전 결과 + API 결과 합치기 (중복 제거)
+  const seen = new Set(dictHits.map(r => r.symbol));
+  const combined = [...dictHits, ...apiHits.filter(r => !seen.has(r.symbol))];
+  return combined;
 }
 
 function showAC(items) {
