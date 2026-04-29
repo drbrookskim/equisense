@@ -120,6 +120,50 @@
   }
   .chip:hover, .chip.active { background: #1e2a40; color: var(--text); border-color: var(--blue); }
   .chip-label { font-size: 0.65rem; color: var(--muted); }
+
+  /* ── 검색 기록 ── */
+  .history-wrap {
+    max-width: 900px;
+    margin: -16px auto 20px;
+    padding: 0 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    min-height: 0;
+  }
+  .history-label { font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
+  .history-chip {
+    background: #0f1320;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    color: #94a3b8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all .15s;
+  }
+  .history-chip:hover { background: #1e2a40; color: var(--text); border-color: var(--blue); }
+  .history-chip .del {
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 0 1px;
+  }
+  .history-chip .del:hover { color: var(--red); }
+  .history-clear {
+    font-size: 0.68rem;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: all .15s;
+  }
+  .history-clear:hover { color: var(--red); border-color: rgba(255,75,110,.3); }
   .grid { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
   .row { display: grid; gap: 14px; margin-bottom: 14px; }
   .row-top    { grid-template-columns: 260px 1fr 240px; }
@@ -275,6 +319,9 @@
   <button class="btn-run" id="run-btn" onclick="runAnalysis()">▶ 분석 시작</button>
 </div>
 
+<!-- 검색 기록 -->
+<div class="history-wrap" id="history-wrap" style="display:none"></div>
+
 <div class="chips-wrap">
   <span class="chip-label">🇺🇸</span>
   <span class="chip" onclick="setTicker('AAPL',this)">AAPL</span>
@@ -323,7 +370,58 @@
 function setTicker(t, el) {
   document.getElementById('ticker-input').value = t;
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+// ── 검색 기록 ──────────────────────────────────────────
+const HISTORY_KEY = 'tsa_history';
+const HISTORY_MAX = 10;
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveHistory(ticker, companyName) {
+  let list = loadHistory().filter(h => h.ticker !== ticker);
+  list.unshift({ ticker, name: companyName || ticker });
+  if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  renderHistory();
+}
+
+function removeHistory(ticker) {
+  const list = loadHistory().filter(h => h.ticker !== ticker);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  renderHistory();
+}
+
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+
+function renderHistory() {
+  const wrap = document.getElementById('history-wrap');
+  const list = loadHistory();
+  if (!list.length) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = 'flex';
+  wrap.innerHTML = `
+    <span class="history-label">🕐 최근</span>
+    ${list.map(h => `
+      <span class="history-chip" onclick="setTickerAndRun('${h.ticker}')">
+        <span>${h.name !== h.ticker ? h.name + ' <span style=\'color:var(--muted);font-size:0.68rem\'>' + h.ticker + '</span>' : h.ticker}</span>
+        <span class="del" onclick="event.stopPropagation();removeHistory('${h.ticker}')">✕</span>
+      </span>
+    `).join('')}
+    <span class="history-clear" onclick="clearHistory()">전체 삭제</span>
+  `;
+}
+
+function setTickerAndRun(ticker) {
+  document.getElementById('ticker-input').value = ticker;
+  runAnalysis();
 }
 
 function fmt(n, isKr) {
@@ -725,6 +823,9 @@ async function runAnalysis() {
     const tech     = scoreTechnical(ind, price);
     const fund     = scoreFundamental(fundInfo, price);
     const decision = makeDecision(tech, fund, style, price);
+
+    // 검색 기록 저장
+    saveHistory(ticker, fundInfo.companyName || ticker);
 
     renderDashboard({
       ticker, bars, ind, tech, fund, decision, price, isKr, currency,
@@ -1161,6 +1262,9 @@ tickerInput.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('.search-outer')) hideAC();
 });
+
+// 페이지 로드 시 검색 기록 표시
+renderHistory();
 </script>
 </body>
 </html>
