@@ -9,7 +9,10 @@ from pydantic import BaseModel
 import math, json
 import yfinance as yf
 import pandas as pd
-from analyzer import TechnicalAnalyzer, FundamentalAnalyzer, DecisionEngine
+try:
+    from analyzer import TechnicalAnalyzer, FundamentalAnalyzer, DecisionEngine
+except ImportError:
+    from stock_analyzer.analyzer import TechnicalAnalyzer, FundamentalAnalyzer, DecisionEngine
 
 
 def _sanitize(obj):
