@@ -107,9 +107,100 @@
   }
   .btn-run:hover { opacity: 0.85; }
   .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
-  .chips-wrap { max-width: 900px; margin: 0 auto 28px; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .chip {
+  /* ── 즐겨찾기 ── */
+  .fav-section {
+    max-width: 900px;
+    margin: 0 auto 24px;
+    padding: 0 20px;
+  }
+  .fav-card {
     background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+  }
+  .fav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .fav-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fav-toggle {
+    font-size: 0.7rem;
+    color: var(--muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s;
+  }
+  .fav-toggle:hover { color: var(--text); }
+  .fav-group { margin-bottom: 10px; }
+  .fav-group:last-child { margin-bottom: 0; }
+  .fav-group-label {
+    font-size: 0.62rem;
+    color: var(--muted);
+    margin-bottom: 7px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    letter-spacing: .04em;
+  }
+  .fav-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .fav-tile {
+    background: #0f1320;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .fav-tile:hover { background: #1e2a40; color: var(--text); border-color: var(--blue); }
+  .fav-tile.active { background: #1e2a40; color: var(--text); border-color: var(--blue); }
+  .fav-tile .tile-del {
+    font-size: 0.65rem;
+    color: var(--muted);
+    line-height: 1;
+    transition: color .12s;
+  }
+  .fav-tile .tile-del:hover { color: var(--red); }
+  .fav-add-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .fav-add-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* 분석 결과 즐겨찾기 버튼 */
+  .btn-fav {
+    background: none;
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 5px 12px;
@@ -117,8 +208,14 @@
     color: var(--muted);
     cursor: pointer;
     transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
-  .chip:hover, .chip.active { background: #1e2a40; color: var(--text); border-color: var(--blue); }
+  .btn-fav:hover { border-color: var(--yellow); color: var(--yellow); }
+  .btn-fav.starred { border-color: var(--yellow); color: var(--yellow); background: rgba(251,191,36,.08); }
+
+  /* (구) chip 클래스 — 호환성 유지 */
   .chip-label { font-size: 0.65rem; color: var(--muted); }
 
   /* ── 검색 기록 ── */
@@ -322,24 +419,17 @@
 <!-- 검색 기록 -->
 <div class="history-wrap" id="history-wrap" style="display:none"></div>
 
-<div class="chips-wrap">
-  <span class="chip-label">🇺🇸</span>
-  <span class="chip" onclick="setTicker('AAPL',this)">AAPL</span>
-  <span class="chip" onclick="setTicker('MSFT',this)">MSFT</span>
-  <span class="chip" onclick="setTicker('NVDA',this)">NVDA</span>
-  <span class="chip" onclick="setTicker('TSLA',this)">TSLA</span>
-  <span class="chip" onclick="setTicker('META',this)">META</span>
-  <span class="chip" onclick="setTicker('GOOGL',this)">GOOGL</span>
-  <span class="chip-label" style="margin-left:6px">ETF</span>
-  <span class="chip" onclick="setTicker('SPY',this)">SPY</span>
-  <span class="chip" onclick="setTicker('QQQ',this)">QQQ</span>
-  <span class="chip-label" style="margin-left:6px">🇰🇷</span>
-  <span class="chip" onclick="setTicker('005930.KS',this)">삼성전자</span>
-  <span class="chip" onclick="setTicker('000660.KS',this)">SK하이닉스</span>
-  <span class="chip" onclick="setTicker('035420.KS',this)">NAVER</span>
-  <span class="chip" onclick="setTicker('086520.KQ',this)">에코프로</span>
-  <span class="chip" onclick="setTicker('373220.KS',this)">LG에너지솔루션</span>
-  <span class="chip" onclick="setTicker('005380.KS',this)">현대차</span>
+<!-- 즐겨찾기 -->
+<div class="fav-section">
+  <div class="fav-card" id="fav-card">
+    <div class="fav-header">
+      <span class="fav-title">⭐ 즐겨찾기</span>
+      <button class="fav-toggle" onclick="toggleFav()">접기 ▲</button>
+    </div>
+    <div id="fav-body">
+      <!-- JS로 렌더링 -->
+    </div>
+  </div>
 </div>
 
 <div class="grid" id="dashboard">
@@ -371,6 +461,113 @@ function setTicker(t, el) {
   document.getElementById('ticker-input').value = t;
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   if (el) el.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════
+//  즐겨찾기
+// ══════════════════════════════════════════════════════
+const FAV_KEY = 'tsa_favorites';
+const DEFAULT_FAVS = {
+  us:  [
+    { ticker:'AAPL',    name:'AAPL' },
+    { ticker:'MSFT',    name:'MSFT' },
+    { ticker:'NVDA',    name:'NVDA' },
+    { ticker:'TSLA',    name:'TSLA' },
+    { ticker:'META',    name:'META' },
+    { ticker:'GOOGL',   name:'GOOGL' },
+    { ticker:'SPY',     name:'SPY' },
+    { ticker:'QQQ',     name:'QQQ' },
+  ],
+  kr: [
+    { ticker:'005930.KS', name:'삼성전자' },
+    { ticker:'000660.KS', name:'SK하이닉스' },
+    { ticker:'035420.KS', name:'NAVER' },
+    { ticker:'086520.KQ', name:'에코프로' },
+    { ticker:'373220.KS', name:'LG에너지솔루션' },
+    { ticker:'005380.KS', name:'현대차' },
+  ]
+};
+
+function loadFavs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FAV_KEY));
+    if (saved && saved.us && saved.kr) return saved;
+  } catch {}
+  return JSON.parse(JSON.stringify(DEFAULT_FAVS)); // deep copy
+}
+
+function saveFavs(favs) {
+  localStorage.setItem(FAV_KEY, JSON.stringify(favs));
+}
+
+function isFaved(ticker) {
+  const f = loadFavs();
+  return [...f.us, ...f.kr].some(x => x.ticker === ticker);
+}
+
+function addFav(ticker, name) {
+  const f = loadFavs();
+  // 중복 방지
+  if ([...f.us, ...f.kr].some(x => x.ticker === ticker)) return;
+  // 한국 종목 (.KS / .KQ) 는 kr 그룹에, 나머지는 us 그룹에
+  const isKrTicker = /\.(KS|KQ)$/i.test(ticker);
+  (isKrTicker ? f.kr : f.us).push({ ticker, name: name || ticker });
+  saveFavs(f);
+  renderFavs();
+}
+
+function removeFav(ticker) {
+  const f = loadFavs();
+  f.us = f.us.filter(x => x.ticker !== ticker);
+  f.kr = f.kr.filter(x => x.ticker !== ticker);
+  saveFavs(f);
+  renderFavs();
+  updateFavBtn(ticker);
+}
+
+let favCollapsed = false;
+function toggleFav() {
+  favCollapsed = !favCollapsed;
+  document.getElementById('fav-body').style.display = favCollapsed ? 'none' : '';
+  document.querySelector('.fav-toggle').textContent = favCollapsed ? '펼치기 ▼' : '접기 ▲';
+}
+
+function renderFavs() {
+  const f = loadFavs();
+  const body = document.getElementById('fav-body');
+  if (!body) return;
+
+  const tileHtml = (item) => `
+    <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
+      ${item.name !== item.ticker
+        ? `${item.name} <span style="font-size:0.68rem;color:var(--muted)">${item.ticker}</span>`
+        : item.ticker}
+      <span class="tile-del" onclick="event.stopPropagation();removeFav('${item.ticker}')">✕</span>
+    </span>`;
+
+  body.innerHTML = `
+    <div class="fav-group">
+      <div class="fav-group-label">🇺🇸 미국 · ETF</div>
+      <div class="fav-tiles">
+        ${f.us.map(tileHtml).join('')}
+      </div>
+    </div>
+    <div class="fav-group">
+      <div class="fav-group-label">🇰🇷 한국</div>
+      <div class="fav-tiles">
+        ${f.kr.map(tileHtml).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// 분석 결과의 즐겨찾기 버튼 상태 업데이트
+function updateFavBtn(ticker) {
+  const btn = document.getElementById('fav-btn');
+  if (!btn) return;
+  const starred = isFaved(ticker);
+  btn.className = 'btn-fav' + (starred ? ' starred' : '');
+  btn.innerHTML = starred ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가';
 }
 
 // ── 검색 기록 ──────────────────────────────────────────
@@ -832,6 +1029,7 @@ async function runAnalysis() {
       companyName: fundInfo.companyName || ticker,
       sector: fundInfo.sector || '-',
       changeAmt, changePct, high52w, low52w, mktState, updatedAt,
+      fundInfo,
     });
 
   } catch(e) {
@@ -850,8 +1048,17 @@ async function runAnalysis() {
 // ══════════════════════════════════════════════════════
 //  렌더링
 // ══════════════════════════════════════════════════════
+function toggleFavFromResult(ticker, name) {
+  if (isFaved(ticker)) {
+    removeFav(ticker);
+  } else {
+    addFav(ticker, name);
+    updateFavBtn(ticker);
+  }
+}
+
 function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency,
-    companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt }) {
+    companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt, fundInfo }) {
   const flag      = isKr ? '🇰🇷' : '🇺🇸';
   const badgeCls  = {BUY:'buy',SELL:'sell',HOLD:'hold'}[d.action]||'hold';
   const badgeLbl  = {BUY:'● 매수 BUY',SELL:'● 매도 SELL',HOLD:'● 관망 HOLD'}[d.action];
@@ -920,6 +1127,12 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         <div class="progress-wrap">
           <div class="progress-fill" style="width:${d.confidence*100}%;background:${d.confidence>0.5?'var(--green)':'var(--yellow)'}"></div>
         </div>
+      </div>
+      <div style="margin-top:14px">
+        <button id="fav-btn" class="btn-fav${isFaved(ticker)?' starred':''}"
+          onclick="toggleFavFromResult('${ticker}','${(fundInfo?.companyName||ticker).replace(/'/g,"\\'")}')">
+          ${isFaved(ticker) ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}
+        </button>
       </div>
     </div>
 
@@ -1263,7 +1476,8 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.search-outer')) hideAC();
 });
 
-// 페이지 로드 시 검색 기록 표시
+// 페이지 로드 시 초기화
+renderFavs();
 renderHistory();
 </script>
 </body>
