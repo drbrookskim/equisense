@@ -540,13 +540,8 @@ function scoreTechnical(ind, price) {
   const signal = scoreToSignal(score);
   const conf   = Math.min(Math.abs(score)*1.5, 1.0);
 
-  let target, stop;
-  if (signal==='STRONG_BUY'||signal==='BUY')       { target=price+atrV*2.5; stop=price-atrV*1.0; }
-  else if (signal==='STRONG_SELL'||signal==='SELL') { target=price-atrV*2.5; stop=price+atrV*1.0; }
-  else                                              { target=price+atrV*1.5; stop=price-atrV*1.0; }
-
   return {
-    signal, score, confidence: conf, target, stop,
+    signal, score, confidence: conf, atr: atrV,
     indicators: {
       rsi: rsiV, macd: last(ind.macdLine), macdHist: mh,
       stochK: k, stochD: d, bbPct: bbP,
@@ -608,13 +603,27 @@ function makeDecision(tech, fund, style, price) {
     reasoning.push(`신호 강도(${combined.toFixed(2)}) 또는 신뢰도(${(conf*100).toFixed(0)}%) 불충분 → 관망`);
   }
 
-  const risk=Math.abs(price-tech.stop), reward=Math.abs(tech.target-price);
+  // ── 목표가·손절가: 최종 action 기준으로 계산 (기술 신호와 달라질 수 있음) ──
+  const atr = tech.atr;
+  let targetPrice, stopLoss;
+  if (action === 'BUY') {
+    targetPrice = price + atr * 2.5;   // 목표가 위
+    stopLoss    = price - atr * 1.0;   // 손절가 아래
+  } else if (action === 'SELL') {
+    targetPrice = price - atr * 2.5;   // 익절가 아래 (공매도·비중축소)
+    stopLoss    = price + atr * 1.0;   // 손절가 위
+  } else {                             // HOLD
+    targetPrice = price + atr * 1.5;   // 근접 저항 (위)
+    stopLoss    = price - atr * 1.0;   // 근접 지지 (아래)
+  }
+
+  const risk=Math.abs(price-stopLoss), reward=Math.abs(targetPrice-price);
   const rr = risk>0 ? Math.round(reward/risk*10)/10 : 0;
   if (rr<2.0&&action!=='HOLD') reasoning.push(`RR비율(${rr.toFixed(1)}:1) 불량 → 진입 재검토 권고`);
 
   return {
     action, confidence: Math.round(conf*1000)/1000,
-    targetPrice: tech.target, stopLoss: tech.stop, rr,
+    targetPrice, stopLoss, rr,
     techScore: tech.score, fundScore: fund.score,
     combined: Math.round(combined*10000)/10000, reasoning
   };
