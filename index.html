@@ -6,18 +6,45 @@
 <title>Today's Stock Analyzer</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+  /* ── 다크 모드 (기본) ── */
   :root {
-    --bg:     #0a0e1a;
-    --card:   #111827;
-    --border: #1e2a40;
-    --text:   #e2e8f0;
-    --muted:  #64748b;
-    --green:  #00d4aa;
-    --red:    #ff4b6e;
-    --yellow: #fbbf24;
-    --blue:   #3b82f6;
-    --purple: #a78bfa;
-    --orange: #f97316;
+    --bg:        #0a0e1a;
+    --card:      #111827;
+    --card2:     #0f1320;
+    --border:    #1e2a40;
+    --border2:   #2d3f5a;
+    --text:      #e2e8f0;
+    --text2:     #cbd5e1;
+    --muted:     #64748b;
+    --topbar:    rgba(17,24,39,0.95);
+    --metric-bd: #1a2235;
+    --green:     #00d4aa;
+    --red:       #ff4b6e;
+    --yellow:    #fbbf24;
+    --blue:      #3b82f6;
+    --purple:    #a78bfa;
+    --orange:    #f97316;
+    --shadow:    rgba(0,0,0,.4);
+  }
+  /* ── 라이트 모드 ── */
+  html.light {
+    --bg:        #f0f4f8;
+    --card:      #ffffff;
+    --card2:     #f8fafc;
+    --border:    #d1dbe8;
+    --border2:   #b0c0d4;
+    --text:      #1e293b;
+    --text2:     #334155;
+    --muted:     #64748b;
+    --topbar:    rgba(255,255,255,0.95);
+    --metric-bd: #e2eaf4;
+    --green:     #059669;
+    --red:       #e11d48;
+    --yellow:    #d97706;
+    --blue:      #2563eb;
+    --purple:    #7c3aed;
+    --orange:    #ea580c;
+    --shadow:    rgba(0,0,0,.1);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -25,9 +52,10 @@
     color: var(--text);
     font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
     min-height: 100vh;
+    transition: background .25s, color .25s;
   }
   .topbar {
-    background: rgba(17,24,39,0.95);
+    background: var(--topbar);
     border-bottom: 1px solid var(--border);
     padding: 0 32px;
     height: 56px;
@@ -50,7 +78,7 @@
   }
   .btn-gh {
     background: var(--green);
-    color: #0a0e1a;
+    color: #fff;
     border: none;
     border-radius: 8px;
     padding: 6px 14px;
@@ -63,6 +91,17 @@
     gap: 6px;
   }
   .btn-gh:hover { opacity: 0.85; }
+  .btn-theme {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 11px;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: background .15s, border-color .15s;
+  }
+  .btn-theme:hover { border-color: var(--blue); }
   .search-wrap {
     max-width: 900px;
     margin: 32px auto 24px;
@@ -79,7 +118,7 @@
     color: var(--text);
     font-size: 1rem;
     outline: none;
-    transition: border-color .2s;
+    transition: border-color .2s, background .25s;
   }
   .search-input:focus { border-color: var(--green); }
   .search-input::placeholder { color: var(--muted); }
@@ -92,6 +131,7 @@
     font-size: 0.9rem;
     cursor: pointer;
     outline: none;
+    transition: background .25s;
   }
   .btn-run {
     background: var(--green);
@@ -158,30 +198,39 @@
     letter-spacing: .04em;
   }
   .fav-tiles {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 6px;
   }
   .fav-tile {
-    background: #0f1320;
+    background: var(--card2);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 5px 12px;
+    padding: 6px 10px;
     font-size: 0.78rem;
-    color: #94a3b8;
+    color: var(--muted);
     cursor: pointer;
     transition: all .15s;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 4px;
+    min-width: 0;
+  }
+  .fav-tile:hover { background: var(--border); color: var(--text); border-color: var(--blue); }
+  .fav-tile.active { background: var(--border); color: var(--text); border-color: var(--blue); }
+  .fav-tile-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .fav-tile:hover { background: #1e2a40; color: var(--text); border-color: var(--blue); }
-  .fav-tile.active { background: #1e2a40; color: var(--text); border-color: var(--blue); }
   .fav-tile .tile-del {
     font-size: 0.65rem;
     color: var(--muted);
     line-height: 1;
+    flex-shrink: 0;
     transition: color .12s;
   }
   .fav-tile .tile-del:hover { color: var(--red); }
@@ -231,19 +280,19 @@
   }
   .history-label { font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
   .history-chip {
-    background: #0f1320;
+    background: var(--card2);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 4px 10px;
     font-size: 0.76rem;
-    color: #94a3b8;
+    color: var(--muted);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     transition: all .15s;
   }
-  .history-chip:hover { background: #1e2a40; color: var(--text); border-color: var(--blue); }
+  .history-chip:hover { background: var(--border); color: var(--text); border-color: var(--blue); }
   .history-chip .del {
     color: var(--muted);
     font-size: 0.7rem;
@@ -297,8 +346,8 @@
   .badge.sell { background: rgba(255,75,110,.12); color: var(--red);   border: 1px solid rgba(255,75,110,.3); }
   .badge.hold { background: rgba(251,191,36,.12); color: var(--yellow);border: 1px solid rgba(251,191,36,.3); }
   .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; }
-  .big-num { font-size: 1.9rem; font-weight: 700; color: #f1f5f9; line-height: 1.1; }
-  .num-sm  { font-size: 1.35rem; font-weight: 700; color: #f1f5f9; }
+  .big-num { font-size: 1.9rem; font-weight: 700; color: var(--text); line-height: 1.1; }
+  .num-sm  { font-size: 1.35rem; font-weight: 700; color: var(--text); }
   .delta-up   { color: var(--green); font-size: 0.78rem; font-weight: 600; }
   .delta-down { color: var(--red);   font-size: 0.78rem; font-weight: 600; }
   .metric-row {
@@ -306,17 +355,17 @@
     justify-content: space-between;
     align-items: center;
     padding: 7px 0;
-    border-bottom: 1px solid #1a2235;
+    border-bottom: 1px solid var(--metric-bd);
     font-size: 0.83rem;
     color: var(--muted);
   }
   .metric-row:last-child { border-bottom: none; }
-  .metric-val { color: #cbd5e1; font-weight: 600; }
+  .metric-val { color: var(--text2); font-weight: 600; }
   .progress-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 6px; overflow: hidden; }
   .progress-fill { height: 6px; border-radius: 4px; }
   .mini-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-  .mini-card { background: #0f1320; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
-  .reason-row { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.83rem; color: var(--muted); }
+  .mini-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .reason-row { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--metric-bd); font-size: 0.83rem; color: var(--muted); }
   .reason-row:last-child { border-bottom: none; }
   .center-msg { text-align: center; padding: 80px 20px; color: var(--muted); }
   .center-msg .icon { font-size: 2.4rem; margin-bottom: 12px; }
@@ -338,12 +387,12 @@
     position: absolute;
     top: calc(100% + 6px);
     left: 0; right: 0;
-    background: #161e2e;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
     z-index: 200;
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    box-shadow: 0 8px 24px var(--shadow);
     max-height: 320px;
     overflow-y: auto;
   }
@@ -354,10 +403,10 @@
     padding: 10px 14px;
     cursor: pointer;
     transition: background .12s;
-    border-bottom: 1px solid #1a2235;
+    border-bottom: 1px solid var(--metric-bd);
   }
   .ac-item:last-child { border-bottom: none; }
-  .ac-item:hover, .ac-item.ac-active { background: #1e2a40; }
+  .ac-item:hover, .ac-item.ac-active { background: var(--border); }
   .ac-ticker { font-size: 0.88rem; font-weight: 700; color: var(--green); min-width: 90px; }
   .ac-name   { font-size: 0.82rem; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ac-exch   { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
@@ -390,6 +439,7 @@
   <div class="logo">📈 <span>Today's</span> Stock Analyzer</div>
   <div class="topbar-right">
     <span class="pill">기술 + 기본 분석 · 서버리스</span>
+    <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="라이트/다크 전환">🌙</button>
     <a class="btn-gh" href="https://github.com/drbrookskim/todaysstockanalyzer" target="_blank">⭐ GitHub</a>
   </div>
 </header>
@@ -457,6 +507,28 @@
 // ══════════════════════════════════════════════════════
 //  UI 유틸
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  라이트/다크 모드
+// ══════════════════════════════════════════════════════
+const THEME_KEY = 'tsa_theme';
+
+function applyTheme(theme) {
+  const isLight = theme === 'light';
+  document.documentElement.classList.toggle('light', isLight);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = isLight ? '🌞' : '🌙';
+  localStorage.setItem(THEME_KEY, theme);
+  // 차트 색상 업데이트 (이미 렌더된 차트가 있으면 재렌더는 분석 재실행으로)
+}
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.contains('light');
+  applyTheme(isLight ? 'dark' : 'light');
+}
+
+// 저장된 테마 복원
+applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+
 function setTicker(t, el) {
   document.getElementById('ticker-input').value = t;
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
@@ -539,9 +611,11 @@ function renderFavs() {
 
   const tileHtml = (item) => `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
-      ${item.name !== item.ticker
-        ? `${item.name} <span style="font-size:0.68rem;color:var(--muted)">${item.ticker}</span>`
-        : item.ticker}
+      <span class="fav-tile-label">
+        ${item.name !== item.ticker
+          ? `${item.name}<br><span style="font-size:0.65rem;color:var(--muted)">${item.ticker}</span>`
+          : item.ticker}
+      </span>
       <span class="tile-del" onclick="event.stopPropagation();removeFav('${item.ticker}')">✕</span>
     </span>`;
 
@@ -1499,6 +1573,7 @@ document.addEventListener('click', e => {
 });
 
 // 페이지 로드 시 초기화
+applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 renderFavs();
 renderHistory();
 </script>
