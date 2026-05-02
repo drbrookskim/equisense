@@ -13,9 +13,10 @@
     --card2:     #0f1320;
     --border:    #1e2a40;
     --border2:   #2d3f5a;
-    --text:      #e2e8f0;
-    --text2:     #cbd5e1;
-    --muted:     #64748b;
+    --text:      #f1f5f9;        /* 거의 흰색 — 주요 텍스트 */
+    --text2:     #e2e8f0;        /* 밝은 회색 — 보조 텍스트 */
+    --muted:     #94a3b8;        /* 중간 회색 — 레이블 (기존 #64748b보다 밝게) */
+    --muted2:    #64748b;        /* 어두운 회색 — 힌트·구분선 */
     --topbar:    rgba(17,24,39,0.95);
     --metric-bd: #1a2235;
     --green:     #00d4aa;
@@ -30,21 +31,22 @@
   html.light {
     --bg:        #f0f4f8;
     --card:      #ffffff;
-    --card2:     #f8fafc;
-    --border:    #d1dbe8;
-    --border2:   #b0c0d4;
-    --text:      #1e293b;
-    --text2:     #334155;
-    --muted:     #64748b;
+    --card2:     #f1f5f9;
+    --border:    #cbd5e1;
+    --border2:   #94a3b8;
+    --text:      #0f172a;        /* 거의 검정 — 주요 텍스트 */
+    --text2:     #1e293b;        /* 짙은 네이비 — 보조 텍스트 */
+    --muted:     #334155;        /* 짙은 회색 — 레이블 (기존 #64748b보다 어둡게) */
+    --muted2:    #64748b;        /* 중간 회색 — 힌트·구분선 */
     --topbar:    rgba(255,255,255,0.95);
     --metric-bd: #e2eaf4;
-    --green:     #059669;
-    --red:       #e11d48;
-    --yellow:    #d97706;
-    --blue:      #2563eb;
-    --purple:    #7c3aed;
-    --orange:    #ea580c;
-    --shadow:    rgba(0,0,0,.1);
+    --green:     #047857;
+    --red:       #be123c;
+    --yellow:    #b45309;
+    --blue:      #1d4ed8;
+    --purple:    #6d28d9;
+    --orange:    #c2410c;
+    --shadow:    rgba(0,0,0,.12);
   }
   html { font-size: 16.8px; } /* 24px × 0.7 = 16.8px */
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -71,11 +73,11 @@
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .pill {
     background: var(--border);
-    border: 1px solid #2d3f5a;
+    border: 1px solid var(--border2);
     border-radius: 20px;
     padding: 4px 12px;
     font-size: 0.72rem;
-    color: var(--muted);
+    color: var(--text2);
   }
   .btn-gh {
     background: var(--green);
@@ -171,7 +173,7 @@
     font-weight: 700;
     letter-spacing: .12em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--text2);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -191,6 +193,7 @@
   .fav-group:last-child { margin-bottom: 0; }
   .fav-group-label {
     font-size: 0.62rem;
+    font-weight: 600;
     color: var(--muted);
     margin-bottom: 7px;
     display: flex;
@@ -209,7 +212,7 @@
     border-radius: 8px;
     padding: 6px 10px;
     font-size: 0.78rem;
-    color: var(--muted);
+    color: var(--text2);
     cursor: pointer;
     transition: all .15s;
     display: flex;
@@ -286,7 +289,7 @@
     border-radius: 8px;
     padding: 4px 10px;
     font-size: 0.76rem;
-    color: var(--muted);
+    color: var(--text2);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -332,6 +335,8 @@
     align-items: center;
     gap: 6px;
   }
+  /* 라이트 모드 card-header 가독성 보완 */
+  html.light .card-header { color: var(--muted); }
   .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
   .badge {
     display: inline-flex;
@@ -346,7 +351,7 @@
   .badge.buy  { background: rgba(0,212,170,.12); color: var(--green); border: 1px solid rgba(0,212,170,.3); }
   .badge.sell { background: rgba(255,75,110,.12); color: var(--red);   border: 1px solid rgba(255,75,110,.3); }
   .badge.hold { background: rgba(251,191,36,.12); color: var(--yellow);border: 1px solid rgba(251,191,36,.3); }
-  .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; }
+  .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; font-weight: 600; }
   .big-num { font-size: 1.9rem; font-weight: 700; color: var(--text); line-height: 1.1; }
   .num-sm  { font-size: 1.35rem; font-weight: 700; color: var(--text); }
   .delta-up   { color: var(--green); font-size: 0.78rem; font-weight: 600; }
@@ -361,12 +366,12 @@
     color: var(--muted);
   }
   .metric-row:last-child { border-bottom: none; }
-  .metric-val { color: var(--text2); font-weight: 600; }
+  .metric-val { color: var(--text); font-weight: 600; }
   .progress-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 6px; overflow: hidden; }
   .progress-fill { height: 6px; border-radius: 4px; }
   .mini-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
   .mini-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
-  .reason-row { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--metric-bd); font-size: 0.83rem; color: var(--muted); }
+  .reason-row { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--metric-bd); font-size: 0.83rem; color: var(--text2); }
   .reason-row:last-child { border-bottom: none; }
   .center-msg { text-align: center; padding: 80px 20px; color: var(--muted); }
   .center-msg .icon { font-size: 2.4rem; margin-bottom: 12px; }
@@ -380,7 +385,7 @@
     margin-bottom: 14px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .sector-pill { background: var(--border); border-radius: 20px; padding: 2px 10px; font-size: 0.68rem; color: var(--muted); }
+  .sector-pill { background: var(--border); border-radius: 20px; padding: 2px 10px; font-size: 0.68rem; color: var(--text2); }
 
   /* ── 검색 자동완성 ── */
   .search-outer { flex: 1; position: relative; }
@@ -419,7 +424,7 @@
     text-align: center;
     padding: 20px;
     font-size: 0.75rem;
-    color: var(--muted);
+    color: var(--muted2, var(--muted));
   }
   .footer a { color: var(--green); text-decoration: none; }
   @media (max-width: 900px) {
