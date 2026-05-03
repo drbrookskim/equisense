@@ -418,7 +418,16 @@
   .ac-exch   { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
   .ac-loading { padding: 12px 14px; font-size: 0.82rem; color: var(--muted); text-align: center; }
   .chart-container { position: relative; height: 340px; }
-  .chart-container-sm { position: relative; height: 100px; }
+  .chart-container-sm { position: relative; height: 120px; }
+  /* ── 고급 분석 6열 그리드 ── */
+  .adv-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 1100px) { .adv-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px)  { .adv-grid { grid-template-columns: 1fr; } }
   .footer {
     border-top: 1px solid var(--border);
     text-align: center;
@@ -1552,104 +1561,126 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     </div>
   </div>
 
-  <!-- 차트 + 지표 테이블 -->
-  <div class="row row-bottom">
-    <div class="card" style="padding:14px 16px">
-      <div class="card-header"><span class="dot" style="background:var(--green)"></span>종가 · Bollinger Band</div>
-      <div class="chart-container"><canvas id="priceChart"></canvas></div>
-      <div class="card-header" style="margin-top:14px"><span class="dot" style="background:var(--purple)"></span>RSI (14)</div>
-      <div class="chart-container-sm"><canvas id="rsiChart"></canvas></div>
-      <div class="card-header" style="margin-top:14px"><span class="dot" style="background:var(--blue)"></span>MACD</div>
-      <div class="chart-container-sm"><canvas id="macdChart"></canvas></div>
+  <!-- ── Row 2: 고급 분석 카드 (6열 그리드) ── -->
+  <div class="adv-grid">
+
+    <!-- 고급 분석 시그널 요약 -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널</div>
+      ${Object.entries(advanced.details).map(([key, v]) => {
+        const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'이치모쿠', smc:'SMC', quant:'퀀트팩터' };
+        const c = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
+        return `<div class="metric-row"><span>${nameMap[key]||key} <span style="font-size:0.6rem;color:var(--muted)">w=${v.weight}</span></span><span class="metric-val" style="color:${c}">${v.label}</span></div>`;
+      }).join('')}
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;font-size:0.78rem">
+        <span style="color:var(--muted)">복합점수</span>
+        <span style="float:right;font-weight:700;color:${d.advancedComposite>0.2?'var(--green)':d.advancedComposite<-0.2?'var(--red)':'var(--yellow)'}">${d.advancedComposite.toFixed(3)}</span>
+      </div>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="card">
-        <div class="card-header"><span class="dot" style="background:var(--purple)"></span>기술적 지표</div>
-        ${[
-          ['RSI (14)',    I.rsi?.toFixed(1),                    I.rsi<30?'var(--green)':I.rsi>70?'var(--red)':''],
-          ['Stoch %K',   I.stochK?.toFixed(1),                  ''],
-          ['Stoch %D',   I.stochD?.toFixed(1),                  ''],
-          ['MACD',       I.macd?.toFixed(4),                    ''],
-          ['MACD Hist',  I.macdHist?.toFixed(4),                I.macdHist>0?'var(--green)':'var(--red)'],
-          ['BB %',       I.bbPct!=null?(I.bbPct*100).toFixed(1)+'%':'-', ''],
-          ['ATR',        I.atr!=null?fmt(I.atr,isKr):'-',      ''],
-          ['거래량 비율', I.volRatio!=null?I.volRatio.toFixed(2)+'x':'-', I.volRatio>1?'var(--green)':'var(--red)'],
-        ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v??'-'}</span></div>`).join('')}
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>기본적 지표</div>
-        ${[
-          ['PER',       M.per!=null?M.per.toFixed(1)+'x':'-',          ''],
-          ['PBR',       M.pbr!=null?M.pbr.toFixed(2)+'x':'-',          ''],
-          ['ROE',       M.roe!=null?M.roe.toFixed(1)+'%':'-',           M.roe>10?'var(--green)':'var(--red)'],
-          ['순이익률',   M.netMargin!=null?M.netMargin.toFixed(1)+'%':'-',''],
-          ['매출성장률', M.revGrowth!=null?(M.revGrowth>0?'+':'')+M.revGrowth.toFixed(1)+'%':'-', M.revGrowth>0?'var(--green)':'var(--red)'],
-          ['이익성장률', M.earnGrowth!=null?(M.earnGrowth>0?'+':'')+M.earnGrowth.toFixed(1)+'%':'-', M.earnGrowth>0?'var(--green)':'var(--red)'],
-          ['부채비율',   M.debtEq!=null?M.debtEq.toFixed(0)+'%':'-',   ''],
-          ['배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-',''],
-          ['내재가치',   fmt(fund.intrinsic,isKr)+' '+currency,          fund.intrinsic>price?'var(--green)':'var(--red)'],
-        ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v??'-'}</span></div>`).join('')}
-      </div>
+    <!-- 캔들스틱 패턴 -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱 패턴</div>
+      <div class="metric-row"><span>패턴 시그널</span><span class="metric-val" style="color:${cs.cs_signal>0?'var(--green)':cs.cs_signal<0?'var(--red)':'var(--muted)'}">${cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립'}</span></div>
+      <div class="metric-row"><span>감지 패턴 수</span><span class="metric-val">${cs.patterns.length}개</span></div>
+      ${cs.patterns.length>0
+        ? cs.patterns.map(p=>`<div style="margin-top:4px;font-size:0.72rem;padding:3px 7px;border-radius:10px;display:inline-block;background:var(--border);color:var(--text2);margin-right:4px">${p}</div>`).join('')
+        : '<div style="font-size:0.72rem;color:var(--muted);margin-top:6px">감지된 패턴 없음</div>'}
+    </div>
 
-      <!-- 고급 분석 시그널 -->
-      <div class="card">
-        <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널</div>
-        ${Object.entries(advanced.details).map(([key, v]) => {
-          const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'이치모쿠', smc:'SMC', quant:'퀀트팩터' };
-          const c = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
-          return `<div class="metric-row"><span>${nameMap[key]||key} <span style="font-size:0.6rem;color:var(--muted)">w=${v.weight}</span></span><span class="metric-val" style="color:${c}">${v.label}</span></div>`;
-        }).join('')}
-        <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;font-size:0.78rem">
-          <span style="color:var(--muted)">복합점수</span>
-          <span style="float:right;font-weight:700;color:${d.advancedComposite>0.2?'var(--green)':d.advancedComposite<-0.2?'var(--red)':'var(--yellow)'}">${d.advancedComposite.toFixed(3)}</span>
-        </div>
-      </div>
+    <!-- 엘리어트 파동 -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--blue)"></span>엘리어트 파동 · 피보나치</div>
+      <div class="metric-row"><span>파동 상태</span><span class="metric-val" style="color:${ew.ew_signal>0?'var(--green)':ew.ew_signal<0?'var(--red)':'var(--muted)'};font-size:0.72rem">${ew.wave_label}</span></div>
+      <div class="metric-row"><span>피봇 고점</span><span class="metric-val">${fmt(ew.pivot_high,isKr)}</span></div>
+      <div class="metric-row"><span>피봇 저점</span><span class="metric-val">${fmt(ew.pivot_low,isKr)}</span></div>
+      ${Object.entries(ew.entry_zone||{}).length
+        ? `<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;font-size:0.7rem;color:var(--muted)">진입 구간</div>`
+          + Object.entries(ew.entry_zone).map(([k,v])=>`<div class="metric-row"><span style="font-size:0.72rem">${k}</span><span class="metric-val" style="color:var(--yellow)">${fmt(v,isKr)}</span></div>`).join('')
+        : ''}
+    </div>
 
-      <!-- 엘리어트 파동 -->
-      <div class="card">
-        <div class="card-header"><span class="dot" style="background:var(--blue)"></span>엘리어트 파동 · 피보나치</div>
-        <div class="metric-row"><span>파동 상태</span><span class="metric-val" style="color:${ew.ew_signal>0?'var(--green)':ew.ew_signal<0?'var(--red)':'var(--muted)'}">${ew.wave_label}</span></div>
-        <div class="metric-row"><span>피봇 고점</span><span class="metric-val">${fmt(ew.pivot_high,isKr)}</span></div>
-        <div class="metric-row"><span>피봇 저점</span><span class="metric-val">${fmt(ew.pivot_low,isKr)}</span></div>
-        ${Object.entries(ew.entry_zone||{}).map(([k,v])=>`
-          <div class="metric-row"><span style="font-size:0.72rem">${k}</span><span class="metric-val" style="color:var(--yellow)">${fmt(v,isKr)}</span></div>`).join('')}
-      </div>
+    <!-- 이치모쿠 -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--purple)"></span>이치모쿠 균형표</div>
+      ${[
+        ['신호', ichi.ichi_signal>0?'▲ 매수':ichi.ichi_signal<0?'▼ 매도':'— 관망', ichi.ichi_signal>0?'var(--green)':ichi.ichi_signal<0?'var(--red)':'var(--muted)'],
+        ['전환선 (9)', ichi.tenkan!=null?fmt(ichi.tenkan,isKr):'-', ''],
+        ['기준선 (26)', ichi.kijun!=null?fmt(ichi.kijun,isKr):'-', ''],
+        ['구름 위치', ichi.aboveCloud?'구름 위 (강세)':ichi.belowCloud?'구름 아래 (약세)':'구름 안 (중립)', ichi.aboveCloud?'var(--green)':ichi.belowCloud?'var(--red)':'var(--yellow)'],
+      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+    </div>
 
-      <!-- 이치모쿠 + SMC -->
-      <div class="card">
-        <div class="card-header"><span class="dot" style="background:var(--purple)"></span>이치모쿠 · SMC</div>
-        ${[
-          ['이치모쿠 신호', ichi.ichi_signal>0?'▲ 매수':ichi.ichi_signal<0?'▼ 매도':'— 관망', ichi.ichi_signal>0?'var(--green)':ichi.ichi_signal<0?'var(--red)':'var(--muted)'],
-          ['전환선(9)', ichi.tenkan!=null?fmt(ichi.tenkan,isKr):'-', ''],
-          ['기준선(26)', ichi.kijun!=null?fmt(ichi.kijun,isKr):'-', ''],
-          ['구름 위치', ichi.aboveCloud?'구름 위 (강세)':ichi.belowCloud?'구름 아래 (약세)':'구름 안(중립)', ichi.aboveCloud?'var(--green)':ichi.belowCloud?'var(--red)':'var(--yellow)'],
-          ['BOS', smc.bos||'-', smc.bos&&smc.bos.includes('강세')?'var(--green)':smc.bos?'var(--red)':''],
-          ['FVG', smc.fvg||'-', smc.fvg&&smc.fvg.includes('상승')?'var(--green)':smc.fvg?'var(--red)':''],
-          ['Order Block', smc.ob||'-', smc.ob&&smc.ob.includes('수요')?'var(--green)':smc.ob?'var(--red)':''],
-        ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
-      </div>
+    <!-- SMC -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--red)"></span>SMC · 스마트머니</div>
+      ${[
+        ['BOS', smc.bos||'없음', smc.bos&&smc.bos.includes('강세')?'var(--green)':smc.bos?'var(--red)':'var(--muted)'],
+        ['FVG', smc.fvg||'없음', smc.fvg&&smc.fvg.includes('상승')?'var(--green)':smc.fvg?'var(--red)':'var(--muted)'],
+        ['Order Block', smc.ob||'없음', smc.ob&&smc.ob.includes('수요')?'var(--green)':smc.ob?'var(--red)':'var(--muted)'],
+        ['SMC 시그널', smc.smc_signal>0?'▲ 매수':smc.smc_signal<0?'▼ 매도':'— 중립', smc.smc_signal>0?'var(--green)':smc.smc_signal<0?'var(--red)':'var(--muted)'],
+      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+    </div>
 
-      <!-- 퀀트 팩터 -->
-      <div class="card">
-        <div class="card-header"><span class="dot" style="background:var(--green)"></span>퀀트 팩터</div>
-        ${[
-          ['팩터 스코어', quant.factor_score.toFixed(3), quant.factor_score>0.3?'var(--green)':quant.factor_score<-0.3?'var(--red)':'var(--yellow)'],
-          ['모멘텀 1M', quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(1)+'%':'-', quant.mom1m>0?'var(--green)':quant.mom1m<0?'var(--red)':''],
-          ['모멘텀 3M', quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(1)+'%':'-', quant.mom3m>0?'var(--green)':quant.mom3m<0?'var(--red)':''],
-          ['모멘텀 6M', quant.mom6m!=null?(quant.mom6m>0?'+':'')+quant.mom6m.toFixed(1)+'%':'-', quant.mom6m>0?'var(--green)':quant.mom6m<0?'var(--red)':''],
-          ['MA20 위치', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--green)':'var(--red)'],
-          ['MA60 위치', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--green)':'var(--red)'],
-          ['연환산 변동성', quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-', ''],
-        ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
-      </div>
+    <!-- 퀀트 팩터 -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--green)"></span>퀀트 팩터</div>
+      ${[
+        ['팩터 스코어', quant.factor_score.toFixed(3), quant.factor_score>0.3?'var(--green)':quant.factor_score<-0.3?'var(--red)':'var(--yellow)'],
+        ['모멘텀 1M', quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(1)+'%':'-', quant.mom1m!=null&&quant.mom1m>0?'var(--green)':quant.mom1m!=null?'var(--red)':''],
+        ['모멘텀 3M', quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(1)+'%':'-', quant.mom3m!=null&&quant.mom3m>0?'var(--green)':quant.mom3m!=null?'var(--red)':''],
+        ['모멘텀 6M', quant.mom6m!=null?(quant.mom6m>0?'+':'')+quant.mom6m.toFixed(1)+'%':'-', quant.mom6m!=null&&quant.mom6m>0?'var(--green)':quant.mom6m!=null?'var(--red)':''],
+        ['MA20', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--green)':'var(--red)'],
+        ['MA60', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--green)':'var(--red)'],
+        ['연환산 변동성', quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-', ''],
+      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+    </div>
 
-      <!-- 캔들스틱 패턴 -->
-      <div class="card">
-        <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱 패턴</div>
-        <div class="metric-row"><span>감지 패턴 수</span><span class="metric-val">${cs.patterns.length}개</span></div>
-        <div class="metric-row"><span>패턴 시그널</span><span class="metric-val" style="color:${cs.cs_signal>0?'var(--green)':cs.cs_signal<0?'var(--red)':'var(--muted)'}">${cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립'}</span></div>
-        ${cs.patterns.length>0?`<div style="margin-top:6px;font-size:0.72rem;color:var(--muted);line-height:1.6">${cs.patterns.join(' · ')}</div>`:'<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">감지된 패턴 없음</div>'}
+  </div>
+
+  <!-- ── Row 3: 기술적·기본적 지표 테이블 (2열) ── -->
+  <div class="row row-bottom">
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--purple)"></span>기술적 지표</div>
+      ${[
+        ['RSI (14)',    I.rsi?.toFixed(1),                    I.rsi<30?'var(--green)':I.rsi>70?'var(--red)':''],
+        ['Stoch %K',   I.stochK?.toFixed(1),                  ''],
+        ['Stoch %D',   I.stochD?.toFixed(1),                  ''],
+        ['MACD',       I.macd?.toFixed(4),                    ''],
+        ['MACD Hist',  I.macdHist?.toFixed(4),                I.macdHist>0?'var(--green)':'var(--red)'],
+        ['BB %',       I.bbPct!=null?(I.bbPct*100).toFixed(1)+'%':'-', ''],
+        ['ATR',        I.atr!=null?fmt(I.atr,isKr):'-',      ''],
+        ['거래량 비율', I.volRatio!=null?I.volRatio.toFixed(2)+'x':'-', I.volRatio>1?'var(--green)':'var(--red)'],
+      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v??'-'}</span></div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>기본적 지표</div>
+      ${[
+        ['PER',       M.per!=null?M.per.toFixed(1)+'x':'-',          ''],
+        ['PBR',       M.pbr!=null?M.pbr.toFixed(2)+'x':'-',          ''],
+        ['ROE',       M.roe!=null?M.roe.toFixed(1)+'%':'-',           M.roe>10?'var(--green)':'var(--red)'],
+        ['순이익률',   M.netMargin!=null?M.netMargin.toFixed(1)+'%':'-',''],
+        ['매출성장률', M.revGrowth!=null?(M.revGrowth>0?'+':'')+M.revGrowth.toFixed(1)+'%':'-', M.revGrowth>0?'var(--green)':'var(--red)'],
+        ['이익성장률', M.earnGrowth!=null?(M.earnGrowth>0?'+':'')+M.earnGrowth.toFixed(1)+'%':'-', M.earnGrowth>0?'var(--green)':'var(--red)'],
+        ['부채비율',   M.debtEq!=null?M.debtEq.toFixed(0)+'%':'-',   ''],
+        ['배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-',''],
+        ['내재가치',   fmt(fund.intrinsic,isKr)+' '+currency,          fund.intrinsic>price?'var(--green)':'var(--red)'],
+      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v??'-'}</span></div>`).join('')}
+    </div>
+  </div>
+
+  <!-- ── Row 4: 차트 (최하단) ── -->
+  <div class="card" style="padding:14px 16px;margin-top:0">
+    <div class="card-header"><span class="dot" style="background:var(--green)"></span>종가 · Bollinger Band</div>
+    <div class="chart-container"><canvas id="priceChart"></canvas></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+      <div>
+        <div class="card-header"><span class="dot" style="background:var(--purple)"></span>RSI (14)</div>
+        <div class="chart-container-sm"><canvas id="rsiChart"></canvas></div>
+      </div>
+      <div>
+        <div class="card-header"><span class="dot" style="background:var(--blue)"></span>MACD</div>
+        <div class="chart-container-sm"><canvas id="macdChart"></canvas></div>
       </div>
     </div>
   </div>
