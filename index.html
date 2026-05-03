@@ -874,6 +874,267 @@ function computeIndicators(bars) {
 }
 
 // ══════════════════════════════════════════════════════
+//  Layer 2: 캔들스틱 패턴 (15종)
+// ══════════════════════════════════════════════════════
+function computeCandlestick(bars) {
+  const n = bars.length;
+  if (n < 3) return { cs_signal: 0, cs_score: 0, patterns: [] };
+  const O = bars.map(b=>b.open), H = bars.map(b=>b.high), L = bars.map(b=>b.low), C = bars.map(b=>b.close);
+  const body_pct = 0.1, shadow_ratio = 2.0;
+  const detectedPatterns = [];
+
+  // Only analyze last 3 bars
+  const i = n - 1;
+  function body(j) { return Math.abs(C[j]-O[j]); }
+  function rng(j)  { return H[j]-L[j] || 1e-9; }
+  function upper(j){ return H[j] - Math.max(O[j],C[j]); }
+  function lower(j){ return Math.min(O[j],C[j]) - L[j]; }
+  function isBull(j){ return C[j] > O[j]; }
+
+  let bullScore = 0, bearScore = 0;
+
+  // Single-candle
+  if (body(i)/rng(i) < body_pct) { detectedPatterns.push('Doji'); }
+  if (lower(i) > body(i)*shadow_ratio && upper(i) < body(i)*0.3 && isBull(i)) { detectedPatterns.push('Hammer'); bullScore++; }
+  if (upper(i) > body(i)*shadow_ratio && lower(i) < body(i)*0.3 && isBull(i)) { detectedPatterns.push('InvertedHammer'); bullScore++; }
+  if (upper(i) > body(i)*shadow_ratio && lower(i) < body(i)*0.3 && !isBull(i)) { detectedPatterns.push('ShootingStar'); bearScore++; }
+
+  // Double-candle (i-1, i)
+  if (i >= 1) {
+    const prevBull = isBull(i-1);
+    if (!prevBull && isBull(i) && O[i] < C[i-1] && C[i] > O[i-1]) { detectedPatterns.push('BullishEngulfing'); bullScore+=2; }
+    if (prevBull && !isBull(i) && O[i] > C[i-1] && C[i] < O[i-1]) { detectedPatterns.push('BearishEngulfing'); bearScore+=2; }
+    if (!prevBull && isBull(i) && O[i] > C[i-1] && C[i] < O[i-1]) { detectedPatterns.push('BullishHarami'); bullScore++; }
+    if (prevBull && !isBull(i) && O[i] < C[i-1] && C[i] > O[i-1]) { detectedPatterns.push('BearishHarami'); bearScore++; }
+    if (!prevBull && isBull(i) && O[i] < L[i-1] && C[i] > (O[i-1]+C[i-1])/2) { detectedPatterns.push('PiercingLine'); bullScore+=2; }
+    if (prevBull && !isBull(i) && O[i] > H[i-1] && C[i] < (O[i-1]+C[i-1])/2) { detectedPatterns.push('DarkCloudCover'); bearScore+=2; }
+  }
+
+  // Triple-candle (i-2, i-1, i)
+  if (i >= 2) {
+    const ppBull = isBull(i-2);
+    const pDoji = body(i-1)/rng(i-1) < body_pct;
+    if (ppBull && pDoji && isBull(i) && C[i] > (O[i-2]+C[i-2])/2) { detectedPatterns.push('MorningStar'); bullScore+=2; }
+    if (!ppBull && pDoji && !isBull(i) && C[i] < (O[i-2]+C[i-2])/2) { detectedPatterns.push('EveningStar'); bearScore+=2; }
+    if (isBull(i)&&isBull(i-1)&&isBull(i-2)&&C[i]>C[i-1]&&C[i-1]>C[i-2]) { detectedPatterns.push('ThreeWhiteSoldiers'); bullScore+=2; }
+    if (!isBull(i)&&!isBull(i-1)&&!isBull(i-2)&&C[i]<C[i-1]&&C[i-1]<C[i-2]) { detectedPatterns.push('ThreeBlackCrows'); bearScore+=2; }
+  }
+
+  const cs_score = bullScore - bearScore;
+  const cs_signal = cs_score > 0 ? 1 : cs_score < 0 ? -1 : 0;
+  return { cs_signal, cs_score, patterns: detectedPatterns };
+}
+
+// ══════════════════════════════════════════════════════
+//  Layer 2: 엘리어트 파동 + 피보나치
+// ══════════════════════════════════════════════════════
+function computeElliottWave(bars) {
+  const closes = bars.map(b=>b.close);
+  const n = closes.length;
+  const sw = Math.max(5, Math.floor(n/20));
+
+  // Detect swing highs/lows
+  const highs = [], lows = [];
+  for (let i=sw; i<n-sw; i++) {
+    const w = closes.slice(i-sw, i+sw+1);
+    if (closes[i] === Math.max(...w)) highs.push({ idx:i, val:closes[i] });
+    if (closes[i] === Math.min(...w)) lows.push({ idx:i, val:closes[i] });
+  }
+
+  // Merge & sort swings
+  const swings = [...highs.map(h=>({...h,type:'H'})), ...lows.map(l=>({...l,type:'L'}))]
+    .sort((a,b)=>a.idx-b.idx).slice(-10);
+
+  const pivotHigh = Math.max(...closes.slice(-sw*2));
+  const pivotLow  = Math.min(...closes.slice(-sw*2));
+  const diff = pivotHigh - pivotLow;
+  const FIB = [0.236,0.382,0.5,0.618,0.786,1.0,1.272,1.618,2.618];
+  const fibLevels = {};
+  FIB.forEach(r => { fibLevels[`fib_${r}`] = Math.round(pivotHigh - diff*r); });
+
+  let ew_signal = 0, wave_label = '분석 불충분';
+  const entry_zone = {};
+
+  if (swings.length >= 5) {
+    const pts = swings.slice(-5).map(s=>s.val);
+    const w1 = pts[1]-pts[0], w3 = pts[3]-pts[2];
+    const w2r = w1!==0 ? (pts[1]-pts[2])/(pts[1]-pts[0]) : 0;
+    const w4r = w3!==0 ? (pts[3]-pts[4])/(pts[3]-pts[2]) : 0;
+    const impulseUp = pts[1]>pts[0] && pts[3]>pts[2] && pts[4]<pts[3]
+      && w2r>=0.382 && w2r<=0.786 && w4r>=0.236 && w4r<=0.5;
+    if (impulseUp) {
+      wave_label = '5파 완성 → 조정 예상';
+      ew_signal = -1;
+      ['fib_0.382','fib_0.5','fib_0.618'].forEach(k => { if(fibLevels[k]) entry_zone[k]=fibLevels[k]; });
+    } else if (w2r >= 0.382) {
+      wave_label = 'ABC 조정 완료 → 매수 구간';
+      ew_signal = 1;
+      ['fib_0.5','fib_0.618'].forEach(k => { if(fibLevels[k]) entry_zone[k]=fibLevels[k]; });
+    } else {
+      wave_label = '파동 진행 중';
+    }
+  }
+
+  return { ew_signal, wave_label, entry_zone, fib_levels: fibLevels, pivot_high: pivotHigh, pivot_low: pivotLow };
+}
+
+// ══════════════════════════════════════════════════════
+//  Layer 2: 이치모쿠 균형표
+// ══════════════════════════════════════════════════════
+function computeIchimoku(bars) {
+  const n = bars.length;
+  const H = bars.map(b=>b.high), L = bars.map(b=>b.low), C = bars.map(b=>b.close);
+  const mid = (arr, len, i) => {
+    if (i < len-1) return null;
+    const sl = arr.slice(i-len+1, i+1);
+    return (Math.max(...sl) + Math.min(...sl)) / 2;
+  };
+  const disp = 26;
+  const tenkan = C.map((_,i)=>mid(H.map((h,j)=>Math.max(h,L[j]?L[j]:h)),9,i) !== null
+    ? (()=>{ const sl=bars.slice(Math.max(0,i-8),i+1); return sl.length<9?null:(Math.max(...sl.map(b=>b.high))+Math.min(...sl.map(b=>b.low)))/2; })()
+    : null);
+  // Simplified: compute at last index only
+  const midN = (len) => {
+    if (n < len) return null;
+    const sl = bars.slice(n-len);
+    return (Math.max(...sl.map(b=>b.high)) + Math.min(...sl.map(b=>b.low))) / 2;
+  };
+  const tk = midN(9), kj = midN(26), skb = midN(52);
+  const ska = (tk!=null&&kj!=null) ? (tk+kj)/2 : null;
+  const lastClose = C[n-1];
+  const prevTk = n>1 ? (()=>{ const sl=bars.slice(Math.max(0,n-10),n-1); return (Math.max(...sl.map(b=>b.high))+Math.min(...sl.map(b=>b.low)))/2; })() : null;
+  const prevKj = n>1 ? (()=>{ const sl=bars.slice(Math.max(0,n-27),n-1); return (Math.max(...sl.map(b=>b.high))+Math.min(...sl.map(b=>b.low)))/2; })() : null;
+
+  const aboveCloud = ska!=null && skb!=null && lastClose > ska && lastClose > skb;
+  const belowCloud = ska!=null && skb!=null && lastClose < ska && lastClose < skb;
+  const tkCrossUp = tk!=null&&kj!=null&&prevTk!=null&&prevKj!=null && tk>kj && prevTk<=prevKj;
+  const tkCrossDn = tk!=null&&kj!=null&&prevTk!=null&&prevKj!=null && tk<kj && prevTk>=prevKj;
+
+  let ichi_signal = 0;
+  if (aboveCloud && tkCrossUp) ichi_signal = 1;
+  else if (!aboveCloud && tkCrossDn) ichi_signal = -1;
+  else if (aboveCloud) ichi_signal = 0.5;
+  else if (belowCloud) ichi_signal = -0.5;
+
+  return { ichi_signal: Math.round(ichi_signal), tenkan:tk, kijun:kj, senkou_a:ska, senkou_b:skb, aboveCloud, belowCloud };
+}
+
+// ══════════════════════════════════════════════════════
+//  Layer 2: SMC (Smart Money Concepts)
+// ══════════════════════════════════════════════════════
+function computeSMC(bars) {
+  const n = bars.length;
+  if (n < 20) return { smc_signal: 0, bos: null, fvg: null, ob: null };
+  const H = bars.map(b=>b.high), L = bars.map(b=>b.low), C = bars.map(b=>b.close), O = bars.map(b=>b.open);
+  const sw = 10;
+  const i = n - 1;
+
+  // BOS
+  const prevHiWindow = H.slice(Math.max(0,i-sw), i);
+  const prevLoWindow = L.slice(Math.max(0,i-sw), i);
+  const prevHi = Math.max(...prevHiWindow), prevLo = Math.min(...prevLoWindow);
+  const bos_bull = C[i] > prevHi && C[i-1] <= prevHi;
+  const bos_bear = C[i] < prevLo && C[i-1] >= prevLo;
+
+  // FVG (Fair Value Gap)
+  const fvg_bull = i>=2 && L[i] > H[i-2];
+  const fvg_bear = i>=2 && H[i] < L[i-2];
+
+  // Order Block
+  const bearish = idx => C[idx] < O[idx];
+  const ob_demand = i>=2 && bearish(i-1) && C[i] > H[i-1];
+  const ob_supply = i>=2 && !bearish(i-1) && C[i] < L[i-1];
+
+  let smc_signal = 0;
+  if (bos_bull || fvg_bull || ob_demand) smc_signal = 1;
+  if (bos_bear || fvg_bear || ob_supply) smc_signal = -1;
+
+  const bos  = bos_bull ? '강세 BOS' : bos_bear ? '약세 BOS' : null;
+  const fvg  = fvg_bull ? '상승 FVG' : fvg_bear ? '하락 FVG' : null;
+  const ob   = ob_demand ? '수요 OB' : ob_supply ? '공급 OB' : null;
+
+  return { smc_signal, bos, fvg, ob };
+}
+
+// ══════════════════════════════════════════════════════
+//  Layer 3: 퀀트 팩터 스코어
+// ══════════════════════════════════════════════════════
+function computeQuantFactors(bars, ind) {
+  const n = bars.length;
+  const C = bars.map(b=>b.close);
+
+  // 모멘텀
+  const mom1m  = n>21  ? (C[n-1]-C[n-22])/C[n-22] : null;
+  const mom3m  = n>63  ? (C[n-1]-C[n-64])/C[n-64] : null;
+  const mom6m  = n>126 ? (C[n-1]-C[n-127])/C[n-127] : null;
+
+  // 추세
+  const ma20  = ind.sma20[n-1];
+  const ma60  = n>=60 ? C.slice(n-60).reduce((a,b)=>a+b,0)/60 : null;
+  const above_ma20  = ma20  != null ? (C[n-1] > ma20  ? 1 : -1) : 0;
+  const above_ma60  = ma60  != null ? (C[n-1] > ma60  ? 1 : -1) : 0;
+
+  // 변동성 (낮을수록 좋음 → 역배점)
+  let vol20 = null;
+  if (n >= 21) {
+    const rets = C.slice(n-21).map((v,i,a)=>i>0?(v-a[i-1])/a[i-1]:null).filter(v=>v!=null);
+    const mean = rets.reduce((a,b)=>a+b,0)/rets.length;
+    vol20 = Math.sqrt(rets.reduce((a,b)=>a+(b-mean)**2,0)/rets.length) * Math.sqrt(252);
+  }
+
+  // RSI, MACD Hist, BB %B (from existing ind)
+  const rsiV = last(ind.rsi), macdH = last(ind.hist), bbP = last(ind.bbPct);
+
+  // Z-score normalization (simple: normalize within known ranges)
+  function zscore(v, mean, std) { return std>0 ? (v-mean)/std : 0; }
+  const momZ  = mom1m != null ? Math.tanh(mom1m * 5) : 0;
+  const mom3Z = mom3m != null ? Math.tanh(mom3m * 3) : 0;
+  const mom6Z = mom6m != null ? Math.tanh(mom6m * 2) : 0;
+  const trendZ = (above_ma20 + above_ma60) / 2;
+  const rsiZ   = rsiV != null ? (rsiV < 30 ? 0.8 : rsiV > 70 ? -0.8 : (50-rsiV)/50*0.4) : 0;
+  const macdZ  = macdH != null ? Math.tanh(macdH / (last(ind.atr)||1) * 3) : 0;
+  const bbZ    = bbP != null ? (1 - 2*bbP) * 0.5 : 0;
+  const volZ   = vol20 != null ? -Math.tanh(vol20 * 2) * 0.5 : 0; // 역배점
+
+  const factor_score = (momZ*0.2 + mom3Z*0.15 + mom6Z*0.1 + trendZ*0.15 + rsiZ*0.1 + macdZ*0.15 + bbZ*0.1 + volZ*0.05);
+  const quant_signal = factor_score > 0.3 ? 1 : factor_score < -0.3 ? -1 : 0;
+
+  return {
+    quant_signal, factor_score,
+    mom1m: mom1m != null ? mom1m*100 : null,
+    mom3m: mom3m != null ? mom3m*100 : null,
+    mom6m: mom6m != null ? mom6m*100 : null,
+    vol20: vol20 != null ? vol20*100 : null,
+    above_ma20, above_ma60,
+  };
+}
+
+// ══════════════════════════════════════════════════════
+//  Layer 5: 시그널 통합 (가중 평균)
+// ══════════════════════════════════════════════════════
+const MASTER_WEIGHTS = { cs: 1.5, ew: 2.0, ichi: 1.5, smc: 1.5, quant: 2.0 };
+
+function fuseAdvancedSignals(cs, ew, ichi, smc, quant) {
+  const signals = {
+    cs:   cs.cs_signal,
+    ew:   ew.ew_signal,
+    ichi: ichi.ichi_signal,
+    smc:  smc.smc_signal,
+    quant: quant.quant_signal,
+  };
+  let wsum = 0, wtotal = 0;
+  const details = {};
+  for (const [key, w] of Object.entries(MASTER_WEIGHTS)) {
+    const val = signals[key] || 0;
+    wsum += val * w;
+    wtotal += w;
+    details[key] = { score: val, weight: w, label: val>0?'▲ 매수':val<0?'▼ 매도':'— 관망' };
+  }
+  const composite = wtotal > 0 ? wsum / wtotal : 0;
+  return { composite, details };
+}
+
+// ══════════════════════════════════════════════════════
 //  채점
 // ══════════════════════════════════════════════════════
 function last(arr) {
@@ -955,15 +1216,27 @@ function scoreFundamental(info, price) {
   };
 }
 
-function makeDecision(tech, fund, style, price) {
+function makeDecision(tech, fund, style, price, advanced) {
   const W = { short_term:[0.75,0.25], balanced:[0.60,0.40], long_term:[0.35,0.65] };
   const [tw, fw] = W[style] || W.balanced;
-  let combined = tech.score*tw + fund.score*fw;
-  let conf     = tech.confidence*tw + fund.confidence*fw;
+
+  // Base combined score from tech + fundamental
+  let baseCombined = tech.score*tw + fund.score*fw;
+
+  // Blend with advanced signal fusion (weight: 40% advanced, 60% base)
+  const advW = 0.40;
+  const adv = advanced || { composite: 0 };
+  let combined = baseCombined*(1-advW) + adv.composite*advW;
+
+  let conf = tech.confidence*tw + fund.confidence*fw;
   const reasoning = [];
   const sameDir = (tech.score>0&&fund.score>0)||(tech.score<0&&fund.score<0);
   if (sameDir) { conf=Math.min(conf*1.2,1.0); reasoning.push('기술/기본 신호 방향 일치 → 신뢰도 상승'); }
   else          { conf*=0.8;                   reasoning.push('기술/기본 신호 방향 불일치 → 신뢰도 하락'); }
+
+  // Advanced signal alignment bonus
+  if (adv.composite > 0.3 && combined > 0) { conf=Math.min(conf*1.1,1.0); reasoning.push(`고급 분석 복합점수(${adv.composite.toFixed(2)}) 매수 방향 일치`); }
+  if (adv.composite < -0.3 && combined < 0) { conf=Math.min(conf*1.1,1.0); reasoning.push(`고급 분석 복합점수(${adv.composite.toFixed(2)}) 매도 방향 일치`); }
 
   let action;
   if (combined>0.25&&conf>0.5) {
@@ -978,18 +1251,18 @@ function makeDecision(tech, fund, style, price) {
     reasoning.push(`신호 강도(${combined.toFixed(2)}) 또는 신뢰도(${(conf*100).toFixed(0)}%) 불충분 → 관망`);
   }
 
-  // ── 목표가·손절가: 최종 action 기준으로 계산 (기술 신호와 달라질 수 있음) ──
+  // ── 목표가·손절가: 최종 action 기준으로 계산 ──
   const atr = tech.atr;
   let targetPrice, stopLoss;
   if (action === 'BUY') {
-    targetPrice = price + atr * 2.5;   // 목표가 위
-    stopLoss    = price - atr * 1.0;   // 손절가 아래
+    targetPrice = price + atr * 2.5;
+    stopLoss    = price - atr * 1.0;
   } else if (action === 'SELL') {
-    targetPrice = price - atr * 2.5;   // 익절가 아래 (공매도·비중축소)
-    stopLoss    = price + atr * 1.0;   // 손절가 위
-  } else {                             // HOLD
-    targetPrice = price + atr * 1.5;   // 근접 저항 (위)
-    stopLoss    = price - atr * 1.0;   // 근접 지지 (아래)
+    targetPrice = price - atr * 2.5;
+    stopLoss    = price + atr * 1.0;
+  } else {
+    targetPrice = price + atr * 1.5;
+    stopLoss    = price - atr * 1.0;
   }
 
   const risk=Math.abs(price-stopLoss), reward=Math.abs(targetPrice-price);
@@ -1000,7 +1273,9 @@ function makeDecision(tech, fund, style, price) {
     action, confidence: Math.round(conf*1000)/1000,
     targetPrice, stopLoss, rr,
     techScore: tech.score, fundScore: fund.score,
-    combined: Math.round(combined*10000)/10000, reasoning
+    combined: Math.round(combined*10000)/10000,
+    advancedComposite: Math.round(adv.composite*1000)/1000,
+    reasoning
   };
 }
 
@@ -1099,7 +1374,18 @@ async function runAnalysis() {
     const ind      = computeIndicators(bars);
     const tech     = scoreTechnical(ind, price);
     const fund     = scoreFundamental(fundInfo, price);
-    const decision = makeDecision(tech, fund, style, price);
+
+    // Layer 2: Advanced technical analysis
+    const cs       = computeCandlestick(bars);
+    const ew       = computeElliottWave(bars);
+    const ichi     = computeIchimoku(bars);
+    const smc      = computeSMC(bars);
+    // Layer 3: Quant factors
+    const quant    = computeQuantFactors(bars, ind);
+    // Layer 5: Signal fusion
+    const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant);
+
+    const decision = makeDecision(tech, fund, style, price, advanced);
 
     // 검색 기록 저장
     saveHistory(ticker, fundInfo.companyName || ticker);
@@ -1109,7 +1395,7 @@ async function runAnalysis() {
       companyName: fundInfo.companyName || resolveTickerName(ticker) || ticker,
       sector: fundInfo.sector || '-',
       changeAmt, changePct, high52w, low52w, mktState, updatedAt,
-      fundInfo,
+      fundInfo, cs, ew, ichi, smc, quant, advanced,
     });
 
   } catch(e) {
@@ -1138,7 +1424,8 @@ function toggleFavFromResult(ticker, name) {
 }
 
 function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency,
-    companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt, fundInfo }) {
+    companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt, fundInfo,
+    cs, ew, ichi, smc, quant, advanced }) {
   const flag      = isKr ? '🇰🇷' : '🇺🇸';
   const badgeCls  = {BUY:'buy',SELL:'sell',HOLD:'hold'}[d.action]||'hold';
   const badgeLbl  = {BUY:'● 매수 BUY',SELL:'● 매도 SELL',HOLD:'● 관망 HOLD'}[d.action];
@@ -1251,7 +1538,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
     <!-- 게이지 -->
     <div style="display:flex;flex-direction:column;gap:10px">
-      ${[['기술적 점수',d.techScore],['기본적 점수',d.fundScore],['통합 점수',d.combined]].map(([t,v])=>{
+      ${[['기술적 점수',d.techScore],['기본적 점수',d.fundScore],['통합 점수',d.combined],['고급분석 점수',d.advancedComposite]].map(([t,v])=>{
         const p=((v+1)/2*100).toFixed(0);
         const c=v>0.2?'var(--green)':v<-0.2?'var(--red)':'var(--yellow)';
         return `<div class="card gauge-wrap" style="padding:14px;text-align:center">
@@ -1303,6 +1590,66 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
           ['배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-',''],
           ['내재가치',   fmt(fund.intrinsic,isKr)+' '+currency,          fund.intrinsic>price?'var(--green)':'var(--red)'],
         ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v??'-'}</span></div>`).join('')}
+      </div>
+
+      <!-- 고급 분석 시그널 -->
+      <div class="card">
+        <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널</div>
+        ${Object.entries(advanced.details).map(([key, v]) => {
+          const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'이치모쿠', smc:'SMC', quant:'퀀트팩터' };
+          const c = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
+          return `<div class="metric-row"><span>${nameMap[key]||key} <span style="font-size:0.6rem;color:var(--muted)">w=${v.weight}</span></span><span class="metric-val" style="color:${c}">${v.label}</span></div>`;
+        }).join('')}
+        <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;font-size:0.78rem">
+          <span style="color:var(--muted)">복합점수</span>
+          <span style="float:right;font-weight:700;color:${d.advancedComposite>0.2?'var(--green)':d.advancedComposite<-0.2?'var(--red)':'var(--yellow)'}">${d.advancedComposite.toFixed(3)}</span>
+        </div>
+      </div>
+
+      <!-- 엘리어트 파동 -->
+      <div class="card">
+        <div class="card-header"><span class="dot" style="background:var(--blue)"></span>엘리어트 파동 · 피보나치</div>
+        <div class="metric-row"><span>파동 상태</span><span class="metric-val" style="color:${ew.ew_signal>0?'var(--green)':ew.ew_signal<0?'var(--red)':'var(--muted)'}">${ew.wave_label}</span></div>
+        <div class="metric-row"><span>피봇 고점</span><span class="metric-val">${fmt(ew.pivot_high,isKr)}</span></div>
+        <div class="metric-row"><span>피봇 저점</span><span class="metric-val">${fmt(ew.pivot_low,isKr)}</span></div>
+        ${Object.entries(ew.entry_zone||{}).map(([k,v])=>`
+          <div class="metric-row"><span style="font-size:0.72rem">${k}</span><span class="metric-val" style="color:var(--yellow)">${fmt(v,isKr)}</span></div>`).join('')}
+      </div>
+
+      <!-- 이치모쿠 + SMC -->
+      <div class="card">
+        <div class="card-header"><span class="dot" style="background:var(--purple)"></span>이치모쿠 · SMC</div>
+        ${[
+          ['이치모쿠 신호', ichi.ichi_signal>0?'▲ 매수':ichi.ichi_signal<0?'▼ 매도':'— 관망', ichi.ichi_signal>0?'var(--green)':ichi.ichi_signal<0?'var(--red)':'var(--muted)'],
+          ['전환선(9)', ichi.tenkan!=null?fmt(ichi.tenkan,isKr):'-', ''],
+          ['기준선(26)', ichi.kijun!=null?fmt(ichi.kijun,isKr):'-', ''],
+          ['구름 위치', ichi.aboveCloud?'구름 위 (강세)':ichi.belowCloud?'구름 아래 (약세)':'구름 안(중립)', ichi.aboveCloud?'var(--green)':ichi.belowCloud?'var(--red)':'var(--yellow)'],
+          ['BOS', smc.bos||'-', smc.bos&&smc.bos.includes('강세')?'var(--green)':smc.bos?'var(--red)':''],
+          ['FVG', smc.fvg||'-', smc.fvg&&smc.fvg.includes('상승')?'var(--green)':smc.fvg?'var(--red)':''],
+          ['Order Block', smc.ob||'-', smc.ob&&smc.ob.includes('수요')?'var(--green)':smc.ob?'var(--red)':''],
+        ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+      </div>
+
+      <!-- 퀀트 팩터 -->
+      <div class="card">
+        <div class="card-header"><span class="dot" style="background:var(--green)"></span>퀀트 팩터</div>
+        ${[
+          ['팩터 스코어', quant.factor_score.toFixed(3), quant.factor_score>0.3?'var(--green)':quant.factor_score<-0.3?'var(--red)':'var(--yellow)'],
+          ['모멘텀 1M', quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(1)+'%':'-', quant.mom1m>0?'var(--green)':quant.mom1m<0?'var(--red)':''],
+          ['모멘텀 3M', quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(1)+'%':'-', quant.mom3m>0?'var(--green)':quant.mom3m<0?'var(--red)':''],
+          ['모멘텀 6M', quant.mom6m!=null?(quant.mom6m>0?'+':'')+quant.mom6m.toFixed(1)+'%':'-', quant.mom6m>0?'var(--green)':quant.mom6m<0?'var(--red)':''],
+          ['MA20 위치', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--green)':'var(--red)'],
+          ['MA60 위치', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--green)':'var(--red)'],
+          ['연환산 변동성', quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-', ''],
+        ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+      </div>
+
+      <!-- 캔들스틱 패턴 -->
+      <div class="card">
+        <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱 패턴</div>
+        <div class="metric-row"><span>감지 패턴 수</span><span class="metric-val">${cs.patterns.length}개</span></div>
+        <div class="metric-row"><span>패턴 시그널</span><span class="metric-val" style="color:${cs.cs_signal>0?'var(--green)':cs.cs_signal<0?'var(--red)':'var(--muted)'}">${cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립'}</span></div>
+        ${cs.patterns.length>0?`<div style="margin-top:6px;font-size:0.72rem;color:var(--muted);line-height:1.6">${cs.patterns.join(' · ')}</div>`:'<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">감지된 패턴 없음</div>'}
       </div>
     </div>
   </div>
