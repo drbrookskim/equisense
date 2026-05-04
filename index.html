@@ -419,6 +419,55 @@
   .ac-loading { padding: 12px 14px; font-size: 0.82rem; color: var(--muted); text-align: center; }
   .chart-container { position: relative; height: 340px; }
   .chart-container-sm { position: relative; height: 120px; }
+  /* ── 툴팁 ── */
+  .tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: var(--border2);
+    color: var(--muted);
+    font-size: 0.55rem;
+    font-weight: 700;
+    cursor: default;
+    position: relative;
+    margin-left: 4px;
+    flex-shrink: 0;
+    vertical-align: middle;
+    line-height: 1;
+    user-select: none;
+  }
+  .tip::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a2540;
+    color: #e2e8f0;
+    font-size: 0.68rem;
+    font-weight: 400;
+    line-height: 1.45;
+    padding: 7px 10px;
+    border-radius: 7px;
+    white-space: pre-line;
+    width: 220px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 999;
+    border: 1px solid #2d3f5a;
+    text-align: left;
+  }
+  /* 화면 왼쪽 끝 카드는 오른쪽으로 */
+  .tip.tip-right::after { left: 0; transform: none; }
+  /* 화면 오른쪽 끝 카드는 왼쪽으로 */
+  .tip.tip-left::after  { left: auto; right: 0; transform: none; }
+  .tip:hover::after { opacity: 1; }
+  .metric-row { align-items: flex-start; }
+  .metric-row > span:first-child { display: flex; align-items: center; flex-wrap: wrap; }
   /* ── 고급 분석 6열 그리드 ── */
   .adv-grid {
     display: grid;
@@ -708,6 +757,17 @@ function renderHistory() {
 function setTickerAndRun(ticker) {
   document.getElementById('ticker-input').value = ticker;
   runAnalysis();
+}
+
+// 툴팁 아이콘 생성 헬퍼
+function tip(text, dir='') {
+  const cls = dir ? `tip tip-${dir}` : 'tip';
+  return `<span class="${cls}" data-tip="${text}">?</span>`;
+}
+// metric row with optional tooltip
+function mrow(label, val, color, tipText, tipDir='') {
+  const t = tipText ? tip(tipText, tipDir) : '';
+  return `<div class="metric-row"><span>${label}${t}</span><span class="metric-val" style="color:${color||'#cbd5e1'}">${val??'-'}</span></div>`;
 }
 
 function fmt(n, isKr) {
@@ -1566,23 +1626,30 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
     <!-- 고급 분석 시그널 요약 -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널</div>
+      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널 ${tip('5개 레이어를 가중 평균한 종합 매매 신호\n각 레이어의 w(가중치)가 높을수록\n최종 복합점수에 더 큰 영향을 미침\n+1=매수 / 0=중립 / -1=매도')}</div>
       ${Object.entries(advanced.details).map(([key, v]) => {
         const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'이치모쿠', smc:'SMC', quant:'퀀트팩터' };
+        const tipMap  = {
+          cs:   '최근 봉 패턴으로 단기 방향 판단\n매수 패턴 수 - 매도 패턴 수 = cs_score\n+→매수 / -→매도 / 0→중립',
+          ew:   '중장기 파동 구조 분석 (가중치 최고)\n5파 완성 → 조정 예상(매도)\nABC조정 완료 → 반등 예상(매수)',
+          ichi: '이치모쿠 구름·전환선·기준선 복합 판단\n구름 위 + 전환선 상향돌파 → 강한 매수\n구름 아래 + 전환선 하향이탈 → 강한 매도',
+          smc:  '기관·세력 거래 흔적 분석\nBOS·FVG·OB 중 하나라도 매수 신호면 +1\n모두 없거나 반대면 0/-1',
+          quant:'모멘텀·추세·RSI·MACD·BB %B 팩터\nZ-스코어 가중 평균 → -1~+1 스코어',
+        };
         const c = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
-        return `<div class="metric-row"><span>${nameMap[key]||key} <span style="font-size:0.6rem;color:var(--muted)">w=${v.weight}</span></span><span class="metric-val" style="color:${c}">${v.label}</span></div>`;
+        return `<div class="metric-row"><span>${nameMap[key]||key} <span style="font-size:0.6rem;color:var(--muted)">w=${v.weight}</span>${tip(tipMap[key]||'')}</span><span class="metric-val" style="color:${c}">${v.label}</span></div>`;
       }).join('')}
       <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;font-size:0.78rem">
-        <span style="color:var(--muted)">복합점수</span>
+        <span style="color:var(--muted)">복합점수 ${tip('각 시그널을 가중치로 평균한 값\n> +0.3 → LONG 신호\n< -0.3 → SHORT 신호\n그 외 → STAND ASIDE')}</span>
         <span style="float:right;font-weight:700;color:${d.advancedComposite>0.2?'var(--green)':d.advancedComposite<-0.2?'var(--red)':'var(--yellow)'}">${d.advancedComposite.toFixed(3)}</span>
       </div>
     </div>
 
     <!-- 캔들스틱 패턴 -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱 패턴</div>
-      <div class="metric-row"><span>패턴 시그널</span><span class="metric-val" style="color:${cs.cs_signal>0?'var(--green)':cs.cs_signal<0?'var(--red)':'var(--muted)'}">${cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립'}</span></div>
-      <div class="metric-row"><span>감지 패턴 수</span><span class="metric-val">${cs.patterns.length}개</span></div>
+      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱 패턴 ${tip('최근 1~3일 봉 형태로 단기 방향 감지\n강세: Hammer, BullishEngulfing,\n  MorningStar, ThreeWhiteSoldiers 등\n약세: ShootingStar, BearishEngulfing,\n  EveningStar, ThreeBlackCrows 등')}</div>
+      ${mrow('패턴 시그널', cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립', cs.cs_signal>0?'var(--green)':cs.cs_signal<0?'var(--red)':'var(--muted)', '강세 패턴 수 - 약세 패턴 수\n양수 → 매수 신호\n음수 → 매도 신호\n0 → 패턴 없거나 중립')}
+      ${mrow('감지 패턴 수', cs.patterns.length+'개', '', '오늘 봉 포함 최근 3봉에서\n감지된 캔들스틱 패턴 총 개수')}
       ${cs.patterns.length>0
         ? cs.patterns.map(p=>`<div style="margin-top:4px;font-size:0.72rem;padding:3px 7px;border-radius:10px;display:inline-block;background:var(--border);color:var(--text2);margin-right:4px">${p}</div>`).join('')
         : '<div style="font-size:0.72rem;color:var(--muted);margin-top:6px">감지된 패턴 없음</div>'}
@@ -1590,50 +1657,44 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
     <!-- 엘리어트 파동 -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--blue)"></span>엘리어트 파동 · 피보나치</div>
-      <div class="metric-row"><span>파동 상태</span><span class="metric-val" style="color:${ew.ew_signal>0?'var(--green)':ew.ew_signal<0?'var(--red)':'var(--muted)'};font-size:0.72rem">${ew.wave_label}</span></div>
-      <div class="metric-row"><span>피봇 고점</span><span class="metric-val">${fmt(ew.pivot_high,isKr)}</span></div>
-      <div class="metric-row"><span>피봇 저점</span><span class="metric-val">${fmt(ew.pivot_low,isKr)}</span></div>
+      <div class="card-header"><span class="dot" style="background:var(--blue)"></span>엘리어트 파동 · 피보나치 ${tip('가격이 5파(상승) + 3파(조정) 사이클로\n움직인다는 이론 기반 중장기 위치 분석\n피보나치 되돌림으로 진입 구간 산출')}</div>
+      ${mrow('파동 상태', ew.wave_label, ew.ew_signal>0?'var(--green)':ew.ew_signal<0?'var(--red)':'var(--muted)', '5파 완성 → 이후 ABC 하락조정 예상\nABC조정 완료 → 새로운 상승파 시작\n파동 진행 중 → 현재 추세 지속 가능성', 'right')}
+      ${mrow('피봇 고점', fmt(ew.pivot_high,isKr), '', '최근 구간 내 스윙 최고점\n피보나치 계산의 기준 상단', 'right')}
+      ${mrow('피봇 저점', fmt(ew.pivot_low,isKr), '', '최근 구간 내 스윙 최저점\n피보나치 계산의 기준 하단', 'right')}
       ${Object.entries(ew.entry_zone||{}).length
-        ? `<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;font-size:0.7rem;color:var(--muted)">진입 구간</div>`
+        ? `<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;font-size:0.7rem;color:var(--muted)">진입 구간 ${tip('피보나치 되돌림 기반 매수 예정 가격대\n0.618 → 황금비율 되돌림(가장 신뢰)\n0.5 → 50% 되돌림(중간 지지)\n0.382 → 얕은 되돌림(강세장)', 'right')}</div>`
           + Object.entries(ew.entry_zone).map(([k,v])=>`<div class="metric-row"><span style="font-size:0.72rem">${k}</span><span class="metric-val" style="color:var(--yellow)">${fmt(v,isKr)}</span></div>`).join('')
         : ''}
     </div>
 
     <!-- 이치모쿠 -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--purple)"></span>이치모쿠 균형표</div>
-      ${[
-        ['신호', ichi.ichi_signal>0?'▲ 매수':ichi.ichi_signal<0?'▼ 매도':'— 관망', ichi.ichi_signal>0?'var(--green)':ichi.ichi_signal<0?'var(--red)':'var(--muted)'],
-        ['전환선 (9)', ichi.tenkan!=null?fmt(ichi.tenkan,isKr):'-', ''],
-        ['기준선 (26)', ichi.kijun!=null?fmt(ichi.kijun,isKr):'-', ''],
-        ['구름 위치', ichi.aboveCloud?'구름 위 (강세)':ichi.belowCloud?'구름 아래 (약세)':'구름 안 (중립)', ichi.aboveCloud?'var(--green)':ichi.belowCloud?'var(--red)':'var(--yellow)'],
-      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+      <div class="card-header"><span class="dot" style="background:var(--purple)"></span>이치모쿠 균형표 ${tip('일목균형표: 전환선·기준선·구름대로\n추세·지지저항·모멘텀을 한눈에 파악\n구름 위 = 강세 / 구름 아래 = 약세')}</div>
+      ${mrow('신호', ichi.ichi_signal>0?'▲ 매수':ichi.ichi_signal<0?'▼ 매도':'— 관망', ichi.ichi_signal>0?'var(--green)':ichi.ichi_signal<0?'var(--red)':'var(--muted)', '구름 위치 + 전환/기준선 크로스 조합\n구름 위 & 전환↑기준 = 강한 매수\n구름 아래 & 전환↓기준 = 강한 매도\n구름 안 = 방향성 불명확', 'right')}
+      ${mrow('전환선 (9)', ichi.tenkan!=null?fmt(ichi.tenkan,isKr):'-', '', '9일 최고+최저 ÷ 2\n단기 추세선 역할\n주가가 전환선 위 = 단기 강세', 'right')}
+      ${mrow('기준선 (26)', ichi.kijun!=null?fmt(ichi.kijun,isKr):'-', '', '26일 최고+최저 ÷ 2\n중기 추세선·지지저항 역할\n주가가 기준선 위 = 중기 강세', 'right')}
+      ${mrow('구름 위치', ichi.aboveCloud?'구름 위 (강세)':ichi.belowCloud?'구름 아래 (약세)':'구름 안 (중립)', ichi.aboveCloud?'var(--green)':ichi.belowCloud?'var(--red)':'var(--yellow)', '선행스팬A(전환+기준 ÷2)와\n선행스팬B(52일 중간값)로 형성되는 구름\n현재가 구름 위 → 지지 역할\n현재가 구름 아래 → 저항 역할', 'right')}
     </div>
 
     <!-- SMC -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--red)"></span>SMC · 스마트머니</div>
-      ${[
-        ['BOS', smc.bos||'없음', smc.bos&&smc.bos.includes('강세')?'var(--green)':smc.bos?'var(--red)':'var(--muted)'],
-        ['FVG', smc.fvg||'없음', smc.fvg&&smc.fvg.includes('상승')?'var(--green)':smc.fvg?'var(--red)':'var(--muted)'],
-        ['Order Block', smc.ob||'없음', smc.ob&&smc.ob.includes('수요')?'var(--green)':smc.ob?'var(--red)':'var(--muted)'],
-        ['SMC 시그널', smc.smc_signal>0?'▲ 매수':smc.smc_signal<0?'▼ 매도':'— 중립', smc.smc_signal>0?'var(--green)':smc.smc_signal<0?'var(--red)':'var(--muted)'],
-      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+      <div class="card-header"><span class="dot" style="background:var(--red)"></span>SMC · 스마트머니 ${tip('기관·세력(Smart Money) 매매 흔적을\n구조적으로 분석하는 ICT 기반 기법')}</div>
+      ${mrow('BOS', smc.bos||'없음', smc.bos&&smc.bos.includes('강세')?'var(--green)':smc.bos?'var(--red)':'var(--muted)', 'Break of Structure\n직전 스윙 고점 돌파 → 강세 BOS\n직전 스윙 저점 이탈 → 약세 BOS\n추세 전환 또는 지속 신호')}
+      ${mrow('FVG', smc.fvg||'없음', smc.fvg&&smc.fvg.includes('상승')?'var(--green)':smc.fvg?'var(--red)':'var(--muted)', 'Fair Value Gap (공정가치 갭)\n3봉 연속으로 생긴 가격 공백\n상승 FVG: 세력의 매수 압력 증거\n하락 FVG: 세력의 매도 압력 증거')}
+      ${mrow('Order Block', smc.ob||'없음', smc.ob&&smc.ob.includes('수요')?'var(--green)':smc.ob?'var(--red)':'var(--muted)', '큰 방향 전환 직전의 마지막 봉\n수요 OB: 하락봉 이후 강한 상승\n  → 기관 매수 대기 구간\n공급 OB: 상승봉 이후 강한 하락\n  → 기관 매도 압력 구간')}
+      ${mrow('SMC 시그널', smc.smc_signal>0?'▲ 매수':smc.smc_signal<0?'▼ 매도':'— 중립', smc.smc_signal>0?'var(--green)':smc.smc_signal<0?'var(--red)':'var(--muted)', 'BOS·FVG·OB 세 요소 종합\n강세 신호 하나라도 → +1(매수)\n약세 신호 하나라도 → -1(매도)\n모두 없음 → 0(중립)')}
     </div>
 
     <!-- 퀀트 팩터 -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--green)"></span>퀀트 팩터</div>
-      ${[
-        ['팩터 스코어', quant.factor_score.toFixed(3), quant.factor_score>0.3?'var(--green)':quant.factor_score<-0.3?'var(--red)':'var(--yellow)'],
-        ['모멘텀 1M', quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(1)+'%':'-', quant.mom1m!=null&&quant.mom1m>0?'var(--green)':quant.mom1m!=null?'var(--red)':''],
-        ['모멘텀 3M', quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(1)+'%':'-', quant.mom3m!=null&&quant.mom3m>0?'var(--green)':quant.mom3m!=null?'var(--red)':''],
-        ['모멘텀 6M', quant.mom6m!=null?(quant.mom6m>0?'+':'')+quant.mom6m.toFixed(1)+'%':'-', quant.mom6m!=null&&quant.mom6m>0?'var(--green)':quant.mom6m!=null?'var(--red)':''],
-        ['MA20', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--green)':'var(--red)'],
-        ['MA60', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--green)':'var(--red)'],
-        ['연환산 변동성', quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-', ''],
-      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v}</span></div>`).join('')}
+      <div class="card-header"><span class="dot" style="background:var(--green)"></span>퀀트 팩터 ${tip('여러 수치 팩터를 Z-스코어로 표준화해\n종합 점수(-1~+1)로 변환하는 계량 분석\n모멘텀·추세·RSI·MACD·BB 등 복합 반영')}</div>
+      ${mrow('팩터 스코어', quant.factor_score.toFixed(3), quant.factor_score>0.3?'var(--green)':quant.factor_score<-0.3?'var(--red)':'var(--yellow)', '모든 팩터 Z-스코어 가중 평균\n> +0.3 → 매수 우위\n< -0.3 → 매도 우위\n-0.3 ~ +0.3 → 중립 구간', 'left')}
+      ${mrow('모멘텀 1M', quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(1)+'%':'-', quant.mom1m!=null&&quant.mom1m>0?'var(--green)':quant.mom1m!=null?'var(--red)':'', '1개월(21거래일) 가격 변화율\n단기 모멘텀 지표\n양수 → 단기 상승 흐름', 'left')}
+      ${mrow('모멘텀 3M', quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(1)+'%':'-', quant.mom3m!=null&&quant.mom3m>0?'var(--green)':quant.mom3m!=null?'var(--red)':'', '3개월(63거래일) 가격 변화율\n중기 모멘텀 지표\n학술 연구에서 가장 유효한 구간', 'left')}
+      ${mrow('모멘텀 6M', quant.mom6m!=null?(quant.mom6m>0?'+':'')+quant.mom6m.toFixed(1)+'%':'-', quant.mom6m!=null&&quant.mom6m>0?'var(--green)':quant.mom6m!=null?'var(--red)':'', '6개월(126거래일) 가격 변화율\n중장기 모멘텀 지표\n1·3·6M 모두 양수 = 강한 추세', 'left')}
+      ${mrow('MA20', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--green)':'var(--red)', '현재가 vs 20일 이동평균\n위 → 단기 상승 추세 유지\n아래 → 단기 하락 압력', 'left')}
+      ${mrow('MA60', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--green)':'var(--red)', '현재가 vs 60일 이동평균\n위 → 중기 상승 추세 유지\nMA20 위 + MA60 위 = 강세 확인', 'left')}
+      ${mrow('연환산 변동성', quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-', '', '20일 일간 수익률의 표준편차 × √252\n낮을수록 안정적 (15% 이하 저위험)\n높을수록 변동 큼 (30% 이상 고위험)', 'left')}
     </div>
 
   </div>
@@ -1642,30 +1703,26 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   <div class="row row-bottom">
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--purple)"></span>기술적 지표</div>
-      ${[
-        ['RSI (14)',    I.rsi?.toFixed(1),                    I.rsi<30?'var(--green)':I.rsi>70?'var(--red)':''],
-        ['Stoch %K',   I.stochK?.toFixed(1),                  ''],
-        ['Stoch %D',   I.stochD?.toFixed(1),                  ''],
-        ['MACD',       I.macd?.toFixed(4),                    ''],
-        ['MACD Hist',  I.macdHist?.toFixed(4),                I.macdHist>0?'var(--green)':'var(--red)'],
-        ['BB %',       I.bbPct!=null?(I.bbPct*100).toFixed(1)+'%':'-', ''],
-        ['ATR',        I.atr!=null?fmt(I.atr,isKr):'-',      ''],
-        ['거래량 비율', I.volRatio!=null?I.volRatio.toFixed(2)+'x':'-', I.volRatio>1?'var(--green)':'var(--red)'],
-      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v??'-'}</span></div>`).join('')}
+      ${mrow('RSI (14)', I.rsi?.toFixed(1), I.rsi<30?'var(--green)':I.rsi>70?'var(--red)':'', '상대강도지수(0~100)\n30 이하 → 과매도(매수 신호)\n70 이상 → 과매수(매도 신호)\n50 기준으로 강세/약세 판단')}
+      ${mrow('Stoch %K', I.stochK?.toFixed(1), '', '스토캐스틱 %K (0~100)\n14일 최고~최저 대비 현재 위치\n20 이하 → 과매도 구간\n80 이상 → 과매수 구간')}
+      ${mrow('Stoch %D', I.stochD?.toFixed(1), '', 'Stoch %K의 3일 이동평균\n%K > %D이고 20대 → 골든크로스(매수)\n%K < %D이고 80대 → 데드크로스(매도)')}
+      ${mrow('MACD', I.macd?.toFixed(4), '', 'EMA(12) - EMA(26)\n양수 → 단기 상승 모멘텀 우위\n음수 → 단기 하락 모멘텀 우위')}
+      ${mrow('MACD Hist', I.macdHist?.toFixed(4), I.macdHist>0?'var(--green)':'var(--red)', 'MACD - Signal(9일 EMA)\n막대가 커질수록 추세 강화\n0선 상향 돌파 → 매수\n0선 하향 이탈 → 매도')}
+      ${mrow('BB %', I.bbPct!=null?(I.bbPct*100).toFixed(1)+'%':'-', '', '볼린저밴드 내 상대 위치(0~100%)\n0% → 하단밴드(과매도 근접)\n100% → 상단밴드(과매수 근접)\n50% → 중심선(SMA20)')}
+      ${mrow('ATR', I.atr!=null?fmt(I.atr,isKr):'-', '', '평균실질범위(14일)\n하루 평균 변동폭 추정치\n목표가·손절가 계산의 기준단위로 사용')}
+      ${mrow('거래량 비율', I.volRatio!=null?I.volRatio.toFixed(2)+'x':'-', I.volRatio>1?'var(--green)':'var(--red)', '오늘 거래량 ÷ 20일 평균 거래량\n1.5x 이상 → 거래량 급증(추세 신뢰 상승)\n0.5x 이하 → 거래량 감소(추세 신뢰 약화)')}
     </div>
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>기본적 지표</div>
-      ${[
-        ['PER',       M.per!=null?M.per.toFixed(1)+'x':'-',          ''],
-        ['PBR',       M.pbr!=null?M.pbr.toFixed(2)+'x':'-',          ''],
-        ['ROE',       M.roe!=null?M.roe.toFixed(1)+'%':'-',           M.roe>10?'var(--green)':'var(--red)'],
-        ['순이익률',   M.netMargin!=null?M.netMargin.toFixed(1)+'%':'-',''],
-        ['매출성장률', M.revGrowth!=null?(M.revGrowth>0?'+':'')+M.revGrowth.toFixed(1)+'%':'-', M.revGrowth>0?'var(--green)':'var(--red)'],
-        ['이익성장률', M.earnGrowth!=null?(M.earnGrowth>0?'+':'')+M.earnGrowth.toFixed(1)+'%':'-', M.earnGrowth>0?'var(--green)':'var(--red)'],
-        ['부채비율',   M.debtEq!=null?M.debtEq.toFixed(0)+'%':'-',   ''],
-        ['배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-',''],
-        ['내재가치',   fmt(fund.intrinsic,isKr)+' '+currency,          fund.intrinsic>price?'var(--green)':'var(--red)'],
-      ].map(([k,v,c])=>`<div class="metric-row"><span>${k}</span><span class="metric-val" style="color:${c||'#cbd5e1'}">${v??'-'}</span></div>`).join('')}
+      ${mrow('PER', M.per!=null?M.per.toFixed(1)+'x':'-', '', '주가수익비율 = 주가 ÷ EPS\n낮을수록 저평가 가능성\n업종 평균 대비 비교 필요\n성장주 25x↑, 가치주 15x↓ 일반적')}
+      ${mrow('PBR', M.pbr!=null?M.pbr.toFixed(2)+'x':'-', '', '주가순자산비율 = 주가 ÷ BPS\n1배 이하 → 청산가치 이하(저평가)\n높을수록 시장 기대감 반영\nROE 높은 종목은 고PBR 정당화')}
+      ${mrow('ROE', M.roe!=null?M.roe.toFixed(1)+'%':'-', M.roe>10?'var(--green)':'var(--red)', '자기자본이익률 = 순이익 ÷ 자본\n10% 이상 → 우량 기업 기준\n높을수록 자본 효율성 우수\nPBR 정당화의 핵심 지표')}
+      ${mrow('순이익률', M.netMargin!=null?M.netMargin.toFixed(1)+'%':'-', '', '순이익 ÷ 매출액\n업종별 편차 큼(IT 20%↑, 유통 2~5%)\n지속적 개선 추세가 중요')}
+      ${mrow('매출성장률', M.revGrowth!=null?(M.revGrowth>0?'+':'')+M.revGrowth.toFixed(1)+'%':'-', M.revGrowth>0?'var(--green)':'var(--red)', '전년 동기 대비 매출 증가율\n양수 → 외형 성장 중\n10% 이상 → 고성장 기업 기준')}
+      ${mrow('이익성장률', M.earnGrowth!=null?(M.earnGrowth>0?'+':'')+M.earnGrowth.toFixed(1)+'%':'-', M.earnGrowth>0?'var(--green)':'var(--red)', '전년 동기 대비 순이익 증가율\n매출성장률보다 높으면 마진 개선\nPEG 계산의 분모로 활용')}
+      ${mrow('부채비율', M.debtEq!=null?M.debtEq.toFixed(0)+'%':'-', '', '총부채 ÷ 자기자본 × 100\n100% 이하 → 재무 안정\n200% 초과 → 위험 신호\n업종(금융·건설)은 높은 편')}
+      ${mrow('배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-', '', '연간 배당금 ÷ 주가 × 100\n배당주 기준 2~4% 양호\n높을수록 배당 매력 우수\n(단, 주가 급락으로 인한 고수익률 주의)')}
+      ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--green)':'var(--red)', '기술/기본 점수 기반 추정 내재가치\n현재가보다 높으면 → 저평가(녹색)\n현재가보다 낮으면 → 고평가(빨간색)\n참고용 추정치, 절대 기준 아님')}
     </div>
   </div>
 
