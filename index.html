@@ -424,20 +424,22 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 13px; height: 13px;
-    border-radius: 50%;
-    background: var(--border2);
+    /* 풍선(말풍선) 아이콘: 말풍선 이모지 위에 ? 오버레이 */
+    width: 18px; height: 18px;
+    background: none;
     color: var(--muted);
-    font-size: 0.55rem;
-    font-weight: 700;
-    cursor: default;
+    font-size: 0.78rem;        /* 이모지 크기 */
+    cursor: help;
     position: relative;
     margin-left: 4px;
     flex-shrink: 0;
     vertical-align: middle;
     line-height: 1;
     user-select: none;
+    opacity: 0.72;
+    transition: opacity .15s, transform .15s;
   }
+  .tip:hover { opacity: 1; transform: scale(1.15); }
   .tip::after {
     content: attr(data-tip);
     position: absolute;
@@ -762,7 +764,7 @@ function setTickerAndRun(ticker) {
 // 툴팁 아이콘 생성 헬퍼
 function tip(text, dir='') {
   const cls = dir ? `tip tip-${dir}` : 'tip';
-  return `<span class="${cls}" data-tip="${text}">?</span>`;
+  return `<span class="${cls}" data-tip="${text}">💬</span>`;
 }
 // metric row with optional tooltip
 function mrow(label, val, color, tipText, tipDir='') {
