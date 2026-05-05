@@ -1942,81 +1942,151 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   <div class="card" style="padding:14px 16px;margin-top:0">
     <div class="card-header"><span class="dot" style="background:var(--green)"></span>종가 · Bollinger Band</div>
     <div class="chart-container"><canvas id="priceChart"></canvas></div>
+    <div id="bbEntryPanel" style="margin-top:10px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
       <div>
         <div class="card-header"><span class="dot" style="background:var(--purple)"></span>RSI (14)</div>
         <div class="chart-container-sm"><canvas id="rsiChart"></canvas></div>
+        <div id="rsiEntryPanel" style="margin-top:8px"></div>
       </div>
       <div>
         <div class="card-header"><span class="dot" style="background:var(--blue)"></span>MACD</div>
         <div class="chart-container-sm"><canvas id="macdChart"></canvas></div>
+        <div id="macdEntryPanel" style="margin-top:8px"></div>
       </div>
     </div>
   </div>
   `;
 
-  // ── 분석 포인트 감지 ──
+  // ══════════════════════════════════════════════════════
+  // ── 분석 포인트 & 진입점 감지 ──
+  // ══════════════════════════════════════════════════════
+  const fmt = v => isKr ? v?.toLocaleString('ko-KR') : v?.toFixed(2);
 
-  // [BB] 상단밴드 터치/돌파 (과열 경고)
-  const bbUpperTouch = closes.map((c,i) => ind.bbU[i]!=null && c >= ind.bbU[i]*0.999 ? c : null);
-  // [BB] 하단밴드 터치/돌파 (과매도 반등 기대)
-  const bbLowerTouch = closes.map((c,i) => ind.bbL[i]!=null && c <= ind.bbL[i]*1.001 ? c : null);
-  // [BB] 밴드폭 수축 (스퀴즈: 변동성 압축 → 큰 움직임 예고)
-  const bbBandwidth  = closes.map((c,i) => (ind.bbU[i]!=null && ind.sma20[i]) ? (ind.bbU[i]-ind.bbL[i])/ind.sma20[i] : null);
-  const bwMin = Math.min(...bbBandwidth.filter(v=>v!=null));
-  const bwQ20 = [...bbBandwidth].filter(v=>v!=null).sort((a,b)=>a-b)[Math.floor(bbBandwidth.filter(v=>v!=null).length*0.20)] || bwMin*1.5;
-  const bbSqueeze = closes.map((c,i) => bbBandwidth[i]!=null && bbBandwidth[i] <= bwQ20 ? ind.sma20[i] : null);
-  // [BB] SMA20 상향/하향 돌파
-  const sma20CrossUp = closes.map((c,i) => i>0 && ind.sma20[i]!=null && closes[i-1]<ind.sma20[i-1] && c>=ind.sma20[i] ? c : null);
-  const sma20CrossDn = closes.map((c,i) => i>0 && ind.sma20[i]!=null && closes[i-1]>ind.sma20[i-1] && c<=ind.sma20[i] ? c : null);
+  // ── [BB] 신호 ──
+  const bbBandwidth = closes.map((c,i) =>
+    (ind.bbU[i]!=null && ind.sma20[i]) ? (ind.bbU[i]-ind.bbL[i])/ind.sma20[i] : null);
+  const bwArr = bbBandwidth.filter(v=>v!=null).sort((a,b)=>a-b);
+  const bwQ20 = bwArr[Math.floor(bwArr.length*0.20)] || 0.03;
+  const bbSqueeze   = closes.map((c,i) => bbBandwidth[i]!=null && bbBandwidth[i]<=bwQ20 ? ind.sma20[i] : null);
+  const bbUpperTouch= closes.map((c,i) => ind.bbU[i]!=null && c>=ind.bbU[i]*0.999 ? c : null);
+  const bbLowerTouch= closes.map((c,i) => ind.bbL[i]!=null && c<=ind.bbL[i]*1.001 ? c : null);
+  const sma20CrossUp= closes.map((c,i) => i>0&&ind.sma20[i]!=null&&closes[i-1]<ind.sma20[i-1]&&c>=ind.sma20[i] ? c : null);
+  const sma20CrossDn= closes.map((c,i) => i>0&&ind.sma20[i]!=null&&closes[i-1]>ind.sma20[i-1]&&c<=ind.sma20[i] ? c : null);
+  // 진입점: BB 하단 이탈 후 회복 (매수) / BB 상단 이탈 후 재진입 (매도)
+  const bbBuyEntry  = closes.map((c,i) => i>0&&ind.bbL[i]!=null&&closes[i-1]<=ind.bbL[i-1]*1.001&&c>ind.bbL[i]*1.001 ? c : null);
+  const bbSellEntry = closes.map((c,i) => i>0&&ind.bbU[i]!=null&&closes[i-1]>=ind.bbU[i-1]*0.999&&c<ind.bbU[i]*0.999 ? c : null);
 
-  // [RSI] 과매수 진입 (첫 번째 돌파만)
-  const rsiOB = ind.rsi.map((r,i) => r!=null && r>=70 && (i===0||ind.rsi[i-1]<70) ? r : null);
-  // [RSI] 과매도 진입
-  const rsiOS = ind.rsi.map((r,i) => r!=null && r<=30 && (i===0||ind.rsi[i-1]>30) ? r : null);
-  // [RSI] 50 상향돌파 (강세 모멘텀 전환)
-  const rsi50Up = ind.rsi.map((r,i) => r!=null && i>0 && r>=50 && ind.rsi[i-1]<50 ? r : null);
-  // [RSI] 50 하향돌파 (약세 모멘텀 전환)
-  const rsi50Dn = ind.rsi.map((r,i) => r!=null && i>0 && r<=50 && ind.rsi[i-1]>50 ? r : null);
-  // [RSI] 강세 다이버전스: 가격 신저점 but RSI 전저점보다 높음
+  // ── [RSI] 신호 ──
+  const rsiOB      = ind.rsi.map((r,i) => r!=null&&r>=70&&(i===0||ind.rsi[i-1]<70) ? r : null);
+  const rsiOS      = ind.rsi.map((r,i) => r!=null&&r<=30&&(i===0||ind.rsi[i-1]>30) ? r : null);
+  const rsi50Up    = ind.rsi.map((r,i) => r!=null&&i>0&&r>=50&&ind.rsi[i-1]<50 ? r : null);
+  const rsi50Dn    = ind.rsi.map((r,i) => r!=null&&i>0&&r<=50&&ind.rsi[i-1]>50 ? r : null);
   const rsiDivBull = ind.rsi.map((r,i) => {
-    if (r==null||i<5) return null;
-    const prevLowIdx = ind.rsi.slice(0,i).reduce((a,v,j)=>v!=null&&v<ind.rsi[a]?j:a,0);
-    return closes[i]<closes[prevLowIdx] && r>ind.rsi[prevLowIdx] ? r : null;
+    if(r==null||i<5) return null;
+    const prevLowIdx = ind.rsi.slice(0,i).reduce((a,v,j)=>v!=null&&v<(ind.rsi[a]||Infinity)?j:a,0);
+    return closes[i]<closes[prevLowIdx]&&r>ind.rsi[prevLowIdx] ? r : null;
   });
+  // 진입점: 과매도 구간 탈출(매수) / 과매수 구간 탈출(매도)
+  const rsiBuyEntry = ind.rsi.map((r,i) => r!=null&&i>0&&r>30&&ind.rsi[i-1]!=null&&ind.rsi[i-1]<=30 ? r : null);
+  const rsiSellEntry= ind.rsi.map((r,i) => r!=null&&i>0&&r<70&&ind.rsi[i-1]!=null&&ind.rsi[i-1]>=70 ? r : null);
 
-  // [MACD] 골든크로스 (매수 신호)
+  // ── [MACD] 신호 ──
   const macdGolden = ind.macdLine.map((m,i) => {
-    if (m==null||ind.sigLine[i]==null||i===0) return null;
-    return m>ind.sigLine[i] && ind.macdLine[i-1]<=ind.sigLine[i-1] ? m : null;
+    if(m==null||ind.sigLine[i]==null||i===0) return null;
+    return m>ind.sigLine[i]&&ind.macdLine[i-1]<=ind.sigLine[i-1] ? m : null;
   });
-  // [MACD] 데드크로스 (매도 신호)
-  const macdDead = ind.macdLine.map((m,i) => {
-    if (m==null||ind.sigLine[i]==null||i===0) return null;
-    return m<ind.sigLine[i] && ind.macdLine[i-1]>=ind.sigLine[i-1] ? m : null;
+  const macdDead   = ind.macdLine.map((m,i) => {
+    if(m==null||ind.sigLine[i]==null||i===0) return null;
+    return m<ind.sigLine[i]&&ind.macdLine[i-1]>=ind.sigLine[i-1] ? m : null;
   });
-  // [MACD] 히스토그램 0선 상향돌파 (매수 모멘텀 발생)
-  const histCrossUp = ind.hist.map((h,i) => h!=null&&i>0&&ind.hist[i-1]!=null&&h>=0&&ind.hist[i-1]<0 ? h : null);
-  // [MACD] 히스토그램 0선 하향돌파 (매도 모멘텀 발생)
-  const histCrossDn = ind.hist.map((h,i) => h!=null&&i>0&&ind.hist[i-1]!=null&&h<=0&&ind.hist[i-1]>0 ? h : null);
-  // [MACD] 히스토그램 피크 (증가→감소 전환, 모멘텀 소진 경고)
-  const histPeak = ind.hist.map((h,i) => {
-    if (h==null||i<1||ind.hist[i-1]==null) return null;
-    const prev=ind.hist[i-1], next=ind.hist[i+1];
-    if (next==null) return null;
-    return h>0 && h>prev && h>next ? h :
-           h<0 && h<prev && h<next ? h : null;
+  const histCrossUp= ind.hist.map((h,i) => h!=null&&i>0&&ind.hist[i-1]!=null&&h>=0&&ind.hist[i-1]<0 ? h : null);
+  const histCrossDn= ind.hist.map((h,i) => h!=null&&i>0&&ind.hist[i-1]!=null&&h<=0&&ind.hist[i-1]>0 ? h : null);
+  const histPeak   = ind.hist.map((h,i) => {
+    if(h==null||i<1||ind.hist[i-1]==null||ind.hist[i+1]==null) return null;
+    const p=ind.hist[i-1],n=ind.hist[i+1];
+    return (h>0&&h>p&&h>n)||(h<0&&h<p&&h<n) ? h : null;
+  });
+  // 진입점: 골든크로스(매수) / 데드크로스(매도)
+  const macdBuyEntry = macdGolden;
+  const macdSellEntry= macdDead;
+
+  // ══════════════════════════════════════════════════════
+  // ── 진입점 설명 패널 렌더링 ──
+  // ══════════════════════════════════════════════════════
+  function entryRow(side, date, price, reason) {
+    const isBuy = side === 'BUY';
+    const color = isBuy ? 'var(--green)' : 'var(--red)';
+    const icon  = isBuy ? '▲' : '▼';
+    const label = isBuy ? '매수 진입' : '매도 준비';
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="min-width:68px;font-size:0.72rem;color:${color};font-weight:700;white-space:nowrap">${icon} ${label}</span>
+      <span style="min-width:64px;font-size:0.72rem;color:var(--muted);white-space:nowrap">${date}</span>
+      <span style="min-width:72px;font-size:0.72rem;color:var(--text2);white-space:nowrap">${price}</span>
+      <span style="font-size:0.72rem;color:var(--text2);line-height:1.4">${reason}</span>
+    </div>`;
+  }
+  function renderEntryPanel(elId, rows) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!rows.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `<div style="background:var(--card2,#0f1923);border-radius:8px;padding:8px 12px;margin-top:2px">
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px;font-weight:600">📍 진입점 이력 (최근 ${rows.length}건)</div>
+      ${rows.join('')}
+    </div>`;
+  }
+
+  // BB 진입점 수집
+  const bbEntries = [];
+  closes.forEach((c,i) => {
+    if (bbBuyEntry[i]!=null)
+      bbEntries.push(entryRow('BUY', labels[i], fmt(c),
+        `BB 하단 이탈 후 반등 복귀. 과매도 압력 해소·저점 매수 진입 구간. 손절: BB 하단 재이탈 시`));
+    if (bbSellEntry[i]!=null)
+      bbEntries.push(entryRow('SELL', labels[i], fmt(c),
+        `BB 상단 이탈 후 밴드 내 복귀. 과열 해소·단기 차익실현 구간. 재진입: BB 중심선(MA20) 복귀 시 확인`));
   });
 
-  // ── 공통 옵션 ──
+  // RSI 진입점 수집
+  const rsiEntries = [];
+  ind.rsi.forEach((r,i) => {
+    if (rsiBuyEntry[i]!=null)
+      rsiEntries.push(entryRow('BUY', labels[i], `RSI ${r?.toFixed(1)}`,
+        `RSI 과매도(≤30) 탈출. 매도 세력 소진·반등 모멘텀 시작. 확인: MA20 위 종가 마감 시 강도 높아짐`));
+    if (rsiSellEntry[i]!=null)
+      rsiEntries.push(entryRow('SELL', labels[i], `RSI ${r?.toFixed(1)}`,
+        `RSI 과매수(≥70) 탈출. 매수 세력 피로·단기 고점 형성 가능. 확인: MACD 데드크로스 동반 시 강력 매도 신호`));
+  });
+
+  // MACD 진입점 수집
+  const macdEntries = [];
+  ind.macdLine.forEach((m,i) => {
+    if (macdBuyEntry[i]!=null)
+      macdEntries.push(entryRow('BUY', labels[i], `MACD ${m?.toFixed(3)}`,
+        `골든크로스: MACD선이 시그널선 상향 돌파. 상승 추세 전환 확인. 확인: 히스토그램 양전환 동반 시 강한 매수`));
+    if (macdSellEntry[i]!=null)
+      macdEntries.push(entryRow('SELL', labels[i], `MACD ${m?.toFixed(3)}`,
+        `데드크로스: MACD선이 시그널선 하향 돌파. 하락 추세 전환 확인. 확인: 히스토그램 음전환 동반 시 강한 매도`));
+  });
+
+  renderEntryPanel('bbEntryPanel',   bbEntries.slice(-5));
+  renderEntryPanel('rsiEntryPanel',  rsiEntries.slice(-4));
+  renderEntryPanel('macdEntryPanel', macdEntries.slice(-4));
+
+  // ══════════════════════════════════════════════════════
+  // ── 공통 차트 옵션 ──
+  // ══════════════════════════════════════════════════════
+  const TICK_SIZE = 11;  // metric-row 0.78rem ≈ 12.5px 에 맞춤
+  const LEG_SIZE  = 10;
   const sigTooltip = {
     backgroundColor:'#1e2a40', titleColor:'#94a3b8', bodyColor:'#e2e8f0',
-    padding:10, callbacks:{
+    padding:10, titleFont:{size:11}, bodyFont:{size:11},
+    callbacks:{
       label: ctx => {
         const meta = ctx.dataset._signalMeta;
         if (!meta) return ctx.dataset.label ? `${ctx.dataset.label}: ${ctx.formattedValue}` : null;
         if (ctx.parsed.y == null) return null;
-        return `● ${meta} (${ctx.formattedValue})`;
+        return `${meta}  (${ctx.formattedValue})`;
       }
     }
   };
@@ -2025,24 +2095,40 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false}, tooltip: sigTooltip},
     scales:{
-      x:{ticks:{color:'#475569',maxTicksLimit:8,font:{size:9}},grid:{color:'#1a2235'}},
-      y:{ticks:{color:'#475569',font:{size:9}},grid:{color:'#1a2235'}}
+      x:{ticks:{color:'#64748b',maxTicksLimit:8,font:{size:TICK_SIZE}},grid:{color:'#1a2235'}},
+      y:{ticks:{color:'#64748b',font:{size:TICK_SIZE}},grid:{color:'#1a2235'}}
     }
   };
 
-  // 분석 포인트 dataset 헬퍼
+  // 신호 dataset 헬퍼
   function sigDS(data, color, meta, size=5, shape='circle') {
     return { data, borderColor:color, backgroundColor:color,
              pointRadius: data.map(v=>v!=null?size:0),
-             pointHoverRadius: data.map(v=>v!=null?size+2:0),
-             pointStyle:shape, borderWidth:0, tension:0,
+             pointHoverRadius: data.map(v=>v!=null?size+3:0),
+             pointStyle:shape, borderWidth:1.5, tension:0,
              showLine:false, _signalMeta: meta };
   }
+  // 진입점 dataset 헬퍼 (더 크고 테두리 강조)
+  function entryDS(data, color, meta, shape='triangle') {
+    return { data, borderColor:'#fff', backgroundColor:color,
+             pointRadius: data.map(v=>v!=null?9:0),
+             pointHoverRadius: data.map(v=>v!=null?12:0),
+             pointStyle:shape, borderWidth:1.5, tension:0,
+             showLine:false, _signalMeta: meta };
+  }
+  function mkLegend(items) {
+    return { display:true, labels:{ color:'#64748b', font:{size:LEG_SIZE}, padding:10,
+      generateLabels:()=>items.map(([text,color,bold])=>({
+        text, fillStyle:color, strokeStyle:color, lineWidth:0,
+        fontStyle: bold?'bold':'normal'
+      }))
+    }};
+  }
 
+  // ── Bollinger Band 차트 ──
   priceChart = new Chart(document.getElementById('priceChart'), {
     type:'line',
     data:{ labels, datasets:[
-      // 기본 라인
       {data:closes,   borderColor:'#e2e8f0', borderWidth:1.5, pointRadius:0, tension:.3},
       {data:ind.sma20,borderColor:'#f59e0b', borderWidth:1,   pointRadius:0, tension:.3},
       {data:ind.bbU,  borderColor:'rgba(148,163,184,.3)', borderDash:[4,4], borderWidth:1, pointRadius:0},
@@ -2050,98 +2136,80 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
        fill:{target:2, above:'rgba(148,163,184,.05)'}},
       {data:closes.map(()=>d.targetPrice), borderColor:'rgba(0,212,170,.5)', borderDash:[6,3], borderWidth:1, pointRadius:0},
       {data:closes.map(()=>d.stopLoss),    borderColor:'rgba(255,75,110,.5)', borderDash:[6,3], borderWidth:1, pointRadius:0},
-      // 분석 포인트
-      sigDS(bbUpperTouch, 'rgba(255,75,110,0.9)',  '🔴 BB 상단 터치 — 과열·단기 매도 경계'),
-      sigDS(bbLowerTouch, 'rgba(0,212,170,0.9)',   '🟢 BB 하단 터치 — 과매도·반등 기대'),
-      sigDS(bbSqueeze,    'rgba(245,158,11,0.85)', '🟡 BB 스퀴즈 — 변동성 수축, 큰 움직임 예고', 4, 'rectRot'),
-      sigDS(sma20CrossUp, 'rgba(96,165,250,0.9)',  '🔵 MA20 상향돌파 — 단기 추세 전환(매수)', 5, 'triangle'),
-      sigDS(sma20CrossDn, 'rgba(249,115,22,0.9)',  '🟠 MA20 하향돌파 — 단기 추세 전환(매도)', 5, 'triangle'),
+      // 보조 신호
+      sigDS(bbUpperTouch, 'rgba(255,75,110,0.7)', 'BB 상단 터치 — 과열·차익실현 경계'),
+      sigDS(bbLowerTouch, 'rgba(0,212,170,0.7)',  'BB 하단 터치 — 과매도·반등 후보'),
+      sigDS(bbSqueeze,    'rgba(245,158,11,0.75)','BB 스퀴즈 — 변동성 압축, 큰 움직임 예고', 4, 'rectRot'),
+      sigDS(sma20CrossUp, 'rgba(96,165,250,0.75)','MA20 상향돌파 — 단기 추세 전환(매수 관심)', 4),
+      sigDS(sma20CrossDn, 'rgba(249,115,22,0.75)','MA20 하향돌파 — 단기 추세 전환(매도 관심)', 4),
+      // 진입점 (크고 굵게)
+      entryDS(bbBuyEntry,  'rgba(0,212,170,1)',   '▲ 매수 진입 — BB 하단 이탈 후 회복: 저점 반등 확인'),
+      entryDS(bbSellEntry, 'rgba(255,75,110,1)',  '▼ 매도 준비 — BB 상단 이탈 후 재진입: 고점 소진 확인', 'rectRot'),
     ]},
-    options:{...co,
-      plugins:{...co.plugins,
-        legend:{
-          display:true,
-          labels:{
-            color:'#64748b', font:{size:9},
-            filter: item => item.text,
-            generateLabels: chart => {
-              const sigLabels = [
-                {text:'BB 상단', fillStyle:'rgba(255,75,110,0.9)', strokeStyle:'rgba(255,75,110,0.9)', lineWidth:0},
-                {text:'BB 하단', fillStyle:'rgba(0,212,170,0.9)',  strokeStyle:'rgba(0,212,170,0.9)',  lineWidth:0},
-                {text:'BB 수축', fillStyle:'rgba(245,158,11,0.85)',strokeStyle:'rgba(245,158,11,0.85)',lineWidth:0},
-                {text:'MA20↑',  fillStyle:'rgba(96,165,250,0.9)', strokeStyle:'rgba(96,165,250,0.9)', lineWidth:0},
-                {text:'MA20↓',  fillStyle:'rgba(249,115,22,0.9)', strokeStyle:'rgba(249,115,22,0.9)', lineWidth:0},
-              ];
-              return sigLabels;
-            }
-          }
-        }
-      }
-    }
+    options:{...co, plugins:{...co.plugins, legend: mkLegend([
+      ['▲ 매수진입(BB)',   'rgba(0,212,170,1)',   true],
+      ['▼ 매도준비(BB)',   'rgba(255,75,110,1)',  true],
+      ['BB 상단터치',      'rgba(255,75,110,0.7)',false],
+      ['BB 하단터치',      'rgba(0,212,170,0.7)', false],
+      ['BB 스퀴즈',        'rgba(245,158,11,.75)',false],
+      ['MA20 상향↑',      'rgba(96,165,250,.75)',false],
+      ['MA20 하향↓',      'rgba(249,115,22,.75)',false],
+    ])}}
   });
 
+  // ── RSI 차트 ──
   rsiChart = new Chart(document.getElementById('rsiChart'), {
     type:'line',
     data:{ labels, datasets:[
-      {data:ind.rsi,          borderColor:'#a78bfa',borderWidth:1.5,pointRadius:0,tension:.3},
+      {data:ind.rsi,             borderColor:'#a78bfa',borderWidth:1.5,pointRadius:0,tension:.3},
       {data:ind.rsi.map(()=>70), borderColor:'rgba(255,75,110,.4)',borderDash:[4,3],borderWidth:1,pointRadius:0},
       {data:ind.rsi.map(()=>30), borderColor:'rgba(0,212,170,.4)', borderDash:[4,3],borderWidth:1,pointRadius:0},
-      // 분석 포인트
-      sigDS(rsiOB,      'rgba(255,75,110,1)',   '🔴 과매수 진입(≥70) — 단기 고점 경계·차익실현 고려'),
-      sigDS(rsiOS,      'rgba(0,212,170,1)',     '🟢 과매도 진입(≤30) — 반등 가능성·분할 매수 고려'),
-      sigDS(rsi50Up,    'rgba(96,165,250,0.9)',  '🔵 RSI 50 상향돌파 — 강세 모멘텀 확인', 4, 'triangle'),
-      sigDS(rsi50Dn,    'rgba(249,115,22,0.9)',  '🟠 RSI 50 하향돌파 — 약세 모멘텀 전환', 4, 'triangle'),
-      sigDS(rsiDivBull, 'rgba(245,158,11,0.9)',  '⚡ 강세 다이버전스 — 가격 신저점+RSI 상승', 5, 'star'),
+      // 보조 신호
+      sigDS(rsiOB,      'rgba(255,75,110,0.7)', 'RSI 과매수 진입(≥70) — 고점 경계'),
+      sigDS(rsiOS,      'rgba(0,212,170,0.7)',  'RSI 과매도 진입(≤30) — 저점 반등 후보'),
+      sigDS(rsi50Up,    'rgba(96,165,250,0.7)', 'RSI 50 상향돌파 — 강세 모멘텀 전환', 4, 'triangle'),
+      sigDS(rsi50Dn,    'rgba(249,115,22,0.7)', 'RSI 50 하향돌파 — 약세 모멘텀 전환', 4, 'triangle'),
+      sigDS(rsiDivBull, 'rgba(245,158,11,0.8)', '강세 다이버전스 — 가격↓ RSI↑ 반등 기대', 4, 'star'),
+      // 진입점
+      entryDS(rsiBuyEntry,  'rgba(0,212,170,1)',  '▲ 매수 진입 — RSI 과매도(30) 탈출: 매도세력 소진·반등 시작'),
+      entryDS(rsiSellEntry, 'rgba(255,75,110,1)', '▼ 매도 준비 — RSI 과매수(70) 탈출: 매수세력 피로·조정 시작'),
     ]},
     options:{...co,
       scales:{...co.scales, y:{...co.scales.y,min:0,max:100}},
-      plugins:{...co.plugins,
-        legend:{
-          display:true,
-          labels:{
-            color:'#64748b', font:{size:9},
-            generateLabels: () => [
-              {text:'과매수',      fillStyle:'rgba(255,75,110,1)',  strokeStyle:'rgba(255,75,110,1)',  lineWidth:0},
-              {text:'과매도',      fillStyle:'rgba(0,212,170,1)',   strokeStyle:'rgba(0,212,170,1)',   lineWidth:0},
-              {text:'50 상향↑',   fillStyle:'rgba(96,165,250,.9)', strokeStyle:'rgba(96,165,250,.9)', lineWidth:0},
-              {text:'50 하향↓',   fillStyle:'rgba(249,115,22,.9)', strokeStyle:'rgba(249,115,22,.9)', lineWidth:0},
-              {text:'강세다이버',  fillStyle:'rgba(245,158,11,.9)', strokeStyle:'rgba(245,158,11,.9)', lineWidth:0},
-            ]
-          }
-        }
-      }
+      plugins:{...co.plugins, legend: mkLegend([
+        ['▲ 매수진입(RSI)', 'rgba(0,212,170,1)',   true],
+        ['▼ 매도준비(RSI)', 'rgba(255,75,110,1)',  true],
+        ['과매수(≥70)',     'rgba(255,75,110,.7)', false],
+        ['과매도(≤30)',     'rgba(0,212,170,.7)',  false],
+        ['50 상향↑',       'rgba(96,165,250,.7)', false],
+        ['강세다이버',      'rgba(245,158,11,.8)', false],
+      ])}
     }
   });
 
+  // ── MACD 차트 ──
   macdChart = new Chart(document.getElementById('macdChart'), {
     type:'bar',
     data:{ labels, datasets:[
-      {type:'bar',  data:ind.hist, backgroundColor:ind.hist.map(v=>v!=null?(v>=0?'rgba(0,212,170,.55)':'rgba(255,75,110,.55)'):null), borderRadius:1},
+      {type:'bar',  data:ind.hist, backgroundColor:ind.hist.map(v=>v!=null?(v>=0?'rgba(0,212,170,.5)':'rgba(255,75,110,.5)'):null), borderRadius:1},
       {type:'line', data:ind.macdLine,borderColor:'#60a5fa',borderWidth:1.2,pointRadius:0},
       {type:'line', data:ind.sigLine, borderColor:'#f97316',borderWidth:1.2,pointRadius:0},
-      // 분석 포인트
-      sigDS(macdGolden,  'rgba(0,212,170,1)',    '🟢 골든크로스 — MACD 상향 돌파·매수 신호', 6, 'triangle'),
-      sigDS(macdDead,    'rgba(255,75,110,1)',    '🔴 데드크로스 — MACD 하향 돌파·매도 신호', 6, 'triangle'),
-      sigDS(histCrossUp, 'rgba(96,165,250,0.9)',  '🔵 히스토그램 +전환 — 상승 모멘텀 발생', 4),
-      sigDS(histCrossDn, 'rgba(249,115,22,0.9)',  '🟠 히스토그램 −전환 — 하락 모멘텀 발생', 4),
-      sigDS(histPeak,    'rgba(245,158,11,0.85)', '⚠️ 히스토그램 피크 — 모멘텀 소진 경고', 4, 'rectRot'),
+      // 보조 신호
+      sigDS(histCrossUp,'rgba(96,165,250,0.8)', '히스토그램 양전환 — 상승 모멘텀 발생'),
+      sigDS(histCrossDn,'rgba(249,115,22,0.8)', '히스토그램 음전환 — 하락 모멘텀 발생'),
+      sigDS(histPeak,   'rgba(245,158,11,0.8)', '히스토그램 피크 — 모멘텀 소진 경고', 4, 'rectRot'),
+      // 진입점
+      entryDS(macdBuyEntry,  'rgba(0,212,170,1)',  '▲ 매수 진입 — 골든크로스: MACD 상향 돌파, 추세 전환 확인'),
+      entryDS(macdSellEntry, 'rgba(255,75,110,1)', '▼ 매도 준비 — 데드크로스: MACD 하향 돌파, 하락 전환 확인'),
     ]},
     options:{...co,
-      plugins:{...co.plugins,
-        legend:{
-          display:true,
-          labels:{
-            color:'#64748b', font:{size:9},
-            generateLabels: () => [
-              {text:'골든크로스', fillStyle:'rgba(0,212,170,1)',   strokeStyle:'rgba(0,212,170,1)',   lineWidth:0},
-              {text:'데드크로스', fillStyle:'rgba(255,75,110,1)',  strokeStyle:'rgba(255,75,110,1)',  lineWidth:0},
-              {text:'히스토+전환',fillStyle:'rgba(96,165,250,.9)', strokeStyle:'rgba(96,165,250,.9)', lineWidth:0},
-              {text:'히스토−전환',fillStyle:'rgba(249,115,22,.9)', strokeStyle:'rgba(249,115,22,.9)', lineWidth:0},
-              {text:'모멘텀소진', fillStyle:'rgba(245,158,11,.9)', strokeStyle:'rgba(245,158,11,.9)', lineWidth:0},
-            ]
-          }
-        }
-      }
+      plugins:{...co.plugins, legend: mkLegend([
+        ['▲ 매수진입(골든크로스)', 'rgba(0,212,170,1)',   true],
+        ['▼ 매도준비(데드크로스)', 'rgba(255,75,110,1)',  true],
+        ['히스토 양전환',          'rgba(96,165,250,.8)', false],
+        ['히스토 음전환',          'rgba(249,115,22,.8)', false],
+        ['모멘텀 소진',            'rgba(245,158,11,.8)', false],
+      ])}
     }
   });
 }
