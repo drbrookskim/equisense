@@ -814,10 +814,11 @@ function closeTipModal(e) {
 document.addEventListener('keydown', e => { if (e.key==='Escape') document.getElementById('tipModalOverlay')?.classList.remove('open'); });
 
 // 말풍선 아이콘 생성 헬퍼  (title: 모달 제목, body: HTML 본문)
+// Store tip content by auto-assigned index to avoid HTML-in-attribute issues
+const _tipStore = [];
 function tip(title, body) {
-  const t = (title||'').replace(/'/g,'&#39;');
-  const b = (body||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
-  return `<span class="tip" onclick="openTipModal('${t}','${b}')">💬</span>`;
+  const idx = _tipStore.push({title: title||'', body: body||''}) - 1;
+  return `<span class="tip" onclick="openTipModal(_tipStore[${idx}].title,_tipStore[${idx}].body)">💬</span>`;
 }
 // metric row with optional modal tooltip
 function mrow(label, val, color, tipTitle, tipBody) {
