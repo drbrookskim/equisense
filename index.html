@@ -439,35 +439,51 @@
     opacity: 0.72;
     transition: opacity .15s, transform .15s;
   }
-  .tip:hover { opacity: 1; transform: scale(1.15); }
+  .tip:hover { opacity: 1; }
   .tip::after {
     content: attr(data-tip);
     position: absolute;
-    bottom: calc(100% + 7px);
+    bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
     background: #1a2540;
     color: #e2e8f0;
     font-size: 0.68rem;
     font-weight: 400;
-    line-height: 1.45;
-    padding: 7px 10px;
-    border-radius: 7px;
+    line-height: 1.5;
+    padding: 8px 11px;
+    border-radius: 8px;
     white-space: pre-line;
-    width: 220px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+    width: 224px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.55);
     pointer-events: none;
     opacity: 0;
-    transition: opacity .15s;
-    z-index: 999;
+    transition: opacity .18s;
+    z-index: 9999;
     border: 1px solid #2d3f5a;
     text-align: left;
   }
-  /* 화면 왼쪽 끝 카드는 오른쪽으로 */
+  /* 말풍선 꼬리 */
+  .tip::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #2d3f5a;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .18s;
+    z-index: 9999;
+  }
+  /* 오른쪽 정렬 (카드 왼쪽 끝) */
   .tip.tip-right::after { left: 0; transform: none; }
-  /* 화면 오른쪽 끝 카드는 왼쪽으로 */
+  .tip.tip-right::before { left: 8px; transform: none; }
+  /* 왼쪽 정렬 (카드 오른쪽 끝) */
   .tip.tip-left::after  { left: auto; right: 0; transform: none; }
-  .tip:hover::after { opacity: 1; }
+  .tip.tip-left::before { left: auto; right: 8px; transform: none; }
+  .tip:hover::after, .tip:hover::before { opacity: 1; }
   .metric-row { align-items: flex-start; }
   .metric-row > span:first-child { display: flex; align-items: center; flex-wrap: wrap; }
   /* ── 고급 분석 6열 그리드 ── */
