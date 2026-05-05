@@ -1961,8 +1961,6 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   // ══════════════════════════════════════════════════════
   // ── 분석 포인트 & 진입점 감지 ──
   // ══════════════════════════════════════════════════════
-  const fmt = v => isKr ? v?.toLocaleString('ko-KR') : v?.toFixed(2);
-
   // ── [BB] 신호 ──
   const bbBandwidth = closes.map((c,i) =>
     (ind.bbU[i]!=null && ind.sma20[i]) ? (ind.bbU[i]-ind.bbL[i])/ind.sma20[i] : null);
