@@ -815,8 +815,8 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') document.getEl
 
 // 말풍선 아이콘 생성 헬퍼  (title: 모달 제목, body: HTML 본문)
 function tip(title, body) {
-  const t = title.replace(/'/g,'&#39;');
-  const b = body.replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+  const t = (title||'').replace(/'/g,'&#39;');
+  const b = (body||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
   return `<span class="tip" onclick="openTipModal('${t}','${b}')">💬</span>`;
 }
 // metric row with optional modal tooltip
