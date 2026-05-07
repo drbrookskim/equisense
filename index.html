@@ -85,10 +85,80 @@
     backdrop-filter: blur(20px) saturate(1.4);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
   }
+  /* ══════════════════════════════════════════════════════
+     라이트 모드 최적화 오버라이드
+  ══════════════════════════════════════════════════════ */
   html.light .topbar {
-    border-bottom: 1px solid rgba(0,0,0,0.06);
-    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    background: rgba(255,255,255,0.70);
+    border-bottom: 1px solid rgba(180,160,140,0.18);
+    box-shadow: 0 2px 24px rgba(120,90,70,0.10);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
   }
+  html.light .search-input,
+  html.light .select-box,
+  html.light .btn-theme {
+    background: rgba(255,255,255,0.78);
+    border-color: rgba(180,160,140,0.30);
+    box-shadow: 0 2px 12px rgba(120,90,70,0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  html.light .search-input:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(4,120,87,0.12);
+  }
+  html.light .card {
+    background: rgba(255,255,255,0.68);
+    border-color: rgba(180,160,140,0.22);
+    box-shadow: 0 4px 24px rgba(100,80,60,0.08), 0 1px 4px rgba(100,80,60,0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  html.light .fav-card {
+    background: rgba(255,255,255,0.62);
+    border-color: rgba(180,160,140,0.20);
+    box-shadow: 0 4px 20px rgba(100,80,60,0.07);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  html.light .history-chip {
+    background: rgba(255,255,255,0.60);
+    border-color: rgba(180,160,140,0.28);
+    box-shadow: 0 1px 6px rgba(100,80,60,0.07);
+  }
+  html.light .history-chip:hover {
+    background: rgba(255,255,255,0.88);
+    border-color: var(--blue);
+  }
+  html.light .fav-tile {
+    background: rgba(255,255,255,0.55);
+    border-color: rgba(180,160,140,0.25);
+  }
+  html.light .fav-tile:hover {
+    background: rgba(255,255,255,0.85);
+    border-color: var(--blue);
+  }
+  html.light .pill {
+    background: rgba(255,255,255,0.55);
+    border-color: rgba(180,160,140,0.28);
+  }
+  html.light .metric-row {
+    border-bottom-color: rgba(180,160,140,0.15);
+  }
+  html.light .card-header {
+    color: #78716c;
+  }
+  /* 라이트 모드 버튼: 더 따뜻한 그라디언트 */
+  html.light .btn-run {
+    background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #8b5cf6 100%);
+    box-shadow: 0 4px 18px rgba(16,185,129,.30), 0 1px 4px rgba(0,0,0,.15);
+  }
+  @keyframes btn-pulse-light {
+    0%,100% { box-shadow: 0 4px 18px rgba(16,185,129,.30), 0 1px 4px rgba(0,0,0,.15); }
+    50%      { box-shadow: 0 6px 28px rgba(139,92,246,.35), 0 2px 8px rgba(0,0,0,.15); }
+  }
+  html.light .btn-run:not(:disabled) { animation: btn-pulse-light 3s ease-in-out infinite; }
   .logo { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
   .logo span { color: var(--green); }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
