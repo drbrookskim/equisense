@@ -2616,7 +2616,7 @@ renderHistory();
   window.addEventListener('resize', resize);
   resize();
 
-  function isDark() { return !document.body.classList.contains('light-mode'); }
+  function isDark() { return !document.documentElement.classList.contains('light'); }
 
   function draw() {
     canvas.style.visibility = 'visible';
@@ -2678,10 +2678,10 @@ renderHistory();
     requestAnimationFrame(draw);
   }
 
-  // 테마 변경 시 재시작
+  // 테마 변경 시 재시작 (html 태그의 class 감시)
   new MutationObserver(() => {
     if (!running) requestAnimationFrame(draw);
-  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
   // 최초 실행
   requestAnimationFrame(draw);
