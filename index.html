@@ -29,16 +29,16 @@
   }
   /* ── 라이트 모드 ── */
   html.light {
-    --bg:        linear-gradient(160deg, #FCFAF2 0%, #ECF8F8 50%, #F8F1EE 100%);
-    --card:      #ffffff;
-    --card2:     #f1f5f9;
+    --bg:        transparent;
+    --card:      rgba(255,255,255,0.72);
+    --card2:     rgba(241,245,249,0.65);
     --border:    #cbd5e1;
     --border2:   #94a3b8;
     --text:      #0f172a;        /* 거의 검정 — 주요 텍스트 */
     --text2:     #1e293b;        /* 짙은 네이비 — 보조 텍스트 */
     --muted:     #334155;        /* 짙은 회색 — 레이블 (기존 #64748b보다 어둡게) */
     --muted2:    #64748b;        /* 중간 회색 — 힌트·구분선 */
-    --topbar:    rgba(255,255,255,0.95);
+    --topbar:    rgba(255,255,255,0.75);
     --metric-bd: #e2eaf4;
     --green:     #047857;
     --red:       #be123c;
@@ -2513,14 +2513,25 @@ renderHistory();
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
-  // 블롭 정의: [x비율, y비율, 반지름비율, 색상, 이동속도, 위상]
-  const blobs = [
-    { x:.18, y:.22, r:.38, color:'rgba(108,92,231,', vx:.00012, vy:.00008, phase:0   },
-    { x:.72, y:.15, r:.32, color:'rgba(0,153,255,',  vx:-.0001, vy:.00013, phase:1.2 },
-    { x:.55, y:.72, r:.42, color:'rgba(0,212,170,',  vx:.00009, vy:-.0001, phase:2.4 },
-    { x:.10, y:.75, r:.28, color:'rgba(167,139,250,', vx:.00014, vy:.00006, phase:0.7 },
-    { x:.88, y:.58, r:.34, color:'rgba(236,72,153,',  vx:-.0001, vy:-.0001, phase:3.1 },
-    { x:.42, y:.42, r:.25, color:'rgba(56,189,248,',  vx:.00007, vy:.00015, phase:1.8 },
+  // ── 다크 모드 블롭: 선명한 네온 계열 ──
+  const darkBlobs = [
+    { x:.18, y:.22, r:.38, color:'rgba(108,92,231,',  vx:.00012, vy:.00008, phase:0   },
+    { x:.72, y:.15, r:.32, color:'rgba(0,153,255,',   vx:-.0001, vy:.00013, phase:1.2 },
+    { x:.55, y:.72, r:.42, color:'rgba(0,212,170,',   vx:.00009, vy:-.0001, phase:2.4 },
+    { x:.10, y:.75, r:.28, color:'rgba(167,139,250,',  vx:.00014, vy:.00006, phase:0.7 },
+    { x:.88, y:.58, r:.34, color:'rgba(236,72,153,',   vx:-.0001, vy:-.0001, phase:3.1 },
+    { x:.42, y:.42, r:.25, color:'rgba(56,189,248,',   vx:.00007, vy:.00015, phase:1.8 },
+  ];
+
+  // ── 라이트 모드 블롭: 파스텔 소프트 계열 ──
+  // Pale Glow(#F8F1EE) · Ghostly Sky(#ECF8F8) · Linen Noon(#FCFAF2) 팔레트 기반
+  const lightBlobs = [
+    { x:.20, y:.18, r:.40, color:'rgba(255,182,159,',  vx:.00010, vy:.00007, phase:0   }, // 피치 코랄
+    { x:.75, y:.20, r:.35, color:'rgba(129,236,236,',  vx:-.0009, vy:.00012, phase:1.4 }, // 민트 스카이
+    { x:.50, y:.68, r:.44, color:'rgba(253,242,180,',  vx:.00008, vy:-.0009, phase:2.6 }, // 레몬 노랑
+    { x:.12, y:.70, r:.30, color:'rgba(210,196,255,',  vx:.00013, vy:.00006, phase:0.9 }, // 라벤더
+    { x:.85, y:.55, r:.32, color:'rgba(255,214,214,',  vx:-.0008, vy:-.0008, phase:3.3 }, // 로즈 핑크
+    { x:.40, y:.38, r:.28, color:'rgba(180,235,220,',  vx:.00006, vy:.00014, phase:2.0 }, // 세이지 민트
   ];
 
   let W, H, t = 0, running = false;
@@ -2535,19 +2546,31 @@ renderHistory();
   function isDark() { return !document.body.classList.contains('light-mode'); }
 
   function draw() {
-    if (!isDark()) { canvas.style.visibility = 'hidden'; running = false; return; }
     canvas.style.visibility = 'visible';
     running = true;
     ctx.clearRect(0, 0, W, H);
 
-    // 배경
+    const dark = isDark();
+
+    // ── 배경 기본색 ──
     const bg = ctx.createLinearGradient(0, H, W, 0);
-    bg.addColorStop(0, '#141821');
-    bg.addColorStop(1, '#1F1762');
+    if (dark) {
+      bg.addColorStop(0, '#141821');
+      bg.addColorStop(1, '#1F1762');
+    } else {
+      bg.addColorStop(0, '#F8F1EE');  // Pale Glow
+      bg.addColorStop(0.5, '#ECF8F8'); // Ghostly Sky
+      bg.addColorStop(1, '#FCFAF2');  // Linen Noon
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // 블롭 렌더링
+    // ── 블롭 렌더링 ──
+    const blobs = dark ? darkBlobs : lightBlobs;
+    // 다크: 중심 0.30 투명도 / 라이트: 중심 0.45 투명도 (밝은 배경에서 잘 보이도록)
+    const coreAlpha = dark ? 0.30 : 0.50;
+    const midAlpha  = dark ? 0.13 : 0.22;
+
     for (const b of blobs) {
       const pulse = 1 + 0.06 * Math.sin(t * 0.0008 + b.phase);
       const bx = (b.x + Math.sin(t * b.vx + b.phase) * 0.18) * W;
@@ -2555,8 +2578,8 @@ renderHistory();
       const br = b.r * Math.min(W, H) * pulse;
 
       const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
-      grad.addColorStop(0,   b.color + '0.30)');
-      grad.addColorStop(0.4, b.color + '0.13)');
+      grad.addColorStop(0,   b.color + coreAlpha + ')');
+      grad.addColorStop(0.4, b.color + midAlpha  + ')');
       grad.addColorStop(1,   b.color + '0)');
 
       ctx.beginPath();
@@ -2565,8 +2588,9 @@ renderHistory();
       ctx.fill();
     }
 
-    // 어두운 오버레이 (콘텐츠 가독성)
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    // ── 오버레이 ──
+    // 다크: 어두운 필름으로 가독성 확보 / 라이트: 밝은 화이트 베일로 부드럽게
+    ctx.fillStyle = dark ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.28)';
     ctx.fillRect(0, 0, W, H);
 
     t++;
@@ -2575,7 +2599,7 @@ renderHistory();
 
   // 테마 변경 시 재시작
   new MutationObserver(() => {
-    if (isDark() && !running) requestAnimationFrame(draw);
+    if (!running) requestAnimationFrame(draw);
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
   // 최초 실행
