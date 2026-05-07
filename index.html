@@ -63,15 +63,15 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity .4s;
+    display: block;
   }
-  :root #aurora-canvas { opacity: 1; }
-  .light-mode #aurora-canvas { opacity: 0; }
-  /* 본문은 캔버스 위에 */
-  .topbar, #main-wrap { position: relative; z-index: 1; }
+  #main-wrap {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+  }
   .topbar {
     background: var(--topbar);
     border-bottom: 1px solid var(--border);
@@ -600,6 +600,7 @@
   </div>
 </div>
 
+<div id="main-wrap">
 <header class="topbar">
   <div class="logo">📈 <span>Today's</span> Stock Analyzer</div>
   <div class="topbar-right">
@@ -2521,7 +2522,7 @@ renderHistory();
     { x:.42, y:.42, r:.25, color:'rgba(56,189,248,',  vx:.00007, vy:.00015, phase:1.8 },
   ];
 
-  let W, H, t = 0;
+  let W, H, t = 0, running = false;
 
   function resize() {
     W = canvas.width  = window.innerWidth;
@@ -2530,10 +2531,15 @@ renderHistory();
   window.addEventListener('resize', resize);
   resize();
 
+  function isDark() { return !document.body.classList.contains('light-mode'); }
+
   function draw() {
+    if (!isDark()) { canvas.style.visibility = 'hidden'; running = false; return; }
+    canvas.style.visibility = 'visible';
+    running = true;
     ctx.clearRect(0, 0, W, H);
 
-    // 배경: 다크 그라디언트
+    // 배경
     const bg = ctx.createLinearGradient(0, H, W, 0);
     bg.addColorStop(0, '#141821');
     bg.addColorStop(1, '#1F1762');
@@ -2543,13 +2549,13 @@ renderHistory();
     // 블롭 렌더링
     for (const b of blobs) {
       const pulse = 1 + 0.06 * Math.sin(t * 0.0008 + b.phase);
-      const bx = ((b.x + Math.sin(t * b.vx + b.phase) * 0.18) * W);
-      const by = ((b.y + Math.cos(t * b.vy + b.phase) * 0.15) * H);
+      const bx = (b.x + Math.sin(t * b.vx + b.phase) * 0.18) * W;
+      const by = (b.y + Math.cos(t * b.vy + b.phase) * 0.15) * H;
       const br = b.r * Math.min(W, H) * pulse;
 
       const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
-      grad.addColorStop(0,   b.color + '0.28)');
-      grad.addColorStop(0.4, b.color + '0.12)');
+      grad.addColorStop(0,   b.color + '0.30)');
+      grad.addColorStop(0.4, b.color + '0.13)');
       grad.addColorStop(1,   b.color + '0)');
 
       ctx.beginPath();
@@ -2558,30 +2564,23 @@ renderHistory();
       ctx.fill();
     }
 
-    // 노이즈 느낌의 미세 필름 (선택적 오버레이)
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    // 어두운 오버레이 (콘텐츠 가독성)
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
     ctx.fillRect(0, 0, W, H);
 
     t++;
     requestAnimationFrame(draw);
   }
 
-  // 다크 모드일 때만 실행
-  function checkAndRun() {
-    const isDark = !document.body.classList.contains('light-mode');
-    canvas.style.opacity = isDark ? '1' : '0';
-    if (isDark) draw();
-  }
-
-  // 테마 변경 감지
-  const observer = new MutationObserver(() => {
-    canvas.style.opacity = document.body.classList.contains('light-mode') ? '0' : '1';
-  });
-  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  // 테마 변경 시 재시작
+  new MutationObserver(() => {
+    if (isDark() && !running) requestAnimationFrame(draw);
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
   // 최초 실행
   requestAnimationFrame(draw);
 })();
 </script>
+</div><!-- /#main-wrap -->
 </body>
 </html>
