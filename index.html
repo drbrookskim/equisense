@@ -17,7 +17,7 @@
     --text2:     #e2e8f0;        /* 밝은 회색 — 보조 텍스트 */
     --muted:     #94a3b8;        /* 중간 회색 — 레이블 (기존 #64748b보다 밝게) */
     --muted2:    #64748b;        /* 어두운 회색 — 힌트·구분선 */
-    --topbar:    rgba(17,24,39,0.95);
+    --topbar:    rgba(10,8,30,0.82);
     --metric-bd: #1a2235;
     --green:     #00d4aa;
     --red:       #ff4b6e;
@@ -74,14 +74,20 @@
   }
   .topbar {
     background: var(--topbar);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.35);
     padding: 0 32px;
     height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky; top: 0; z-index: 100;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  }
+  html.light .topbar {
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
   }
   .logo { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
   .logo span { color: var(--green); }
@@ -629,10 +635,7 @@
     <option value="short_term">단기</option>
     <option value="long_term">장기</option>
   </select>
-  <button class="btn-run" id="run-btn" onclick="runAnalysis()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M8 5v14l11-7z"/></svg>
-    분석 시작
-  </button>
+  <button class="btn-run" id="run-btn" onclick="runAnalysis()">분석 시작</button>
 </div>
 
 <!-- 검색 기록 -->
