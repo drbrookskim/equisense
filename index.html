@@ -1780,7 +1780,7 @@ async function runAnalysis() {
 
     // 최신 가격 우선순위: 실시간 quote → chart meta → 마지막 봉 종가
     const price   = quote?.regularMarketPrice || regularMarketPrice || bars[bars.length-1].close;
-    const prevClose = quote?.regularMarketPreviousClose || previousClose || bars[bars.length-2]?.close;
+    const prevClose = bars[bars.length-2]?.close || quote?.regularMarketPreviousClose || previousClose;
     const changeAmt = prevClose ? price - prevClose : null;
     const changePct = prevClose ? (price / prevClose - 1) * 100 : null;
     const high52w   = quote?.fiftyTwoWeekHigh || null;
