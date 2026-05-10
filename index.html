@@ -287,6 +287,25 @@
     50%      { box-shadow: 0 6px 28px rgba(124,58,237,.5), 0 2px 8px rgba(0,0,0,.3); }
   }
   .btn-run:not(:disabled) { animation: btn-pulse 3s ease-in-out infinite; }
+  /* ── 리포트 버튼 ── */
+  .btn-report {
+    padding: 0 20px;
+    height: 44px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.10);
+    color: #e2e8f0;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+    transition: background .2s, border-color .2s, transform .15s;
+  }
+  .btn-report:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); transform: translateY(-1px); }
+  html.light .btn-report { color: #1e293b; border-color: rgba(0,0,0,0.15); background: rgba(255,255,255,0.55); }
+  html.light .btn-report:hover { background: rgba(255,255,255,0.8); }
   /* ── 즐겨찾기 ── */
   .fav-section {
     max-width: 1300px;
@@ -709,6 +728,7 @@
     <option value="long_term">장기</option>
   </select>
   <button class="btn-run" id="run-btn" onclick="runAnalysis()">분석 시작</button>
+  <button class="btn-report" id="report-btn" onclick="openReport()" title="상세 리포트 보기">📄 리포트</button>
 </div>
 
 <!-- 검색 기록 -->
@@ -2580,6 +2600,17 @@ document.addEventListener('click', e => {
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 renderFavs();
 renderHistory();
+
+// ── 리포트 페이지 열기 ──
+function openReport() {
+  const raw    = document.getElementById('ticker-input').value.trim();
+  const period = document.getElementById('period-select').value;
+  const style  = document.getElementById('style-select').value;
+  const ticker = raw ? raw.toUpperCase() : '';
+  if (!ticker) { alert('먼저 종목 티커를 입력하세요.'); return; }
+  const url = `report.html?ticker=${encodeURIComponent(ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}`;
+  window.open(url, '_blank');
+}
 
 // ══════════════════════════════════════════════════════
 // ── Aurora Blob Background (다크 모드 전용) ──
