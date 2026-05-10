@@ -169,6 +169,7 @@
     cursor: default;
   }
   .logo-icon { height: 48px; width: auto; flex-shrink: 0; }
+  .logo-letter { font-family: 'Geist', 'DM Sans', sans-serif; font-weight: 900; }
   .logo-name {
     font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em;
     background: linear-gradient(90deg, #a78bfa 0%, #38bdf8 50%, #34d399 100%);
@@ -719,9 +720,10 @@
 <header class="topbar">
   <div class="logo">
     <svg class="logo-icon" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- outer ring -->
-      <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="5" fill="none"/>
-      <!-- signal lines left (3 horizontal bars from stem outward) -->
+      <!-- S/nn drawn FIRST so ring clips their edges cleanly -->
+      <text font-family="'Geist','Arial Black',sans-serif" font-weight="900" x="3"  y="69" font-size="42" fill="currentColor">S</text>
+      <text font-family="'Geist','Arial Black',sans-serif" font-weight="900" x="42" y="69" font-size="34" fill="currentColor">nn</text>
+      <!-- signal lines left -->
       <line x1="37" y1="21" x2="18" y2="21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
       <line x1="37" y1="29" x2="13" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
       <line x1="37" y1="37" x2="9"  y2="37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
@@ -733,9 +735,8 @@
       <rect x="38.5" y="15" width="3" height="59" rx="1.5" fill="currentColor"/>
       <!-- ball at top -->
       <circle cx="40" cy="10" r="6" fill="currentColor"/>
-      <!-- S and nn letters -->
-      <text x="6"  y="73" font-family="'Geist','DM Sans',sans-serif" font-weight="900" font-size="36" fill="currentColor">S</text>
-      <text x="42" y="73" font-family="'Geist','DM Sans',sans-serif" font-weight="900" font-size="30" fill="currentColor">nn</text>
+      <!-- outer ring drawn LAST to frame everything -->
+      <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="5" fill="none"/>
     </svg>
     <span class="logo-name">Signnith</span>
   </div>
@@ -789,7 +790,8 @@
   <div class="center-msg" id="welcome-msg">
     <div class="icon" style="margin-bottom:8px">
       <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:76px;height:76px;opacity:0.92">
-        <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="5" fill="none"/>
+        <text font-family="'Geist','Arial Black',sans-serif" font-weight="900" x="3"  y="69" font-size="42" fill="currentColor">S</text>
+        <text font-family="'Geist','Arial Black',sans-serif" font-weight="900" x="42" y="69" font-size="34" fill="currentColor">nn</text>
         <line x1="37" y1="21" x2="18" y2="21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
         <line x1="37" y1="29" x2="13" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
         <line x1="37" y1="37" x2="9"  y2="37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
@@ -798,8 +800,7 @@
         <line x1="43" y1="37" x2="71" y2="37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
         <rect x="38.5" y="15" width="3" height="59" rx="1.5" fill="currentColor"/>
         <circle cx="40" cy="10" r="6" fill="currentColor"/>
-        <text x="6"  y="73" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="36" fill="currentColor">S</text>
-        <text x="42" y="73" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="30" fill="currentColor">nn</text>
+        <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="5" fill="none"/>
       </svg>
     </div>
     <div style="font-size:1.5rem;font-weight:700;margin-bottom:8px;background:linear-gradient(90deg,#a78bfa,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Signnith</div>
