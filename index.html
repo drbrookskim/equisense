@@ -162,8 +162,25 @@
     50%      { box-shadow: 0 6px 28px rgba(139,92,246,.35), 0 2px 8px rgba(0,0,0,.15); }
   }
   html.light .btn-run:not(:disabled) { animation: btn-pulse-light 3s ease-in-out infinite; }
-  .logo { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-  .logo span { color: var(--green); }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    color: #f1f5f9;
+    text-decoration: none;
+    cursor: default;
+  }
+  .logo-icon { height: 34px; width: auto; flex-shrink: 0; }
+  .logo-name {
+    font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em;
+    background: linear-gradient(90deg, #a78bfa 0%, #38bdf8 50%, #34d399 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  html.light .logo { color: #C26336; }
+  html.light .logo-name {
+    background: linear-gradient(90deg, #7C5CE7 0%, #D96B6B 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .pill {
     background: var(--border);
@@ -700,7 +717,29 @@
 
 <div id="main-wrap">
 <header class="topbar">
-  <div class="logo">📈 <span>signnith</span></div>
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 76 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Ball -->
+      <circle cx="38" cy="6" r="5.5" fill="currentColor"/>
+      <!-- Vertical stem -->
+      <rect x="35.5" y="11" width="5" height="77" rx="2.5" fill="currentColor"/>
+      <!-- Left signal lines -->
+      <line x1="36" y1="20" x2="23" y2="26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="36" y1="27" x2="18" y2="35" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="36" y1="34" x2="13" y2="44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <!-- Right signal lines -->
+      <line x1="40" y1="20" x2="53" y2="26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="40" y1="27" x2="58" y2="35" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="40" y1="34" x2="63" y2="44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <!-- Outer ring arc: 270° arc, gap on upper-right side -->
+      <!-- Center (38,55) r=29: start θ=55°(4o'c) → clockwise → end θ=325°(1o'c) -->
+      <path d="M 54.6 78.8 A 29 29 0 1 1 61.8 38.3" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <!-- S and nn text inside ring -->
+      <text x="5" y="77" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="26" fill="currentColor">S</text>
+      <text x="37" y="77" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="24" fill="currentColor">nn</text>
+    </svg>
+    <span class="logo-name">Signnith</span>
+  </div>
   <div class="topbar-right">
     <span class="pill">기술 + 기본 분석 · 서버리스</span>
     <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="라이트/다크 전환">🌙</button>
@@ -749,8 +788,22 @@
 
 <div class="grid" id="dashboard">
   <div class="center-msg" id="welcome-msg">
-    <div class="icon">📈</div>
-    <div style="font-size:1.3rem;font-weight:700;color:#e2e8f0;margin-bottom:8px;">signnith</div>
+    <div class="icon" style="font-size:2.5rem;margin-bottom:4px">
+      <svg viewBox="0 0 76 88" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:56px;height:56px;opacity:0.9">
+        <circle cx="38" cy="6" r="5.5" fill="currentColor"/>
+        <rect x="35.5" y="11" width="5" height="77" rx="2.5" fill="currentColor"/>
+        <line x1="36" y1="20" x2="23" y2="26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <line x1="36" y1="27" x2="18" y2="35" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <line x1="36" y1="34" x2="13" y2="44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <line x1="40" y1="20" x2="53" y2="26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <line x1="40" y1="27" x2="58" y2="35" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <line x1="40" y1="34" x2="63" y2="44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M 54.6 78.8 A 29 29 0 1 1 61.8 38.3" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <text x="5" y="77" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="26" fill="currentColor">S</text>
+        <text x="37" y="77" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="24" fill="currentColor">nn</text>
+      </svg>
+    </div>
+    <div style="font-size:1.5rem;font-weight:700;margin-bottom:8px;background:linear-gradient(90deg,#a78bfa,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Signnith</div>
     <div>종목을 선택하거나 티커를 입력 후 <b style="color:var(--green)">▶ 분석 시작</b>을 누르세요</div>
     <div style="margin-top:16px;font-size:0.8rem;color:var(--muted)">서버 없이 브라우저에서 직접 분석 · Yahoo Finance 실시간 데이터</div>
   </div>

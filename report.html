@@ -98,15 +98,23 @@
     -webkit-backdrop-filter: blur(24px) saturate(1.6);
   }
   .topbar-logo{
-    font-size:1rem;
-    font-weight:700;
-    color: var(--text);
-    display:flex;
-    align-items:center;
-    gap:8px;
+    display:flex; align-items:center; gap:10px;
     text-decoration:none;
+    color: #f1f5f9;
   }
-  .topbar-logo span{ color: var(--green); }
+  html.light .topbar-logo { color: #C26336; }
+  .logo-icon-r { height:34px; width:auto; flex-shrink:0; }
+  .logo-name-r {
+    font-size:1.15rem; font-weight:700; letter-spacing:-0.01em;
+    background: linear-gradient(90deg, #a78bfa 0%, #38bdf8 50%, #34d399 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+  html.light .logo-name-r {
+    background: linear-gradient(90deg, #7C5CE7 0%, #D96B6B 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
   .topbar-right { display:flex; align-items:center; gap:10px; }
   .back-btn{
     display:inline-flex;
@@ -377,7 +385,22 @@
 <div id="main-wrap">
 
 <header class="topbar">
-  <a class="topbar-logo" href="index.html">📈 <span>signnith</span></a>
+  <a class="topbar-logo" href="index.html">
+    <svg class="logo-icon-r" viewBox="0 0 76 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="38" cy="6" r="5.5" fill="currentColor"/>
+      <rect x="35.5" y="11" width="5" height="77" rx="2.5" fill="currentColor"/>
+      <line x1="36" y1="20" x2="23" y2="26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="36" y1="27" x2="18" y2="35" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="36" y1="34" x2="13" y2="44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="40" y1="20" x2="53" y2="26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="40" y1="27" x2="58" y2="35" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <line x1="40" y1="34" x2="63" y2="44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <path d="M 54.6 78.8 A 29 29 0 1 1 61.8 38.3" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <text x="5" y="77" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="26" fill="currentColor">S</text>
+      <text x="37" y="77" font-family="'DM Sans','Arial Black',sans-serif" font-weight="800" font-size="24" fill="currentColor">nn</text>
+    </svg>
+    <span class="logo-name-r">Signnith</span>
+  </a>
   <div class="topbar-right">
     <button class="btn-theme-r" id="theme-btn-r" onclick="toggleThemeR()" title="테마 전환">🌙</button>
     <a class="back-btn" href="index.html">← 분석 화면으로</a>
