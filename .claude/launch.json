@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Stock Analyzer",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "3000", "/Users/nelcome/Documents/Claude_code_repository"],
+      "port": 3000
+    },
+    {
       "name": "FastAPI Backend",
       "runtimeExecutable": "/opt/homebrew/bin/python3.12",
       "runtimeArgs": ["-m", "uvicorn", "api:app", "--port", "8000", "--loop", "asyncio", "--http", "h11"],
