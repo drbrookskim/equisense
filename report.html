@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Stock Report — Today's Stock Analyzer</title>
+<title>리포트 — signnith</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -377,7 +377,7 @@
 <div id="main-wrap">
 
 <header class="topbar">
-  <a class="topbar-logo" href="index.html">📈 <span>Today's</span> Stock Analyzer</a>
+  <a class="topbar-logo" href="index.html">📈 <span>signnith</span></a>
   <div class="topbar-right">
     <button class="btn-theme-r" id="theme-btn-r" onclick="toggleThemeR()" title="테마 전환">🌙</button>
     <a class="back-btn" href="index.html">← 분석 화면으로</a>
@@ -975,7 +975,7 @@ function renderReport(data) {
   const period = params.get('period') || '6mo';
   const style  = params.get('style')  || 'balanced';
 
-  document.title = `${ticker} 리포트 — Today's Stock Analyzer`;
+  document.title = `${ticker} 리포트 — signnith`;
 
   try {
     const [ohlcvData, fundInfo, quote] = await Promise.all([
