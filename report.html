@@ -8,21 +8,79 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ── CSS 변수: 다크 모드 (기본) ── */
+  :root {
+    --bg:       transparent;
+    --card:     rgba(17,24,39,0.82);
+    --card2:    rgba(15,19,32,0.75);
+    --border:   rgba(255,255,255,0.08);
+    --border2:  rgba(255,255,255,0.14);
+    --text:     #f1f5f9;
+    --text2:    #e2e8f0;
+    --muted:    #94a3b8;
+    --muted2:   #64748b;
+    --topbar:   rgba(10,8,30,0.82);
+    --green:    #00d4aa;
+    --red:      #ff4b6e;
+    --yellow:   #fbbf24;
+    --blue:     #3b82f6;
+    --shadow:   rgba(0,0,0,.4);
+    --desc-bg:  rgba(15,19,32,0.60);
+    --divider:  rgba(255,255,255,0.07);
+  }
+  /* ── CSS 변수: 라이트 모드 ── */
+  html.light {
+    --bg:       transparent;
+    --card:     rgba(255,255,255,0.78);
+    --card2:    rgba(241,245,249,0.65);
+    --border:   rgba(180,160,140,0.20);
+    --border2:  rgba(180,160,140,0.30);
+    --text:     #0f172a;
+    --text2:    #1e293b;
+    --muted:    #334155;
+    --muted2:   #64748b;
+    --topbar:   rgba(255,255,255,0.75);
+    --green:    #047857;
+    --red:      #be123c;
+    --yellow:   #b45309;
+    --blue:     #1d4ed8;
+    --shadow:   rgba(0,0,0,.10);
+    --desc-bg:  rgba(241,245,249,0.70);
+    --divider:  rgba(180,160,140,0.12);
+  }
+
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{
     font-family:'DM Sans','Noto Sans KR',-apple-system,sans-serif;
-    background: linear-gradient(160deg,#F8F1EE 0%,#ECF8F8 50%,#FCFAF2 100%);
+    background: var(--bg);
     min-height:100vh;
-    color:#1e293b;
+    color: var(--text);
+    transition: background .25s, color .25s;
+  }
+
+  /* ── Aurora Canvas ── */
+  #aurora-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    display: block;
+  }
+  #main-wrap {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
   }
 
   /* ── Topbar ── */
   .topbar{
-    background: rgba(255,255,255,0.75);
-    backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
-    border-bottom: 1px solid rgba(180,160,140,0.18);
-    box-shadow: 0 2px 24px rgba(120,90,70,0.10);
+    background: var(--topbar);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px var(--shadow);
     height:56px;
     display:flex;
     align-items:center;
@@ -32,31 +90,50 @@
     top:0;
     z-index:100;
   }
+  html.light .topbar {
+    background: rgba(255,255,255,0.75);
+    border-bottom: 1px solid rgba(180,160,140,0.18);
+    box-shadow: 0 2px 24px rgba(120,90,70,0.10);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  }
   .topbar-logo{
     font-size:1rem;
     font-weight:700;
-    color:#1e293b;
+    color: var(--text);
     display:flex;
     align-items:center;
     gap:8px;
     text-decoration:none;
   }
-  .topbar-logo span{ color:#047857; }
+  .topbar-logo span{ color: var(--green); }
+  .topbar-right { display:flex; align-items:center; gap:10px; }
   .back-btn{
     display:inline-flex;
     align-items:center;
     gap:6px;
     font-size:0.85rem;
     font-weight:600;
-    color:#475569;
+    color: var(--muted);
     text-decoration:none;
     padding:7px 14px;
-    border:1px solid rgba(180,160,140,0.30);
+    border:1px solid var(--border2);
     border-radius:10px;
-    background:rgba(255,255,255,0.70);
+    background: var(--card2);
     transition:all .15s;
   }
-  .back-btn:hover{ color:#047857; border-color:#047857; background:rgba(4,120,87,.06); }
+  .back-btn:hover{ color: var(--green); border-color: var(--green); }
+  .btn-theme-r {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--card2);
+    color: var(--text2);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-theme-r:hover { border-color: var(--green); }
 
   /* ── Page wrapper ── */
   .page{
@@ -69,12 +146,12 @@
   .center-msg{
     text-align:center;
     padding:80px 20px;
-    color:#64748b;
+    color: var(--muted2);
   }
   .spinner{
     width:36px; height:36px;
     border:3px solid rgba(4,120,87,.2);
-    border-top-color:#047857;
+    border-top-color: var(--green);
     border-radius:50%;
     animation:spin .8s linear infinite;
     margin:0 auto 16px;
@@ -83,19 +160,19 @@
 
   /* ── Main Title Card ── */
   .main-title-card{
-    background:rgba(255,255,255,0.82);
-    border:1px solid rgba(180,160,140,0.20);
+    background: var(--card);
+    border:1px solid var(--border);
     border-radius:20px;
     padding:28px 32px;
     margin-bottom:20px;
-    box-shadow:0 4px 24px rgba(100,80,60,0.08);
+    box-shadow:0 4px 24px var(--shadow);
     backdrop-filter:blur(16px);
     -webkit-backdrop-filter:blur(16px);
   }
   .main-title-card h1{
     font-size:2rem;
     font-weight:700;
-    color:#0f172a;
+    color: var(--text);
     margin-bottom:6px;
     letter-spacing:-0.02em;
   }
@@ -105,7 +182,7 @@
     flex-wrap:wrap;
     gap:12px;
     font-size:0.85rem;
-    color:#64748b;
+    color: var(--muted2);
     margin-top:12px;
   }
   .badge{
@@ -117,13 +194,16 @@
     font-size:0.78rem;
     font-weight:600;
   }
-  .badge-buy  { background:rgba(4,120,87,.12);  color:#047857; }
-  .badge-sell { background:rgba(190,18,60,.10);  color:#be123c; }
-  .badge-hold { background:rgba(180,160,100,.15);color:#92400e; }
+  .badge-buy  { background:rgba(0,212,170,.15);  color:#00d4aa; }
+  .badge-sell { background:rgba(255,75,110,.15);  color:#ff4b6e; }
+  .badge-hold { background:rgba(251,191,36,.15);  color:#fbbf24; }
+  html.light .badge-buy  { background:rgba(4,120,87,.12);  color:#047857; }
+  html.light .badge-sell { background:rgba(190,18,60,.10);  color:#be123c; }
+  html.light .badge-hold { background:rgba(180,160,100,.15);color:#92400e; }
   .price-display{
     font-size:2.4rem;
     font-weight:700;
-    color:#0f172a;
+    color: var(--text);
     letter-spacing:-0.03em;
   }
   .price-change{
@@ -131,27 +211,27 @@
     font-weight:600;
     margin-left:10px;
   }
-  .up  { color:#047857; }
-  .down{ color:#be123c; }
+  .up  { color: var(--green); }
+  .down{ color: var(--red); }
 
   /* ── Section Card ── */
   .section-card{
-    background:rgba(255,255,255,0.78);
-    border:1px solid rgba(180,160,140,0.20);
+    background: var(--card);
+    border:1px solid var(--border);
     border-radius:20px;
     padding:28px 32px;
     margin-bottom:16px;
-    box-shadow:0 4px 24px rgba(100,80,60,0.07);
+    box-shadow:0 4px 24px var(--shadow);
     backdrop-filter:blur(16px);
     -webkit-backdrop-filter:blur(16px);
   }
   .section-title{
     font-size:1.1rem;
     font-weight:700;
-    color:#0f172a;
+    color: var(--text);
     margin-bottom:24px;
     padding-bottom:12px;
-    border-bottom:1px solid rgba(180,160,140,0.18);
+    border-bottom:1px solid var(--border);
     display:flex;
     align-items:center;
     gap:8px;
@@ -159,9 +239,9 @@
 
   /* ── Metric Row (wireframe layout) ── */
   .metric-block{
-    margin-top:20px; /* wireframe: 20px top */
+    margin-top:20px;
     padding-top:20px;
-    border-top:1px solid rgba(180,160,140,0.12);
+    border-top:1px solid var(--divider);
   }
   .metric-block:first-of-type{
     margin-top:0;
@@ -171,7 +251,7 @@
   .sub-title{
     font-size:1rem;
     font-weight:600;
-    color:#1e293b;
+    color: var(--text2);
     margin-bottom:10px;
   }
 
@@ -185,7 +265,7 @@
   .bar-wrap{
     flex:1;
     height:12px;
-    background:rgba(220,210,200,0.35);
+    background: var(--card2);
     border-radius:99px;
     overflow:hidden;
   }
@@ -196,17 +276,17 @@
   }
   .bar-fill.bull { background:linear-gradient(90deg,#d97706,#f59e0b); }
   .bar-fill.bear { background:linear-gradient(90deg,#be123c,#f43f5e); }
-  .bar-fill.neutral { background:linear-gradient(90deg,#94a3b8,#cbd5e1); }
+  .bar-fill.neutral { background:linear-gradient(90deg,#64748b,#94a3b8); }
   .bar-value{
     min-width:80px;
     text-align:right;
     font-size:1rem;
     font-weight:700;
-    color:#d97706; /* amber — wireframe */
+    color:#f59e0b;
     white-space:nowrap;
   }
-  .bar-value.bear{ color:#be123c; }
-  .bar-value.neutral{ color:#64748b; }
+  .bar-value.bear{ color: var(--red); }
+  .bar-value.neutral{ color: var(--muted2); }
 
   /* Signal badge under bar */
   .signal-tag{
@@ -217,54 +297,37 @@
     border-radius:99px;
     margin-bottom:0;
   }
-  .signal-tag.buy  { background:rgba(4,120,87,.10);  color:#047857; }
-  .signal-tag.sell { background:rgba(190,18,60,.10);  color:#be123c; }
-  .signal-tag.hold { background:rgba(100,116,139,.10);color:#475569; }
+  .signal-tag.buy  { background:rgba(0,212,170,.12);  color:#00d4aa; }
+  .signal-tag.sell { background:rgba(255,75,110,.12);  color:#ff4b6e; }
+  .signal-tag.hold { background:rgba(148,163,184,.12); color: var(--muted); }
+  html.light .signal-tag.buy  { background:rgba(4,120,87,.10);  color:#047857; }
+  html.light .signal-tag.sell { background:rgba(190,18,60,.10);  color:#be123c; }
+  html.light .signal-tag.hold { background:rgba(100,116,139,.10);color:#475569; }
 
   /* Description area — wireframe: 30px gap */
   .desc-section{
-    margin-top:30px; /* wireframe: 30px */
+    margin-top:30px;
   }
   .desc-label{
     font-size:0.88rem;
     font-weight:700;
-    color:#334155;
-    margin-bottom:20px; /* wireframe: 20px */
+    color: var(--muted);
+    margin-bottom:20px;
   }
   .desc-box{
-    background:rgba(241,245,249,0.70);
-    border:1px solid rgba(180,160,140,0.18);
+    background: var(--desc-bg);
+    border:1px solid var(--border);
     border-radius:12px;
     padding:16px 20px;
-    margin-left:20px; /* wireframe: 20px indent */
+    margin-left:20px;
     font-size:0.84rem;
-    color:#475569;
+    color: var(--muted);
     line-height:1.7;
   }
-  .desc-box b{ color:#1e293b; font-weight:600; }
-  .desc-box .tag-buy  { color:#047857; font-weight:600; }
-  .desc-box .tag-sell { color:#be123c; font-weight:600; }
-  .desc-box .tag-warn { color:#b45309; font-weight:600; }
-
-  /* ── Reasoning list ── */
-  .reasoning-list{
-    list-style:none;
-    margin-top:12px;
-  }
-  .reasoning-list li{
-    display:flex;
-    gap:8px;
-    padding:6px 0;
-    font-size:0.82rem;
-    color:#475569;
-    border-bottom:1px solid rgba(180,160,140,0.10);
-  }
-  .reasoning-list li:last-child{ border-bottom:none; }
-  .reasoning-list li::before{
-    content:'•';
-    color:#d97706;
-    flex-shrink:0;
-  }
+  .desc-box b{ color: var(--text2); font-weight:600; }
+  .desc-box .tag-buy  { color: var(--green); font-weight:600; }
+  .desc-box .tag-sell { color: var(--red);   font-weight:600; }
+  .desc-box .tag-warn { color: var(--yellow);font-weight:600; }
 
   /* ── Print / share bar ── */
   .action-bar{
@@ -279,18 +342,19 @@
     gap:6px;
     padding:9px 18px;
     border-radius:12px;
-    border:1px solid rgba(180,160,140,0.30);
-    background:rgba(255,255,255,0.70);
+    border:1px solid var(--border2);
+    background: var(--card2);
     font-size:0.84rem;
     font-weight:600;
-    color:#475569;
+    color: var(--muted);
     cursor:pointer;
     transition:all .15s;
+    font-family: inherit;
   }
-  .action-btn:hover{ background:rgba(255,255,255,0.95); color:#047857; border-color:#047857; }
+  .action-btn:hover{ color: var(--green); border-color: var(--green); }
 
   /* ── Divider ── */
-  .divider{ height:1px; background:rgba(180,160,140,0.15); margin:8px 0; }
+  .divider{ height:1px; background: var(--divider); margin:8px 0; }
 
   @media print{
     .topbar,.action-bar{ display:none; }
@@ -308,9 +372,16 @@
 </head>
 <body>
 
+<canvas id="aurora-canvas"></canvas>
+
+<div id="main-wrap">
+
 <header class="topbar">
   <a class="topbar-logo" href="index.html">📈 <span>Today's</span> Stock Analyzer</a>
-  <a class="back-btn" href="index.html">← 분석 화면으로</a>
+  <div class="topbar-right">
+    <button class="btn-theme-r" id="theme-btn-r" onclick="toggleThemeR()" title="테마 전환">🌙</button>
+    <a class="back-btn" href="index.html">← 분석 화면으로</a>
+  </div>
 </header>
 
 <div class="page">
@@ -321,6 +392,8 @@
     </div>
   </div>
 </div>
+
+</div><!-- /#main-wrap -->
 
 <script>
 // ══════════════════════════════════════════════════════
@@ -869,18 +942,18 @@ function renderReport(data) {
   <div class="main-title-card">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
       <span class="badge ${actionMap[d.action]}">${actionLabel[d.action]}</span>
-      <span style="font-size:0.82rem;color:#64748b">${sector}</span>
+      <span style="font-size:0.82rem;color:var(--muted2)">${sector}</span>
     </div>
-    <h1>${companyName} <span style="font-size:1.2rem;color:#64748b;font-weight:500">${ticker}</span></h1>
+    <h1>${companyName} <span style="font-size:1.2rem;color:var(--muted2);font-weight:500">${ticker}</span></h1>
     <div style="margin-top:14px">
       <span class="price-display">${fmt(price,isKr)}</span>
-      <span style="font-size:0.9rem;color:#64748b;margin-left:6px">${currency}</span>
+      <span style="font-size:0.9rem;color:var(--muted2);margin-left:6px">${currency}</span>
       ${chgHtml}
     </div>
     <div class="main-title-meta">
-      <span>기술 점수 <b style="color:#047857">${(d.techScore>=0?'+':'')+d.techScore.toFixed(2)}</b></span>
+      <span>기술 점수 <b style="color:var(--green)">${(d.techScore>=0?'+':'')+d.techScore.toFixed(2)}</b></span>
       <span>·</span>
-      <span>기본 점수 <b style="color:#047857">${(d.fundScore>=0?'+':'')+d.fundScore.toFixed(2)}</b></span>
+      <span>기본 점수 <b style="color:var(--green)">${(d.fundScore>=0?'+':'')+d.fundScore.toFixed(2)}</b></span>
       <span>·</span>
       <span>내재가치 <b>${fmt(fund.intrinsic,isKr)} ${currency}</b></span>
     </div>
@@ -938,9 +1011,122 @@ function renderReport(data) {
       <div class="center-msg">
         <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
         <div style="color:#be123c;font-weight:600;margin-bottom:8px">분석 실패</div>
-        <div style="color:#64748b">${e.message}</div>
+        <div style="color:var(--muted2)">${e.message}</div>
       </div>`;
   }
+})();
+
+// ══════════════════════════════════════════════════════
+// ── 테마 동기화 (index.html과 동일한 localStorage key) ──
+// ══════════════════════════════════════════════════════
+const THEME_KEY = 'tsa_theme';
+
+function applyThemeR(theme) {
+  const isLight = theme === 'light';
+  document.documentElement.classList.toggle('light', isLight);
+  const btn = document.getElementById('theme-btn-r');
+  if (btn) btn.textContent = isLight ? '🌞' : '🌙';
+  localStorage.setItem(THEME_KEY, theme);
+}
+
+function toggleThemeR() {
+  const isLight = document.documentElement.classList.contains('light');
+  applyThemeR(isLight ? 'dark' : 'light');
+}
+
+// index.html에서 저장한 테마를 그대로 불러옴
+applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
+
+// ══════════════════════════════════════════════════════
+// ── Aurora Blob Background ──
+// ══════════════════════════════════════════════════════
+(function initAurora() {
+  const canvas = document.getElementById('aurora-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const darkBlobs = [
+    { x:.18, y:.22, r:.38, color:'rgba(108,92,231,',  vx:.00012, vy:.00008, phase:0   },
+    { x:.72, y:.15, r:.32, color:'rgba(0,153,255,',   vx:-.0001, vy:.00013, phase:1.2 },
+    { x:.55, y:.72, r:.42, color:'rgba(0,212,170,',   vx:.00009, vy:-.0001, phase:2.4 },
+    { x:.10, y:.75, r:.28, color:'rgba(167,139,250,',  vx:.00014, vy:.00006, phase:0.7 },
+    { x:.88, y:.58, r:.34, color:'rgba(236,72,153,',   vx:-.0001, vy:-.0001, phase:3.1 },
+    { x:.42, y:.42, r:.25, color:'rgba(56,189,248,',   vx:.00007, vy:.00015, phase:1.8 },
+  ];
+  const lightBlobs = [
+    { x:.20, y:.18, r:.40, color:'rgba(255,182,159,',  vx:.00010, vy:.00007, phase:0   },
+    { x:.75, y:.20, r:.35, color:'rgba(129,236,236,',  vx:-.0009, vy:.00012, phase:1.4 },
+    { x:.50, y:.68, r:.44, color:'rgba(253,242,180,',  vx:.00008, vy:-.0009, phase:2.6 },
+    { x:.12, y:.70, r:.30, color:'rgba(210,196,255,',  vx:.00013, vy:.00006, phase:0.9 },
+    { x:.85, y:.55, r:.32, color:'rgba(255,214,214,',  vx:-.0008, vy:-.0008, phase:3.3 },
+    { x:.40, y:.38, r:.28, color:'rgba(180,235,220,',  vx:.00006, vy:.00014, phase:2.0 },
+  ];
+
+  let W, H, t = 0, running = false;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function isDark() { return !document.documentElement.classList.contains('light'); }
+
+  function draw() {
+    canvas.style.visibility = 'visible';
+    running = true;
+    ctx.clearRect(0, 0, W, H);
+
+    const dark = isDark();
+    const angle = 160 * Math.PI / 180;
+    const L = Math.sqrt(W * W + H * H);
+    const cx = W / 2, cy = H / 2;
+    const x0 = cx - Math.cos(angle) * L / 2, y0 = cy - Math.sin(angle) * L / 2;
+    const x1 = cx + Math.cos(angle) * L / 2, y1 = cy + Math.sin(angle) * L / 2;
+    const bg = ctx.createLinearGradient(x0, y0, x1, y1);
+    if (dark) {
+      bg.addColorStop(0, '#141821');
+      bg.addColorStop(1, '#1F1762');
+    } else {
+      bg.addColorStop(0,   '#F8F1EE');
+      bg.addColorStop(0.5, '#ECF8F8');
+      bg.addColorStop(1,   '#FCFAF2');
+    }
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const blobs = dark ? darkBlobs : lightBlobs;
+    const coreAlpha = dark ? 0.30 : 0.50;
+    const midAlpha  = dark ? 0.13 : 0.22;
+
+    for (const b of blobs) {
+      const pulse = 1 + 0.06 * Math.sin(t * 0.0008 + b.phase);
+      const bx = (b.x + Math.sin(t * b.vx + b.phase) * 0.18) * W;
+      const by = (b.y + Math.cos(t * b.vy + b.phase) * 0.15) * H;
+      const br = b.r * Math.min(W, H) * pulse;
+      const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+      grad.addColorStop(0,   b.color + coreAlpha + ')');
+      grad.addColorStop(0.4, b.color + midAlpha  + ')');
+      grad.addColorStop(1,   b.color + '0)');
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    ctx.fillStyle = dark ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.28)';
+    ctx.fillRect(0, 0, W, H);
+
+    t++;
+    requestAnimationFrame(draw);
+  }
+
+  new MutationObserver(() => {
+    if (!running) requestAnimationFrame(draw);
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+  requestAnimationFrame(draw);
 })();
 </script>
 </body>
