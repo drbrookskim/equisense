@@ -692,6 +692,29 @@
 
   /* ── Knowledge Graph ── */
   .kg-card { grid-column: 1 / -1; }
+  .kg-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .kg-tab {
+    padding: 5px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .kg-tab.active {
+    background: var(--purple);
+    border-color: var(--purple);
+    color: #fff;
+    font-weight: 600;
+  }
+  .kg-tab:not(.active):hover { border-color: var(--purple); color: var(--purple); }
   .kg-wrap {
     position: relative;
     width: 100%;
@@ -2218,6 +2241,11 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   <!-- ── Knowledge Graph ── -->
   <div class="card kg-card" style="padding:20px 20px 14px">
     <div class="card-header"><span class="dot" style="background:var(--purple)"></span>Knowledge Graph</div>
+    <div class="kg-tabs">
+      <button class="kg-tab active" id="kgTabAnalysis" onclick="switchKgTab('analysis')">분석 그래프</button>
+      <button class="kg-tab" id="kgTabValuechain" onclick="switchKgTab('valuechain')">밸류체인</button>
+    </div>
+    <!-- 분석 그래프 탭 -->
     <div class="kg-wrap" id="kgWrap">
       <div class="kg-hint">스크롤: 확대/축소 · 드래그: 이동</div>
       <div class="kg-legend">
@@ -2225,6 +2253,16 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         <span><i style="background:var(--down)"></i>하락·매도</span>
         <span><i style="background:var(--yellow)"></i>중립·관망</span>
         <span><i style="background:var(--purple)"></i>중심·카테고리</span>
+      </div>
+    </div>
+    <!-- 밸류체인 탭 -->
+    <div class="kg-wrap" id="vcWrap" style="display:none">
+      <div class="kg-hint">스크롤: 확대/축소 · 드래그: 이동</div>
+      <div class="kg-legend">
+        <span><i style="background:var(--purple)"></i>분석 종목</span>
+        <span><i style="background:var(--orange)"></i>산업군</span>
+        <span><i style="background:var(--blue)"></i>섹터</span>
+        <span><i style="background:var(--muted2)"></i>관련 종목</span>
       </div>
     </div>
   </div>
@@ -2344,7 +2382,8 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   renderEntryPanel('macdEntryPanel', macdEntries.slice(-4));
 
   // ── Knowledge Graph 렌더링 ──
-  renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt });
+  renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt, companyName });
+  renderValueChain({ ticker, companyName });
 
   // ══════════════════════════════════════════════════════
   // ── 공통 차트 옵션 ──
@@ -2490,7 +2529,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 // ══════════════════════════════════════════════════════
 //  Knowledge Graph
 // ══════════════════════════════════════════════════════
-function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt }) {
+function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt, companyName }) {
   const wrap = document.getElementById('kgWrap');
   if (!wrap || typeof d3 === 'undefined') return;
 
@@ -2678,6 +2717,304 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
         .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
       node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+}
+
+// ══════════════════════════════════════════════════════
+//  Knowledge Graph 탭 전환
+// ══════════════════════════════════════════════════════
+function switchKgTab(tab) {
+  const kgWrap = document.getElementById('kgWrap');
+  const vcWrap = document.getElementById('vcWrap');
+  const tabA   = document.getElementById('kgTabAnalysis');
+  const tabV   = document.getElementById('kgTabValuechain');
+  if (!kgWrap || !vcWrap) return;
+  if (tab === 'analysis') {
+    kgWrap.style.display = '';
+    vcWrap.style.display = 'none';
+    tabA?.classList.add('active');
+    tabV?.classList.remove('active');
+  } else {
+    kgWrap.style.display = 'none';
+    vcWrap.style.display = '';
+    tabA?.classList.remove('active');
+    tabV?.classList.add('active');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  Value Chain 데이터 (valuechain.md 기준)
+// ══════════════════════════════════════════════════════
+const VALUE_CHAIN_DATA = [
+  {
+    industry: '반도체 및 관련 장비/소재',
+    sectors: [
+      { name: '파운드리/팹리스/디자인하우스', stocks: ['삼성전자','SK하이닉스','DB하이텍','파두','에이직랜드','제주반도체','LX세미콘','어보브반도체','텔레칩스','가온칩스','에이디테크놀로지','코아시아'] },
+      { name: 'HBM/소캠/기판', stocks: ['한미반도체','이수페타시스','심텍','대덕전자','티엘비','코리아써키트','해성디에스','에이팩트'] },
+      { name: '장비(전공정/후공정/검사)', stocks: ['원익IPS','유진테크','주성엔지니어링','테스','이오테크닉스','HPSP','테크윙','파크시스템스','디아이','넥스틴','브이엠','피에스케이','케이씨텍','에스티아이','제우스'] },
+      { name: '소재/부품/기타', stocks: ['삼성전기','리노공업','ISC','티에스이','하나머티리얼즈','티씨케이','에스앤에스텍','원익QnC','동진쎄미켐','한솔케미칼','솔브레인','덕산테코피아','코미코'] },
+      { name: 'IP/OSAT(패키징)', stocks: ['퀄리타스반도체','칩스앤미디어','오픈엣지테크놀로지','두산테스나','네패스아크','하나마이크론','SFA반도체','네패스','LB세미콘','한양디지텍'] },
+      { name: '미국 광학/통신 반도체', stocks: ['LITE','COHR','AAOI','GLW','FN','MTSI','CIEN','ANET','CSCO','MRVL','AVGO'] },
+    ]
+  },
+  {
+    industry: '자율주행, 모빌리티 및 로봇',
+    sectors: [
+      { name: '자율주행 소프트웨어', stocks: ['현대오토에버','슈어소프트테크','아우토크립트','모트렉스','오비고','인포뱅크','라닉스','넥스트칩'] },
+      { name: '카메라/센서/라이다', stocks: ['퓨런티어','엠씨넥스','LG이노텍','세코닉스','에스오에스랩','스마트레이더시스템','하이비젼시스템'] },
+      { name: '차량 제어/테슬라 부품', stocks: ['현대모비스','HL만도','에이테크솔루션','화신','에스엘','명신산업','성우하이텍','TSLA'] },
+      { name: '로봇', stocks: ['레인보우로보틱스','로보티즈','에스피지','씨메스','한국피아이엠'] },
+    ]
+  },
+  {
+    industry: '배터리, ESS 및 수소연료전지',
+    sectors: [
+      { name: '배터리 셀', stocks: ['LG에너지솔루션','삼성SDI','SK온'] },
+      { name: '전고체 소재/장비', stocks: ['이수스페셜티케미컬','한농화성','엔켐','롯데에너지머티리얼즈','씨아이에스','피엔티','원준','필에너지','유일에너테크'] },
+      { name: '양극재/음극재/기타 소재', stocks: ['에코프로비엠','에코프로','엘앤에프','포스코퓨처엠','대주전자재료','나노신소재','더블유씨피'] },
+      { name: 'ESS/슈퍼커패시터', stocks: ['한중엔시에스','서진시스템','아모그린텍','신성에스티','율촌화학','와이엠텍','성일하이텍','비나텍','LS머트리얼즈','삼화전기'] },
+      { name: '수소(SOFC)', stocks: ['두산퓨얼셀','범한퓨얼셀','한선엔지니어링','엘티씨','일진하이솔루스'] },
+    ]
+  },
+  {
+    industry: '전력 인프라, 전선 및 대체에너지',
+    sectors: [
+      { name: '전력기기/변압기', stocks: ['HD현대일렉트릭','효성중공업','LS ELECTRIC','산일전기','제룡전기'] },
+      { name: '전선/해저케이블', stocks: ['대한전선','일진전기','가온전선','LS마린솔루션','LS','LS에코에너지','대원전선'] },
+      { name: '전력 부품/배전/솔루션', stocks: ['세명전기','제일일렉트릭','지엔씨에너지','보성파워텍','그리드위즈'] },
+      { name: '원전 본체 및 시공', stocks: ['한국전력','한전기술','두산에너빌리티','현대건설','대우건설','DL이앤씨'] },
+      { name: '원전 부품/제어/정비', stocks: ['비에이치아이','태웅','우리기술','우진','에너토크','한전KPS','한전산업','우진엔텍','일진파워','오르비텍'] },
+      { name: '태양광/풍력', stocks: ['한화솔루션','HD현대에너지솔루션','OCI홀딩스','신성이엔지','대명에너지','씨에스윈드','씨에스베어링','동국S&C'] },
+    ]
+  },
+  {
+    industry: 'IT, 통신 및 디지털 자산',
+    sectors: [
+      { name: '통신장비/광통신(5G/6G)', stocks: ['케이엠더블유','쏠리드','RFHIC','이노와이어리스','에이스테크','와이솔','기가레인','대한광통신','오이솔루션','다산네트웍스','유비쿼스'] },
+      { name: 'AI 데이터센터 구축/운영', stocks: ['삼성SDS','LG씨엔에스','NAVER','NHN','KT','LG유플러스'] },
+      { name: '디지털자산/결제/핀테크', stocks: ['핑거','갤럭시아머니트리','카카오페이','다날','헥토파이낸셜','더존비즈온','코나아이','웹케시','CRCL'] },
+      { name: '코인 거래소/투자/관련주', stocks: ['우리기술투자','티사이언티픽','위지트','위메이드','비트맥스','넥서스'] },
+      { name: '애플 폴더블/IT 부품', stocks: ['비에이치','인터플렉스','디케이티','파인엠텍','KH바텍','덕산네오룩스','이녹스첨단소재','세경하이테크','삼화콘덴서','아모텍','AAPL'] },
+    ]
+  },
+  {
+    industry: '방산, 조선 및 LNG',
+    sectors: [
+      { name: '방산/항공우주', stocks: ['한화에어로스페이스','현대로템','LIG넥스원','한국항공우주','한화시스템','엠앤씨솔루션','아이쓰리시스템','코츠테크놀로지','휴니드','빅텍','인텔리안테크'] },
+      { name: '조선 및 해양플랜트', stocks: ['한화오션','HD현대중공업','HJ중공업','HD한국조선해양','삼성중공업','대한조선'] },
+      { name: '조선 기자재/엔진/보냉재', stocks: ['한화엔진','HD현대마린엔진','STX엔진','HD현대마린솔루션','한국카본','동성화인텍','성광벤드','태광','하이록코리아','디케이락','세진중공업'] },
+      { name: 'LNG 파이프/인프라', stocks: ['넥스틸','휴스틸','세아제강','포스코인터내셔널','한국가스공사','SK가스','삼천리','지에스이'] },
+    ]
+  },
+  {
+    industry: '바이오, 제약, 미용/화장품',
+    sectors: [
+      { name: '바이오/의료기기', stocks: ['알테오젠','에이비엘바이오','삼천당제약','HLB','리가켐바이오','펩트론','디앤디파마텍','보로노이','에이프릴바이오','셀트리온제약','시지메디텍','제이브이엠','바디텍메드'] },
+      { name: 'RNA 치료제', stocks: ['에스티팜','삼성바이오로직스','올릭스','알지노믹스','한미약품','부광약품','삼양바이오팜'] },
+      { name: '미용의료/에스테틱', stocks: ['파마리서치','휴젤','클래시스','엘앤씨바이오','원텍','휴메딕스'] },
+      { name: '화장품', stocks: ['한국화장품','마녀공장','토니모리','코스맥스','한국콜마','코스메카코리아','에이피알','실리콘투','브이티'] },
+    ]
+  },
+  {
+    industry: '소비재, 원자재 및 지주사',
+    sectors: [
+      { name: '관광/카지노/호텔', stocks: ['강원랜드','GKL','파라다이스','호텔신라','롯데관광개발','하나투어','모두투어','노랑풍선'] },
+      { name: '유통/의류', stocks: ['현대백화점','신세계','롯데쇼핑','이마트','F&F','휠라홀딩스','한섬','에이유브랜즈','영원무역','한세실업','화승엔터프라이즈'] },
+      { name: '비료/사료 및 식품', stocks: ['남해화학','경농','조비','롯데정밀화학','농우바이오','한일사료','팜스토리','대한제당','CJ프레시웨이'] },
+      { name: '구리/은(원자재)', stocks: ['이구산업','대창','풍산','KBI메탈','서원','고려아연','영풍','엘컴텍'] },
+      { name: '종합상사 및 정유', stocks: ['포스코인터내셔널','LX인터내셔널','GS글로벌','SK이노베이션','S-Oil'] },
+      { name: '주요 지주사', stocks: ['롯데지주','SK','두산','KCC','LS','HD현대','한화','CJ','POSCO홀딩스','효성','삼성물산','LG'] },
+    ]
+  },
+];
+
+// 티커/회사명 → 섹터 매핑 (US ticker symbols 포함)
+const VC_TICKER_MAP = {
+  // 미국 반도체
+  'LITE':'LITE','COHR':'COHR','AAOI':'AAOI','GLW':'GLW','FN':'FN','MTSI':'MTSI',
+  'CIEN':'CIEN','ANET':'ANET','CSCO':'CSCO','MRVL':'MRVL','AVGO':'AVGO',
+  // 미국 IT
+  'AAPL':'AAPL','TSLA':'TSLA','CRCL':'CRCL',
+  // 한국 티커 → 회사명 (주요 종목)
+  '005930.KS':'삼성전자','000660.KS':'SK하이닉스','035420.KS':'NAVER',
+  '086520.KQ':'에코프로','373220.KS':'LG에너지솔루션','005380.KS':'현대차',
+  '003670.KS':'포스코퓨처엠','247540.KQ':'에코프로비엠','066570.KS':'LG전자',
+  '012450.KS':'한화에어로스페이스','009540.KS':'HD현대중공업','042660.KS':'한화오션',
+  '000270.KS':'기아','207940.KS':'삼성바이오로직스','068270.KS':'셀트리온',
+  '036570.KS':'엔씨소프트','035720.KS':'카카오','017670.KS':'SK텔레콤',
+  '030200.KS':'KT','032830.KS':'삼성생명','055550.KS':'신한지주',
+  '105560.KS':'KB금융','316140.KS':'우리금융지주','086790.KS':'하나금융지주',
+};
+
+// ──────────────────────────────────────────────────────
+//  Value Chain 그래프 렌더링
+// ──────────────────────────────────────────────────────
+function renderValueChain({ ticker, companyName }) {
+  const wrap = document.getElementById('vcWrap');
+  if (!wrap || typeof d3 === 'undefined') return;
+
+  // 검색 키: 티커 직접 매칭(US), 한국 티커→회사명 매핑, 회사명 직접 검색
+  const searchKey = VC_TICKER_MAP[ticker] || companyName || ticker;
+  const tickerUpper = ticker.replace(/\.(KS|KQ|KP)$/i,'').toUpperCase();
+
+  let matchedIndustry = null, matchedSector = null;
+  for (const ind of VALUE_CHAIN_DATA) {
+    for (const sec of ind.sectors) {
+      if (sec.stocks.some(s =>
+        s === searchKey ||
+        s === tickerUpper ||
+        (companyName && s === companyName) ||
+        (companyName && companyName.includes(s)) ||
+        (s.length > 2 && companyName && companyName.startsWith(s))
+      )) {
+        matchedIndustry = ind;
+        matchedSector   = sec;
+        break;
+      }
+    }
+    if (matchedSector) break;
+  }
+
+  const W = wrap.clientWidth || 780, H = 500;
+  d3.select(wrap).select('svg').remove();
+  const svg = d3.select(wrap).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform)));
+
+  const isDark    = !document.documentElement.classList.contains('light');
+  const textColor = isDark ? '#f1f5f9' : '#0f172a';
+  const mutedColor= isDark ? '#94a3b8' : '#64748b';
+  const clrCenter = isDark ? '#a78bfa' : '#6d28d9';   // 분석 종목
+  const clrInd    = isDark ? '#f97316' : '#c2410c';   // 산업군
+  const clrSec    = isDark ? '#3b82f6' : '#1d4ed8';   // 섹터
+  const clrStock  = isDark ? '#64748b' : '#94a3b8';   // 관련 종목
+  const clrSelf   = isDark ? '#fbbf24' : '#b45309';   // 같은 섹터 내 분석 종목
+
+  if (!matchedSector) {
+    // 밸류체인 미등록 종목 — 전체 산업군 맵 표시
+    const nodes = [], links = [];
+    nodes.push({ id:'_center', label: searchKey, group:'center', size:22 });
+    VALUE_CHAIN_DATA.forEach((ind, i) => {
+      const indId = `ind_${i}`;
+      nodes.push({ id:indId, label: ind.industry.length>12 ? ind.industry.slice(0,12)+'…' : ind.industry, group:'ind', size:14 });
+      links.push({ source:'_center', target:indId });
+      ind.sectors.forEach((sec, j) => {
+        const secId = `sec_${i}_${j}`;
+        nodes.push({ id:secId, label: sec.name.length>10 ? sec.name.slice(0,10)+'…' : sec.name, group:'sec', size:9 });
+        links.push({ source:indId, target:secId });
+      });
+    });
+
+    const colorOf = d => d.group==='center'?clrCenter:d.group==='ind'?clrInd:clrSec;
+    buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, true);
+
+    // 미등록 안내
+    const info = wrap.querySelector('.vc-nodata');
+    if (!info) {
+      const div = document.createElement('div');
+      div.className = 'vc-nodata';
+      div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted2);pointer-events:none';
+      div.textContent = `${searchKey}: 밸류체인 데이터 미등록 — 전체 산업 맵 표시`;
+      wrap.appendChild(div);
+    }
+    return;
+  }
+
+  // 매칭된 경우: 분석 종목 → 섹터 → 관련 종목 + 같은 산업 내 다른 섹터들
+  const nodes = [], links = [];
+  const displayName = companyName || ticker;
+
+  // 중심: 분석 종목
+  nodes.push({ id:'_center', label: displayName.length>12 ? displayName.slice(0,12)+'…':displayName, group:'center', size:24, highlight:true });
+
+  // 산업군
+  nodes.push({ id:'_industry', label: matchedIndustry.industry.length>14 ? matchedIndustry.industry.slice(0,14)+'…':matchedIndustry.industry, group:'ind', size:16 });
+  links.push({ source:'_center', target:'_industry' });
+
+  // 속한 섹터 + 관련 종목
+  const secId = '_sec_main';
+  nodes.push({ id:secId, label: matchedSector.name.length>12 ? matchedSector.name.slice(0,12)+'…':matchedSector.name, group:'sec', size:13 });
+  links.push({ source:'_industry', target:secId });
+
+  matchedSector.stocks.forEach((s, i) => {
+    const isSelf = (s === searchKey || s === tickerUpper || (companyName && s === companyName));
+    const nodeId = `stock_${i}`;
+    nodes.push({ id:nodeId, label:s, group: isSelf ? 'self' : 'stock', size: isSelf ? 14 : 10 });
+    links.push({ source:secId, target:nodeId });
+    if (isSelf) links.push({ source:'_center', target:nodeId, dashed:true });
+  });
+
+  // 같은 산업 내 다른 섹터들 (간략히)
+  matchedIndustry.sectors.filter(s => s !== matchedSector).forEach((sec, i) => {
+    const otherSecId = `_osec_${i}`;
+    nodes.push({ id:otherSecId, label: sec.name.length>10 ? sec.name.slice(0,10)+'…':sec.name, group:'sec', size:10, muted:true });
+    links.push({ source:'_industry', target:otherSecId });
+  });
+
+  const colorOf = d => {
+    if (d.group==='center') return clrCenter;
+    if (d.group==='ind')    return clrInd;
+    if (d.group==='sec')    return clrSec;
+    if (d.group==='self')   return clrSelf;
+    return clrStock;
+  };
+  buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, false);
+
+  // 산업 라벨
+  const infoEl = wrap.querySelector('.vc-info');
+  if (!infoEl) {
+    const div = document.createElement('div');
+    div.className = 'vc-info';
+    div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted);pointer-events:none';
+    div.innerHTML = `<b style="color:var(--orange)">${matchedIndustry.industry}</b> &rsaquo; <b style="color:var(--blue)">${matchedSector.name}</b>`;
+    wrap.appendChild(div);
+  }
+}
+
+function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, sparse) {
+  const link = g.append('g').selectAll('line').data(links).join('line')
+    .attr('class','kg-link')
+    .attr('stroke', mutedColor)
+    .attr('stroke-width', d => d.dashed ? 1 : 1.2)
+    .attr('stroke-dasharray', d => d.dashed ? '4 3' : null)
+    .attr('stroke-opacity', 0.4);
+
+  const node = g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('class','kg-node')
+    .call(d3.drag()
+      .on('start', (e,d) => { if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end',   (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+  node.append('circle')
+    .attr('r', d => d.size)
+    .attr('fill', d => colorOf(d) + (d.group==='stock'||d.group==='sec'&&d.muted ? '18':'33'))
+    .attr('stroke', d => colorOf(d))
+    .attr('stroke-width', d => d.group==='center' ? 3 : 1.5);
+
+  node.append('text')
+    .attr('text-anchor','middle')
+    .attr('fill', d => d.group==='stock'&&!d.highlight ? mutedColor : textColor)
+    .attr('font-size', d => d.group==='center' ? 12 : d.group==='ind' ? 10 : d.group==='self' ? 11 : 9)
+    .attr('font-weight', d => d.group==='stock'&&!d.highlight ? '400':'600')
+    .attr('dy', 1)
+    .text(d => d.label);
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(d => {
+      const src = nodes.find(n=>n.id===d.source.id||n.id===d.source);
+      if (src?.group==='center') return 100;
+      if (src?.group==='ind')    return 85;
+      return 65;
+    }).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(d =>
+      d.group==='center'?-500:d.group==='ind'?-250:d.group==='sec'?-150:-80))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(d => d.size + 10))
+    .on('tick', () => {
+      link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+          .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      node.attr('transform',d=>`translate(${d.x},${d.y})`);
     });
 }
 
