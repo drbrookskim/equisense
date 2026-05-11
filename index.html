@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Geist:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <style>
   /* ── 다크 모드 (기본) ── */
   :root {
@@ -688,6 +689,49 @@
   }
   @media (max-width: 1100px) { .adv-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 700px)  { .adv-grid { grid-template-columns: 1fr; } }
+
+  /* ── Knowledge Graph ── */
+  .kg-card { grid-column: 1 / -1; }
+  .kg-wrap {
+    position: relative;
+    width: 100%;
+    height: 520px;
+    background: var(--card2);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: grab;
+  }
+  .kg-wrap:active { cursor: grabbing; }
+  .kg-wrap svg { width: 100%; height: 100%; }
+  .kg-node circle { stroke-width: 2; transition: r .15s; }
+  .kg-node:hover circle { r: 22; }
+  .kg-node text {
+    font-family: 'DM Sans', sans-serif;
+    pointer-events: none;
+    user-select: none;
+  }
+  .kg-link { stroke-opacity: 0.45; }
+  .kg-legend {
+    position: absolute;
+    bottom: 14px;
+    left: 16px;
+    display: flex;
+    gap: 14px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .kg-legend span { display: flex; align-items: center; gap: 5px; }
+  .kg-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .kg-hint {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    font-size: 0.68rem;
+    color: var(--muted2);
+    pointer-events: none;
+  }
+
   .footer {
     border-top: 1px solid var(--border);
     text-align: center;
@@ -2170,6 +2214,20 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       </div>
     </div>
   </div>
+
+  <!-- ── Knowledge Graph ── -->
+  <div class="card kg-card" style="padding:20px 20px 14px">
+    <div class="card-header"><span class="dot" style="background:var(--purple)"></span>Knowledge Graph</div>
+    <div class="kg-wrap" id="kgWrap">
+      <div class="kg-hint">스크롤: 확대/축소 · 드래그: 이동</div>
+      <div class="kg-legend">
+        <span><i style="background:var(--up)"></i>상승·매수</span>
+        <span><i style="background:var(--down)"></i>하락·매도</span>
+        <span><i style="background:var(--yellow)"></i>중립·관망</span>
+        <span><i style="background:var(--purple)"></i>중심·카테고리</span>
+      </div>
+    </div>
+  </div>
   `;
 
   // ══════════════════════════════════════════════════════
@@ -2284,6 +2342,9 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   renderEntryPanel('bbEntryPanel',   bbEntries.slice(-5));
   renderEntryPanel('rsiEntryPanel',  rsiEntries.slice(-4));
   renderEntryPanel('macdEntryPanel', macdEntries.slice(-4));
+
+  // ── Knowledge Graph 렌더링 ──
+  renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt });
 
   // ══════════════════════════════════════════════════════
   // ── 공통 차트 옵션 ──
@@ -2424,6 +2485,200 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ])}
     }
   });
+}
+
+// ══════════════════════════════════════════════════════
+//  Knowledge Graph
+// ══════════════════════════════════════════════════════
+function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt }) {
+  const wrap = document.getElementById('kgWrap');
+  if (!wrap || typeof d3 === 'undefined') return;
+
+  // 색상 헬퍼
+  const SIG = { bull:'var(--up)', bear:'var(--down)', neutral:'var(--yellow)', cat:'var(--purple)', center:'var(--purple)' };
+  const sig = v => v > 0.15 ? 'bull' : v < -0.15 ? 'bear' : 'neutral';
+  const sigBool = (up) => up ? 'bull' : 'bear';
+
+  // ── 노드·링크 정의 ──
+  const nodes = [
+    // 중심
+    { id:'ticker',   label: ticker, group:'center',  size:28, sig:'center' },
+
+    // 카테고리
+    { id:'decision', label:'종합판단',  group:'cat', size:18, sig: d.action==='BUY'?'bull':d.action==='SELL'?'bear':'neutral' },
+    { id:'tech',     label:'기술분석',  group:'cat', size:18, sig: sig(d.techScore||0) },
+    { id:'fund',     label:'기본분석',  group:'cat', size:18, sig: sig(d.fundScore||0) },
+    { id:'adv',      label:'고급분석',  group:'cat', size:18, sig: sig((d.advancedComposite||0)) },
+    { id:'price_info', label:'가격정보', group:'cat', size:18, sig: changeAmt>=0?'bull':'bear' },
+
+    // 종합판단 하위
+    { id:'action',   label: d.action==='BUY'?'● 매수':d.action==='SELL'?'● 매도':'● 관망',
+      group:'leaf', size:13, sig: d.action==='BUY'?'bull':d.action==='SELL'?'bear':'neutral' },
+    { id:'confidence', label:`신뢰도 ${(d.confidence*100).toFixed(0)}%`, group:'leaf', size:11, sig:'neutral' },
+    { id:'target',   label:`목표가 ${price? (d.targetPrice/price*100-100).toFixed(1)+'%':''}`, group:'leaf', size:11, sig:'bull' },
+    { id:'support',  label:`지지선 ${price? (d.stopLoss/price*100-100).toFixed(1)+'%':''}`,   group:'leaf', size:11, sig:'bear' },
+    { id:'rr',       label:`RR ${d.rr||'-'}:1`, group:'leaf', size:11, sig: (d.rr||0)>=2?'bull':'neutral' },
+
+    // 기술분석 하위
+    { id:'rsi',      label:`RSI ${I.rsi?.toFixed(0)||'-'}`,       group:'leaf', size:11, sig: I.rsi>70?'bear':I.rsi<30?'bull':'neutral' },
+    { id:'macd',     label:`MACD ${I.macdHist>0?'↑':'↓'}`,        group:'leaf', size:11, sig: I.macdHist>0?'bull':'bear' },
+    { id:'bb',       label:`BB% ${I.bbPct!=null?(I.bbPct*100).toFixed(0):''}%`, group:'leaf', size:11, sig: I.bbPct>1?'bear':I.bbPct<0?'bull':'neutral' },
+    { id:'stoch',    label:`Stoch ${I.stochK?.toFixed(0)||'-'}`,  group:'leaf', size:11, sig: I.stochK>80?'bear':I.stochK<20?'bull':'neutral' },
+    { id:'vol',      label:`거래량 ${I.volRatio?.toFixed(1)||'-'}x`, group:'leaf', size:11, sig: I.volRatio>1.5?'bull':'neutral' },
+    { id:'techscore', label:`기술 ${(d.techScore||0)>=0?'+':''}${(d.techScore||0).toFixed(2)}`, group:'leaf', size:11, sig: sig(d.techScore||0) },
+
+    // 기본분석 하위
+    { id:'per',      label:`PER ${M.per?.toFixed(0)||'-'}x`,      group:'leaf', size:11, sig:'neutral' },
+    { id:'roe',      label:`ROE ${M.roe?.toFixed(0)||'-'}%`,       group:'leaf', size:11, sig: (M.roe||0)>10?'bull':'bear' },
+    { id:'revg',     label:`매출성장 ${M.revGrowth!=null?(M.revGrowth>0?'+':'')+M.revGrowth.toFixed(0)+'%':'-'}`, group:'leaf', size:11, sig: (M.revGrowth||0)>0?'bull':'bear' },
+    { id:'intrinsic', label:`내재가치\n${M.per!=null?'기준':''}`,  group:'leaf', size:11, sig: price && d.targetPrice?(d.targetPrice>price?'bull':'bear'):'neutral' },
+    { id:'fundscore', label:`기본 ${(d.fundScore||0)>=0?'+':''}${(d.fundScore||0).toFixed(2)}`, group:'leaf', size:11, sig: sig(d.fundScore||0) },
+
+    // 고급분석 하위
+    { id:'candle',   label:`캔들 ${cs.cs_signal>0?'▲':cs.cs_signal<0?'▼':'—'}`, group:'leaf', size:11, sig: cs.cs_signal>0?'bull':cs.cs_signal<0?'bear':'neutral' },
+    { id:'elliott',  label:`파동 ${ew.ew_signal>0?'▲':ew.ew_signal<0?'▼':'—'}`, group:'leaf', size:11, sig: ew.ew_signal>0?'bull':ew.ew_signal<0?'bear':'neutral' },
+    { id:'ichimoku', label:`이치모쿠 ${ichi.ichi_signal>0?'▲':'▼'}`, group:'leaf', size:11, sig: ichi.ichi_signal>0?'bull':'bear' },
+    { id:'smc_node', label:`SMC ${smc.smc_signal>0?'▲':smc.smc_signal<0?'▼':'—'}`, group:'leaf', size:11, sig: smc.smc_signal>0?'bull':smc.smc_signal<0?'bear':'neutral' },
+    { id:'quant_node', label:`퀀트 ${quant.factor_score?.toFixed(2)||'-'}`, group:'leaf', size:11, sig: sig(quant.factor_score||0) },
+    { id:'advscore', label:`고급 ${(d.advancedComposite||0)>=0?'+':''}${(d.advancedComposite||0).toFixed(2)}`, group:'leaf', size:11, sig: sig(d.advancedComposite||0) },
+
+    // 가격정보 하위
+    { id:'curprice', label:`${price?.toFixed(2)||'-'} ${currency}`, group:'leaf', size:13, sig: changeAmt>=0?'bull':'bear' },
+    { id:'mom1m',    label:`1M ${quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(0)+'%':'-'}`, group:'leaf', size:11, sig: (quant.mom1m||0)>0?'bull':'bear' },
+    { id:'mom3m',    label:`3M ${quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(0)+'%':'-'}`, group:'leaf', size:11, sig: (quant.mom3m||0)>0?'bull':'bear' },
+    { id:'ma20',     label:`MA20 ${quant.above_ma20>0?'위':'아래'}`, group:'leaf', size:11, sig: quant.above_ma20>0?'bull':'bear' },
+  ];
+
+  const links = [
+    // 중심 → 카테고리
+    { source:'ticker', target:'decision' },
+    { source:'ticker', target:'tech' },
+    { source:'ticker', target:'fund' },
+    { source:'ticker', target:'adv' },
+    { source:'ticker', target:'price_info' },
+    // 종합판단
+    { source:'decision', target:'action' },
+    { source:'decision', target:'confidence' },
+    { source:'decision', target:'target' },
+    { source:'decision', target:'support' },
+    { source:'decision', target:'rr' },
+    // 기술
+    { source:'tech', target:'rsi' },
+    { source:'tech', target:'macd' },
+    { source:'tech', target:'bb' },
+    { source:'tech', target:'stoch' },
+    { source:'tech', target:'vol' },
+    { source:'tech', target:'techscore' },
+    // 기본
+    { source:'fund', target:'per' },
+    { source:'fund', target:'roe' },
+    { source:'fund', target:'revg' },
+    { source:'fund', target:'intrinsic' },
+    { source:'fund', target:'fundscore' },
+    // 고급
+    { source:'adv', target:'candle' },
+    { source:'adv', target:'elliott' },
+    { source:'adv', target:'ichimoku' },
+    { source:'adv', target:'smc_node' },
+    { source:'adv', target:'quant_node' },
+    { source:'adv', target:'advscore' },
+    // 가격
+    { source:'price_info', target:'curprice' },
+    { source:'price_info', target:'mom1m' },
+    { source:'price_info', target:'mom3m' },
+    { source:'price_info', target:'ma20' },
+    // 크로스 링크 (신호 연결)
+    { source:'techscore', target:'action', dashed:true },
+    { source:'fundscore', target:'action', dashed:true },
+    { source:'advscore',  target:'action', dashed:true },
+  ];
+
+  // ── SVG 초기화 ──
+  const W = wrap.clientWidth || 780, H = 500;
+  d3.select(wrap).select('svg').remove();
+  const svg = d3.select(wrap).append('svg')
+    .attr('width', W).attr('height', H);
+
+  // 줌/패닝
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.4, 3]).on('zoom', e => g.attr('transform', e.transform)));
+
+  // 색상 맵
+  const isDark = !document.documentElement.classList.contains('light');
+  const colorMap = {
+    bull:    isDark ? '#ff4b6e' : '#be123c',
+    bear:    isDark ? '#3b82f6' : '#1d4ed8',
+    neutral: isDark ? '#fbbf24' : '#b45309',
+    cat:     isDark ? '#a78bfa' : '#6d28d9',
+    center:  isDark ? '#a78bfa' : '#6d28d9',
+  };
+  const textColor = isDark ? '#f1f5f9' : '#0f172a';
+  const mutedColor = isDark ? '#94a3b8' : '#64748b';
+  const bgColor   = isDark ? '#111827' : '#ffffff';
+
+  // 링크
+  const link = g.append('g').selectAll('line').data(links).join('line')
+    .attr('class', 'kg-link')
+    .attr('stroke', mutedColor)
+    .attr('stroke-width', d => d.dashed ? 1 : 1.5)
+    .attr('stroke-dasharray', d => d.dashed ? '4 3' : null);
+
+  // 노드 그룹
+  const node = g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('class', 'kg-node')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag',  (e, d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+  // 원
+  node.append('circle')
+    .attr('r', d => d.size)
+    .attr('fill', d => {
+      const c = colorMap[d.sig] || mutedColor;
+      return c + (d.group==='leaf' ? '22' : '44');
+    })
+    .attr('stroke', d => colorMap[d.sig] || mutedColor)
+    .attr('stroke-width', d => d.group==='center' ? 3 : 1.5);
+
+  // 레이블
+  node.append('text')
+    .attr('text-anchor', 'middle')
+    .attr('fill', d => d.group==='leaf' ? mutedColor : textColor)
+    .attr('font-size', d => d.group==='center' ? 13 : d.group==='cat' ? 11 : 9.5)
+    .attr('font-weight', d => d.group!=='leaf' ? '700' : '500')
+    .attr('dy', 1)
+    .each(function(d) {
+      const lines = d.label.split('\n');
+      if (lines.length === 1) {
+        d3.select(this).text(d.label);
+      } else {
+        lines.forEach((l, i) => {
+          d3.select(this).append('tspan')
+            .attr('x', 0).attr('dy', i === 0 ? -5 : 12)
+            .text(l);
+        });
+      }
+    });
+
+  // ── 시뮬레이션 ──
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(d => {
+      const s = nodes.find(n=>n.id===d.source.id||n.id===d.source);
+      const t = nodes.find(n=>n.id===d.target.id||n.id===d.target);
+      if (s?.group==='center' || t?.group==='center') return 120;
+      if (s?.group==='cat' || t?.group==='cat') return 90;
+      return 70;
+    }).strength(0.6))
+    .force('charge', d3.forceManyBody().strength(d => d.group==='center'?-600:d.group==='cat'?-300:-120))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(d => d.size + 8))
+    .on('tick', () => {
+      link
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
 }
 
 // ══════════════════════════════════════════════════════
