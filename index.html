@@ -2383,7 +2383,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
   // ── Knowledge Graph 렌더링 ──
   renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt, companyName });
-  renderValueChain({ ticker, companyName });
+  renderValueChain({ ticker, companyName, isKr });
 
   // ══════════════════════════════════════════════════════
   // ── 공통 차트 옵션 ──
@@ -2849,107 +2849,53 @@ const VC_TICKER_MAP = {
 // ──────────────────────────────────────────────────────
 //  Value Chain 그래프 렌더링
 // ──────────────────────────────────────────────────────
-function renderValueChain({ ticker, companyName }) {
+function renderValueChain({ ticker, companyName, isKr }) {
   const wrap = document.getElementById('vcWrap');
   if (!wrap || typeof d3 === 'undefined') return;
 
-  // 검색 키: 티커 직접 매칭(US), 한국 티커→회사명 매핑, 회사명 직접 검색
-  const searchKey = VC_TICKER_MAP[ticker] || companyName || ticker;
+  // ── 국적 판별 헬퍼 ──
+  // 한국 종목: 한글 포함 or .KS/.KQ 접미사
+  const hasKorean = s => /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(s);
+  const isKrName  = s => hasKorean(s) || /\.(KS|KQ|KP)$/i.test(s);
+  // 분석 종목 국적에 따라 섹터 내 종목 필터
+  const filterByNation = stocks => stocks.filter(s => isKr ? isKrName(s) : !isKrName(s));
+
+  // ── 검색 키 ──
+  const searchKey   = VC_TICKER_MAP[ticker] || companyName || ticker;
   const tickerUpper = ticker.replace(/\.(KS|KQ|KP)$/i,'').toUpperCase();
 
+  const isSelfStock = s =>
+    s === searchKey || s === tickerUpper ||
+    (companyName && (s === companyName || companyName.includes(s) ||
+    (s.length > 2 && companyName.startsWith(s))));
+
   let matchedIndustry = null, matchedSector = null;
-  for (const ind of VALUE_CHAIN_DATA) {
+  outer: for (const ind of VALUE_CHAIN_DATA) {
     for (const sec of ind.sectors) {
-      if (sec.stocks.some(s =>
-        s === searchKey ||
-        s === tickerUpper ||
-        (companyName && s === companyName) ||
-        (companyName && companyName.includes(s)) ||
-        (s.length > 2 && companyName && companyName.startsWith(s))
-      )) {
+      if (sec.stocks.some(isSelfStock)) {
         matchedIndustry = ind;
         matchedSector   = sec;
-        break;
+        break outer;
       }
     }
-    if (matchedSector) break;
   }
 
+  // ── SVG 초기화 ──
+  wrap.querySelectorAll('.vc-info,.vc-nodata').forEach(el => el.remove());
   const W = wrap.clientWidth || 780, H = 500;
   d3.select(wrap).select('svg').remove();
   const svg = d3.select(wrap).append('svg').attr('width', W).attr('height', H);
   const g   = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform)));
+  svg.call(d3.zoom().scaleExtent([0.25, 3]).on('zoom', e => g.attr('transform', e.transform)));
 
-  const isDark    = !document.documentElement.classList.contains('light');
-  const textColor = isDark ? '#f1f5f9' : '#0f172a';
-  const mutedColor= isDark ? '#94a3b8' : '#64748b';
-  const clrCenter = isDark ? '#a78bfa' : '#6d28d9';   // 분석 종목
-  const clrInd    = isDark ? '#f97316' : '#c2410c';   // 산업군
-  const clrSec    = isDark ? '#3b82f6' : '#1d4ed8';   // 섹터
-  const clrStock  = isDark ? '#64748b' : '#94a3b8';   // 관련 종목
-  const clrSelf   = isDark ? '#fbbf24' : '#b45309';   // 같은 섹터 내 분석 종목
-
-  if (!matchedSector) {
-    // 밸류체인 미등록 종목 — 전체 산업군 맵 표시
-    const nodes = [], links = [];
-    nodes.push({ id:'_center', label: searchKey, group:'center', size:22 });
-    VALUE_CHAIN_DATA.forEach((ind, i) => {
-      const indId = `ind_${i}`;
-      nodes.push({ id:indId, label: ind.industry.length>12 ? ind.industry.slice(0,12)+'…' : ind.industry, group:'ind', size:14 });
-      links.push({ source:'_center', target:indId });
-      ind.sectors.forEach((sec, j) => {
-        const secId = `sec_${i}_${j}`;
-        nodes.push({ id:secId, label: sec.name.length>10 ? sec.name.slice(0,10)+'…' : sec.name, group:'sec', size:9 });
-        links.push({ source:indId, target:secId });
-      });
-    });
-
-    const colorOf = d => d.group==='center'?clrCenter:d.group==='ind'?clrInd:clrSec;
-    buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, true);
-
-    // 미등록 안내
-    const info = wrap.querySelector('.vc-nodata');
-    if (!info) {
-      const div = document.createElement('div');
-      div.className = 'vc-nodata';
-      div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted2);pointer-events:none';
-      div.textContent = `${searchKey}: 밸류체인 데이터 미등록 — 전체 산업 맵 표시`;
-      wrap.appendChild(div);
-    }
-    return;
-  }
-
-  // 매칭된 경우: 분석 종목 → 섹터 → 관련 종목 + 같은 산업 내 다른 섹터들
-  const nodes = [], links = [];
-  const displayName = companyName || ticker;
-
-  // 중심: 분석 종목
-  nodes.push({ id:'_center', label: displayName.length>12 ? displayName.slice(0,12)+'…':displayName, group:'center', size:24, highlight:true });
-
-  // 산업군
-  nodes.push({ id:'_industry', label: matchedIndustry.industry.length>14 ? matchedIndustry.industry.slice(0,14)+'…':matchedIndustry.industry, group:'ind', size:16 });
-  links.push({ source:'_center', target:'_industry' });
-
-  // 속한 섹터 + 관련 종목
-  const secId = '_sec_main';
-  nodes.push({ id:secId, label: matchedSector.name.length>12 ? matchedSector.name.slice(0,12)+'…':matchedSector.name, group:'sec', size:13 });
-  links.push({ source:'_industry', target:secId });
-
-  matchedSector.stocks.forEach((s, i) => {
-    const isSelf = (s === searchKey || s === tickerUpper || (companyName && s === companyName));
-    const nodeId = `stock_${i}`;
-    nodes.push({ id:nodeId, label:s, group: isSelf ? 'self' : 'stock', size: isSelf ? 14 : 10 });
-    links.push({ source:secId, target:nodeId });
-    if (isSelf) links.push({ source:'_center', target:nodeId, dashed:true });
-  });
-
-  // 같은 산업 내 다른 섹터들 (간략히)
-  matchedIndustry.sectors.filter(s => s !== matchedSector).forEach((sec, i) => {
-    const otherSecId = `_osec_${i}`;
-    nodes.push({ id:otherSecId, label: sec.name.length>10 ? sec.name.slice(0,10)+'…':sec.name, group:'sec', size:10, muted:true });
-    links.push({ source:'_industry', target:otherSecId });
-  });
+  const isDark     = !document.documentElement.classList.contains('light');
+  const textColor  = isDark ? '#f1f5f9' : '#0f172a';
+  const mutedColor = isDark ? '#94a3b8' : '#64748b';
+  const clrCenter  = isDark ? '#a78bfa' : '#6d28d9';
+  const clrInd     = isDark ? '#f97316' : '#c2410c';
+  const clrSec     = isDark ? '#3b82f6' : '#1d4ed8';
+  const clrStock   = isDark ? '#475569' : '#94a3b8';
+  const clrSelf    = isDark ? '#fbbf24' : '#b45309';
 
   const colorOf = d => {
     if (d.group==='center') return clrCenter;
@@ -2958,20 +2904,81 @@ function renderValueChain({ ticker, companyName }) {
     if (d.group==='self')   return clrSelf;
     return clrStock;
   };
-  buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, false);
 
-  // 산업 라벨
-  const infoEl = wrap.querySelector('.vc-info');
-  if (!infoEl) {
+  if (!matchedSector) {
+    // 미등록 — 전체 산업군 + 섹터 맵 (종목은 국적 필터 후 표시)
+    const nodes = [], links = [];
+    nodes.push({ id:'_center', label: (companyName||ticker).slice(0,14), group:'center', size:20 });
+    VALUE_CHAIN_DATA.forEach((ind, i) => {
+      const indId = `ind_${i}`;
+      const label = ind.industry.length>13 ? ind.industry.slice(0,13)+'…' : ind.industry;
+      nodes.push({ id:indId, label, group:'ind', size:13 });
+      links.push({ source:'_center', target:indId });
+      ind.sectors.forEach((sec, j) => {
+        const filtered = filterByNation(sec.stocks);
+        if (!filtered.length) return;
+        const secId = `sec_${i}_${j}`;
+        nodes.push({ id:secId, label: sec.name.length>11?sec.name.slice(0,11)+'…':sec.name, group:'sec', size:9 });
+        links.push({ source:indId, target:secId });
+        filtered.forEach((s, k) => {
+          const sid = `st_${i}_${j}_${k}`;
+          nodes.push({ id:sid, label:s, group:'stock', size:8 });
+          links.push({ source:secId, target:sid });
+        });
+      });
+    });
+    buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor);
     const div = document.createElement('div');
-    div.className = 'vc-info';
-    div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted);pointer-events:none';
-    div.innerHTML = `<b style="color:var(--orange)">${matchedIndustry.industry}</b> &rsaquo; <b style="color:var(--blue)">${matchedSector.name}</b>`;
+    div.className = 'vc-nodata';
+    div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted2);pointer-events:none';
+    div.textContent = `${companyName||ticker}: 밸류체인 미등록 — ${isKr?'한국':'미국'} 전체 산업 맵`;
     wrap.appendChild(div);
+    return;
   }
+
+  // ── 매칭된 경우: 분석 종목 → 산업군 → 모든 섹터 → 각 섹터 종목(국적 필터) ──
+  const nodes = [], links = [];
+  const displayName = (companyName || ticker);
+
+  // 중심
+  nodes.push({ id:'_center', label: displayName.length>13?displayName.slice(0,13)+'…':displayName, group:'center', size:24 });
+
+  // 산업군
+  const indLabel = matchedIndustry.industry.length>15 ? matchedIndustry.industry.slice(0,15)+'…' : matchedIndustry.industry;
+  nodes.push({ id:'_industry', label:indLabel, group:'ind', size:17 });
+  links.push({ source:'_center', target:'_industry' });
+
+  // 같은 산업 내 모든 섹터 + 각 섹터의 (국적 필터된) 종목
+  matchedIndustry.sectors.forEach((sec, si) => {
+    const isMain = sec === matchedSector;
+    const filtered = filterByNation(sec.stocks);
+    if (!filtered.length) return;   // 해당 국적 종목 없는 섹터 제외
+
+    const secId = `_sec_${si}`;
+    const secLabel = sec.name.length>12 ? sec.name.slice(0,12)+'…' : sec.name;
+    nodes.push({ id:secId, label:secLabel, group:'sec', size: isMain ? 14 : 10, main:isMain });
+    links.push({ source:'_industry', target:secId });
+
+    filtered.forEach((s, k) => {
+      const isSelf = isSelfStock(s);
+      const sid    = `st_${si}_${k}`;
+      nodes.push({ id:sid, label:s, group: isSelf?'self':'stock', size: isSelf?13:9 });
+      links.push({ source:secId, target:sid });
+      if (isSelf) links.push({ source:'_center', target:sid, dashed:true });
+    });
+  });
+
+  buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor);
+
+  // 산업 경로 라벨
+  const div = document.createElement('div');
+  div.className = 'vc-info';
+  div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted);pointer-events:none';
+  div.innerHTML = `<b style="color:var(--orange)">${matchedIndustry.industry}</b> &rsaquo; <b style="color:var(--blue)">${matchedSector.name}</b>`;
+  wrap.appendChild(div);
 }
 
-function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, sparse) {
+function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor) {
   const link = g.append('g').selectAll('line').data(links).join('line')
     .attr('class','kg-link')
     .attr('stroke', mutedColor)
