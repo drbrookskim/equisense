@@ -726,7 +726,7 @@
   }
   .kg-wrap:active { cursor: grabbing; }
   .kg-wrap svg { width: 100%; height: 100%; }
-  .kg-node circle { stroke-width: 2; transition: r .15s; }
+  .kg-node circle { stroke: none; transition: r .15s; }
   .kg-node:hover circle { r: 22; }
   .kg-node text {
     font-family: 'DM Sans', sans-serif;
@@ -2670,15 +2670,21 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
       .on('drag',  (e, d) => { d.fx=e.x; d.fy=e.y; })
       .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
 
-  // 원
+  // 원 — 배경 불투명 + 색상 채움, 테두리 없음
+  const kgBg = isDark ? '#0f1320' : '#f1f5f9';
+  node.append('circle')
+    .attr('r', d => d.size)
+    .attr('fill', kgBg)
+    .attr('stroke', 'none');
   node.append('circle')
     .attr('r', d => d.size)
     .attr('fill', d => {
       const c = colorMap[d.sig] || mutedColor;
-      return c + (d.group==='leaf' ? '22' : '44');
+      if (d.group==='center') return c + 'cc';
+      if (d.group==='cat')    return c + '99';
+      return c + '44';
     })
-    .attr('stroke', d => colorMap[d.sig] || mutedColor)
-    .attr('stroke-width', d => d.group==='center' ? 3 : 1.5);
+    .attr('stroke', 'none');
 
   // 레이블
   node.append('text')
@@ -3012,8 +3018,7 @@ function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, isD
       if (d.group === 'self')   return base + 'aa';
       return base + '44';  // stock
     })
-    .attr('stroke', d => colorOf(d))
-    .attr('stroke-width', d => d.group==='center' ? 3 : 1.5);
+    .attr('stroke', 'none');
 
   node.append('text')
     .attr('text-anchor','middle')
