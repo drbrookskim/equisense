@@ -22,6 +22,8 @@
     --topbar:   rgba(10,8,30,0.82);
     --green:    #00d4aa;
     --red:      #ff4b6e;
+    --up:       #ff4b6e;  /* 상승 = 빨간 */
+    --down:     #3b82f6;  /* 하락 = 파란 */
     --yellow:   #fbbf24;
     --blue:     #3b82f6;
     --shadow:   rgba(0,0,0,.4);
@@ -42,6 +44,8 @@
     --topbar:   rgba(255,255,255,0.75);
     --green:    #047857;
     --red:      #be123c;
+    --up:       #be123c;
+    --down:     #1d4ed8;
     --yellow:   #b45309;
     --blue:     #1d4ed8;
     --shadow:   rgba(0,0,0,.10);
@@ -203,11 +207,11 @@
     font-size:0.78rem;
     font-weight:600;
   }
-  .badge-buy  { background:rgba(0,212,170,.15);  color:#00d4aa; }
-  .badge-sell { background:rgba(255,75,110,.15);  color:#ff4b6e; }
+  .badge-buy  { background:rgba(255,75,110,.15);  color:var(--up); }
+  .badge-sell { background:rgba(59,130,246,.15);   color:var(--down); }
   .badge-hold { background:rgba(251,191,36,.15);  color:#fbbf24; }
-  html.light .badge-buy  { background:rgba(4,120,87,.12);  color:#047857; }
-  html.light .badge-sell { background:rgba(190,18,60,.10);  color:#be123c; }
+  html.light .badge-buy  { background:rgba(190,18,60,.12);  color:var(--up); }
+  html.light .badge-sell { background:rgba(29,78,216,.10);   color:var(--down); }
   html.light .badge-hold { background:rgba(180,160,100,.15);color:#92400e; }
   .price-display{
     font-size:2.4rem;
@@ -220,8 +224,8 @@
     font-weight:600;
     margin-left:10px;
   }
-  .up  { color: var(--green); }
-  .down{ color: var(--red); }
+  .up  { color: var(--up); }
+  .down{ color: var(--down); }
 
   /* ── Section Card ── */
   .section-card{
@@ -294,7 +298,7 @@
     color:#f59e0b;
     white-space:nowrap;
   }
-  .bar-value.bear{ color: var(--red); }
+  .bar-value.bear{ color: var(--down); }
   .bar-value.neutral{ color: var(--muted2); }
 
   /* Signal badge under bar */
@@ -334,8 +338,8 @@
     line-height:1.7;
   }
   .desc-box b{ color: var(--text2); font-weight:600; }
-  .desc-box .tag-buy  { color: var(--green); font-weight:600; }
-  .desc-box .tag-sell { color: var(--red);   font-weight:600; }
+  .desc-box .tag-buy  { color: var(--up);   font-weight:600; }
+  .desc-box .tag-sell { color: var(--down); font-weight:600; }
   .desc-box .tag-warn { color: var(--yellow);font-weight:600; }
 
   /* ── Print / share bar ── */

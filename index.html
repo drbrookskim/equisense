@@ -26,6 +26,8 @@
     --red:       #ff4b6e;
     --yellow:    #fbbf24;
     --blue:      #3b82f6;
+    --up:        #ff4b6e;  /* 상승 = 빨간 (한국 증시 관례) */
+    --down:      #3b82f6;  /* 하락 = 파란 (한국 증시 관례) */
     --purple:    #a78bfa;
     --orange:    #f97316;
     --shadow:    rgba(0,0,0,.4);
@@ -47,6 +49,8 @@
     --red:       #be123c;
     --yellow:    #b45309;
     --blue:      #1d4ed8;
+    --up:        #be123c;  /* 상승 = 빨간 */
+    --down:      #1d4ed8;  /* 하락 = 파란 */
     --purple:    #6d28d9;
     --orange:    #c2410c;
     --shadow:    rgba(0,0,0,.12);
@@ -522,14 +526,14 @@
     font-weight: 800;
     margin-bottom: 14px;
   }
-  .badge.buy  { background: rgba(0,212,170,.12); color: var(--green); border: 1px solid rgba(0,212,170,.3); }
-  .badge.sell { background: rgba(255,75,110,.12); color: var(--red);   border: 1px solid rgba(255,75,110,.3); }
+  .badge.buy  { background: rgba(255,75,110,.12); color: var(--up);   border: 1px solid rgba(255,75,110,.3); }
+  .badge.sell { background: rgba(59,130,246,.12); color: var(--down); border: 1px solid rgba(59,130,246,.3); }
   .badge.hold { background: rgba(251,191,36,.12); color: var(--yellow);border: 1px solid rgba(251,191,36,.3); }
   .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; font-weight: 600; }
   .big-num { font-size: 1.9rem; font-weight: 700; color: var(--text); line-height: 1.1; }
   .num-sm  { font-size: 1.35rem; font-weight: 700; color: var(--text); }
-  .delta-up   { color: var(--green); font-size: 0.78rem; font-weight: 600; }
-  .delta-down { color: var(--red);   font-size: 0.78rem; font-weight: 600; }
+  .delta-up   { color: var(--up);   font-size: 0.78rem; font-weight: 600; }
+  .delta-down { color: var(--down); font-size: 0.78rem; font-weight: 600; }
   .metric-row {
     display: flex;
     justify-content: space-between;
@@ -657,8 +661,8 @@
     white-space: pre-line;
   }
   .tip-modal-body b { color: var(--text); font-weight: 600; }
-  .tip-modal-body .tag-buy  { color: var(--green); font-weight: 600; }
-  .tip-modal-body .tag-sell { color: var(--red);   font-weight: 600; }
+  .tip-modal-body .tag-buy  { color: var(--up);   font-weight: 600; }
+  .tip-modal-body .tag-sell { color: var(--down); font-weight: 600; }
   .tip-modal-body .tag-warn { color: var(--yellow); font-weight: 600; }
   .tip-modal-close {
     position: absolute;
@@ -1920,7 +1924,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   const flag      = isKr ? '🇰🇷' : '🇺🇸';
   const badgeCls  = {BUY:'buy',SELL:'sell',HOLD:'hold'}[d.action]||'hold';
   const badgeLbl  = {BUY:'● 매수 BUY',SELL:'● 매도 SELL',HOLD:'● 관망 HOLD'}[d.action];
-  const gc        = {BUY:'var(--green)',SELL:'var(--red)',HOLD:'var(--yellow)'}[d.action];
+  const gc        = {BUY:'var(--up)',SELL:'var(--down)',HOLD:'var(--yellow)'}[d.action];
   const isSell    = d.action==='SELL';
   const tgtPct    = (d.targetPrice/price-1)*100;
   const stpPct    = (d.stopLoss/price-1)*100;
@@ -1930,7 +1934,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   const M         = fund.metrics;
 
   // 등락 표시
-  const chgColor  = changeAmt >= 0 ? 'var(--green)' : 'var(--red)';
+  const chgColor  = changeAmt >= 0 ? 'var(--up)' : 'var(--down)';
   const chgArrow  = changeAmt >= 0 ? '▲' : '▼';
   const chgHtml   = changeAmt != null
     ? `<span style="color:${chgColor};font-size:0.9rem;font-weight:600;margin-left:8px">
@@ -2031,7 +2035,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     <div style="display:flex;flex-direction:column;gap:10px">
       ${[['기술적 점수',d.techScore],['기본적 점수',d.fundScore],['통합 점수',d.combined],['고급분석 점수',d.advancedComposite]].map(([t,v])=>{
         const p=((v+1)/2*100).toFixed(0);
-        const c=v>0.2?'var(--green)':v<-0.2?'var(--red)':'var(--yellow)';
+        const c=v>0.2?'var(--up)':v<-0.2?'var(--down)':'var(--yellow)';
         return `<div class="card gauge-wrap" style="padding:14px;text-align:center">
           <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">${t}</div>
           <div style="background:var(--border);border-radius:4px;height:8px;margin:8px 0">
@@ -2063,14 +2067,14 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       }).join('')}
       <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;font-size:0.78rem">
         <span style="color:var(--muted)">복합점수 ${tip('각 시그널을 가중치로 평균한 값\n> +0.3 → LONG 신호\n< -0.3 → SHORT 신호\n그 외 → STAND ASIDE')}</span>
-        <span style="float:right;font-weight:700;color:${d.advancedComposite>0.2?'var(--green)':d.advancedComposite<-0.2?'var(--red)':'var(--yellow)'}">${d.advancedComposite.toFixed(3)}</span>
+        <span style="float:right;font-weight:700;color:${d.advancedComposite>0.2?'var(--up)':d.advancedComposite<-0.2?'var(--down)':'var(--yellow)'}">${d.advancedComposite.toFixed(3)}</span>
       </div>
     </div>
 
     <!-- 캔들스틱 패턴 -->
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱 패턴 ${tip('최근 1~3일 봉 형태로 단기 방향 감지\n강세: Hammer, BullishEngulfing,\n  MorningStar, ThreeWhiteSoldiers 등\n약세: ShootingStar, BearishEngulfing,\n  EveningStar, ThreeBlackCrows 등')}</div>
-      ${mrow('패턴 시그널', cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립', cs.cs_signal>0?'var(--green)':cs.cs_signal<0?'var(--red)':'var(--muted)', '강세 패턴 수 - 약세 패턴 수\n양수 → 매수 신호\n음수 → 매도 신호\n0 → 패턴 없거나 중립')}
+      ${mrow('패턴 시그널', cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립', cs.cs_signal>0?'var(--up)':cs.cs_signal<0?'var(--down)':'var(--muted)', '강세 패턴 수 - 약세 패턴 수\n양수 → 매수 신호\n음수 → 매도 신호\n0 → 패턴 없거나 중립')}
       ${mrow('감지 패턴 수', cs.patterns.length+'개', '', '오늘 봉 포함 최근 3봉에서\n감지된 캔들스틱 패턴 총 개수')}
       ${cs.patterns.length>0
         ? cs.patterns.map(p=>`<div style="margin-top:4px;font-size:0.72rem;padding:3px 7px;border-radius:10px;display:inline-block;background:var(--border);color:var(--text2);margin-right:4px">${p}</div>`).join('')
@@ -2080,7 +2084,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     <!-- 엘리어트 파동 -->
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--blue)"></span>엘리어트 파동 · 피보나치 ${tip(TIPS.elliott.title, TIPS.elliott.body)}</div>
-      ${mrow('파동 상태', ew.wave_label, ew.ew_signal>0?'var(--green)':ew.ew_signal<0?'var(--red)':'var(--muted)', TIPS.ewState.title, TIPS.ewState.body)}
+      ${mrow('파동 상태', ew.wave_label, ew.ew_signal>0?'var(--up)':ew.ew_signal<0?'var(--down)':'var(--muted)', TIPS.ewState.title, TIPS.ewState.body)}
       ${mrow('피봇 고점', fmt(ew.pivot_high,isKr), '', TIPS.pivotHigh.title, TIPS.pivotHigh.body)}
       ${mrow('피봇 저점', fmt(ew.pivot_low,isKr), '', TIPS.pivotLow.title, TIPS.pivotLow.body)}
       ${Object.entries(ew.entry_zone||{}).length
@@ -2092,10 +2096,10 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     <!-- 이치모쿠 -->
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--purple)"></span>이치모쿠 균형표 ${tip(TIPS.ichimoku.title, TIPS.ichimoku.body)}</div>
-      ${mrow('신호', ichi.ichi_signal>0?'▲ 매수':ichi.ichi_signal<0?'▼ 매도':'— 관망', ichi.ichi_signal>0?'var(--green)':ichi.ichi_signal<0?'var(--red)':'var(--muted)', TIPS.ichiSignal.title, TIPS.ichiSignal.body)}
+      ${mrow('신호', ichi.ichi_signal>0?'▲ 매수':ichi.ichi_signal<0?'▼ 매도':'— 관망', ichi.ichi_signal>0?'var(--up)':ichi.ichi_signal<0?'var(--down)':'var(--muted)', TIPS.ichiSignal.title, TIPS.ichiSignal.body)}
       ${mrow('전환선 (9)', ichi.tenkan!=null?fmt(ichi.tenkan,isKr):'-', '', TIPS.ichimoku.title, TIPS.ichimoku.body)}
       ${mrow('기준선 (26)', ichi.kijun!=null?fmt(ichi.kijun,isKr):'-', '', TIPS.ichimoku.title, TIPS.ichimoku.body)}
-      ${mrow('구름 위치', ichi.aboveCloud?'구름 위 (강세)':ichi.belowCloud?'구름 아래 (약세)':'구름 안 (중립)', ichi.aboveCloud?'var(--green)':ichi.belowCloud?'var(--red)':'var(--yellow)', TIPS.ichiSignal.title, TIPS.ichiSignal.body)}
+      ${mrow('구름 위치', ichi.aboveCloud?'구름 위 (강세)':ichi.belowCloud?'구름 아래 (약세)':'구름 안 (중립)', ichi.aboveCloud?'var(--up)':ichi.belowCloud?'var(--down)':'var(--yellow)', TIPS.ichiSignal.title, TIPS.ichiSignal.body)}
     </div>
 
     <!-- SMC -->
@@ -2104,18 +2108,18 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('BOS', smc.bos||'없음', smc.bos&&smc.bos.includes('강세')?'var(--green)':smc.bos?'var(--red)':'var(--muted)', TIPS.bos.title, TIPS.bos.body)}
       ${mrow('FVG', smc.fvg||'없음', smc.fvg&&smc.fvg.includes('상승')?'var(--green)':smc.fvg?'var(--red)':'var(--muted)', TIPS.fvg.title, TIPS.fvg.body)}
       ${mrow('Order Block', smc.ob||'없음', smc.ob&&smc.ob.includes('수요')?'var(--green)':smc.ob?'var(--red)':'var(--muted)', TIPS.ob.title, TIPS.ob.body)}
-      ${mrow('SMC 시그널', smc.smc_signal>0?'▲ 매수':smc.smc_signal<0?'▼ 매도':'— 중립', smc.smc_signal>0?'var(--green)':smc.smc_signal<0?'var(--red)':'var(--muted)', TIPS.smcSignal.title, TIPS.smcSignal.body)}
+      ${mrow('SMC 시그널', smc.smc_signal>0?'▲ 매수':smc.smc_signal<0?'▼ 매도':'— 중립', smc.smc_signal>0?'var(--up)':smc.smc_signal<0?'var(--down)':'var(--muted)', TIPS.smcSignal.title, TIPS.smcSignal.body)}
     </div>
 
     <!-- 퀀트 팩터 -->
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--green)"></span>퀀트 팩터 ${tip(TIPS.quant.title, TIPS.quant.body)}</div>
-      ${mrow('팩터 스코어', quant.factor_score.toFixed(3), quant.factor_score>0.3?'var(--green)':quant.factor_score<-0.3?'var(--red)':'var(--yellow)', TIPS.factorScore.title, TIPS.factorScore.body)}
-      ${mrow('모멘텀 1M', quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(1)+'%':'-', quant.mom1m!=null&&quant.mom1m>0?'var(--green)':quant.mom1m!=null?'var(--red)':'', TIPS.momentum.title, TIPS.momentum.body)}
-      ${mrow('모멘텀 3M', quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(1)+'%':'-', quant.mom3m!=null&&quant.mom3m>0?'var(--green)':quant.mom3m!=null?'var(--red)':'', TIPS.momentum.title, TIPS.momentum.body)}
-      ${mrow('모멘텀 6M', quant.mom6m!=null?(quant.mom6m>0?'+':'')+quant.mom6m.toFixed(1)+'%':'-', quant.mom6m!=null&&quant.mom6m>0?'var(--green)':quant.mom6m!=null?'var(--red)':'', TIPS.momentum.title, TIPS.momentum.body)}
-      ${mrow('MA20', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--green)':'var(--red)', TIPS.maPos.title, TIPS.maPos.body)}
-      ${mrow('MA60', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--green)':'var(--red)', TIPS.maPos.title, TIPS.maPos.body)}
+      ${mrow('팩터 스코어', quant.factor_score.toFixed(3), quant.factor_score>0.3?'var(--up)':quant.factor_score<-0.3?'var(--down)':'var(--yellow)', TIPS.factorScore.title, TIPS.factorScore.body)}
+      ${mrow('모멘텀 1M', quant.mom1m!=null?(quant.mom1m>0?'+':'')+quant.mom1m.toFixed(1)+'%':'-', quant.mom1m!=null&&quant.mom1m>0?'var(--up)':quant.mom1m!=null?'var(--down)':'', TIPS.momentum.title, TIPS.momentum.body)}
+      ${mrow('모멘텀 3M', quant.mom3m!=null?(quant.mom3m>0?'+':'')+quant.mom3m.toFixed(1)+'%':'-', quant.mom3m!=null&&quant.mom3m>0?'var(--up)':quant.mom3m!=null?'var(--down)':'', TIPS.momentum.title, TIPS.momentum.body)}
+      ${mrow('모멘텀 6M', quant.mom6m!=null?(quant.mom6m>0?'+':'')+quant.mom6m.toFixed(1)+'%':'-', quant.mom6m!=null&&quant.mom6m>0?'var(--up)':quant.mom6m!=null?'var(--down)':'', TIPS.momentum.title, TIPS.momentum.body)}
+      ${mrow('MA20', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--up)':'var(--down)', TIPS.maPos.title, TIPS.maPos.body)}
+      ${mrow('MA60', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--up)':'var(--down)', TIPS.maPos.title, TIPS.maPos.body)}
       ${mrow('연환산 변동성', quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-', '', TIPS.volatility.title, TIPS.volatility.body)}
     </div>
 
@@ -2125,26 +2129,26 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   <div class="row row-bottom">
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--purple)"></span>기술적 지표</div>
-      ${mrow('RSI (14)', I.rsi?.toFixed(1), I.rsi<30?'var(--green)':I.rsi>70?'var(--red)':'', TIPS.rsi.title, TIPS.rsi.body)}
+      ${mrow('RSI (14)', I.rsi?.toFixed(1), I.rsi<30?'var(--up)':I.rsi>70?'var(--down)':'', TIPS.rsi.title, TIPS.rsi.body)}
       ${mrow('Stoch %K', I.stochK?.toFixed(1), '', TIPS.stochK.title, TIPS.stochK.body)}
       ${mrow('Stoch %D', I.stochD?.toFixed(1), '', TIPS.stochD.title, TIPS.stochD.body)}
       ${mrow('MACD', I.macd?.toFixed(4), '', TIPS.macd.title, TIPS.macd.body)}
-      ${mrow('MACD Hist', I.macdHist?.toFixed(4), I.macdHist>0?'var(--green)':'var(--red)', TIPS.macdHist.title, TIPS.macdHist.body)}
+      ${mrow('MACD Hist', I.macdHist?.toFixed(4), I.macdHist>0?'var(--up)':'var(--down)', TIPS.macdHist.title, TIPS.macdHist.body)}
       ${mrow('BB %', I.bbPct!=null?(I.bbPct*100).toFixed(1)+'%':'-', '', TIPS.bbPct.title, TIPS.bbPct.body)}
       ${mrow('ATR', I.atr!=null?fmt(I.atr,isKr):'-', '', TIPS.atr.title, TIPS.atr.body)}
-      ${mrow('거래량 비율', I.volRatio!=null?I.volRatio.toFixed(2)+'x':'-', I.volRatio>1?'var(--green)':'var(--red)', TIPS.volRatio.title, TIPS.volRatio.body)}
+      ${mrow('거래량 비율', I.volRatio!=null?I.volRatio.toFixed(2)+'x':'-', I.volRatio>1?'var(--up)':'var(--down)', TIPS.volRatio.title, TIPS.volRatio.body)}
     </div>
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>기본적 지표</div>
       ${mrow('PER', M.per!=null?M.per.toFixed(1)+'x':'-', '', TIPS.per.title, TIPS.per.body)}
       ${mrow('PBR', M.pbr!=null?M.pbr.toFixed(2)+'x':'-', '', TIPS.pbr.title, TIPS.pbr.body)}
-      ${mrow('ROE', M.roe!=null?M.roe.toFixed(1)+'%':'-', M.roe>10?'var(--green)':'var(--red)', TIPS.roe.title, TIPS.roe.body)}
+      ${mrow('ROE', M.roe!=null?M.roe.toFixed(1)+'%':'-', M.roe>10?'var(--up)':'var(--down)', TIPS.roe.title, TIPS.roe.body)}
       ${mrow('순이익률', M.netMargin!=null?M.netMargin.toFixed(1)+'%':'-', '', TIPS.netMargin.title, TIPS.netMargin.body)}
-      ${mrow('매출성장률', M.revGrowth!=null?(M.revGrowth>0?'+':'')+M.revGrowth.toFixed(1)+'%':'-', M.revGrowth>0?'var(--green)':'var(--red)', TIPS.revGrowth.title, TIPS.revGrowth.body)}
-      ${mrow('이익성장률', M.earnGrowth!=null?(M.earnGrowth>0?'+':'')+M.earnGrowth.toFixed(1)+'%':'-', M.earnGrowth>0?'var(--green)':'var(--red)', TIPS.earnGrowth.title, TIPS.earnGrowth.body)}
+      ${mrow('매출성장률', M.revGrowth!=null?(M.revGrowth>0?'+':'')+M.revGrowth.toFixed(1)+'%':'-', M.revGrowth>0?'var(--up)':'var(--down)', TIPS.revGrowth.title, TIPS.revGrowth.body)}
+      ${mrow('이익성장률', M.earnGrowth!=null?(M.earnGrowth>0?'+':'')+M.earnGrowth.toFixed(1)+'%':'-', M.earnGrowth>0?'var(--up)':'var(--down)', TIPS.earnGrowth.title, TIPS.earnGrowth.body)}
       ${mrow('부채비율', M.debtEq!=null?M.debtEq.toFixed(0)+'%':'-', '', TIPS.debtEq.title, TIPS.debtEq.body)}
       ${mrow('배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-', '', TIPS.divYield.title, TIPS.divYield.body)}
-      ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--green)':'var(--red)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
+      ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--up)':'var(--down)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
     </div>
   </div>
 
@@ -2224,7 +2228,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   // ══════════════════════════════════════════════════════
   function entryRow(side, date, price, reason) {
     const isBuy = side === 'BUY';
-    const color = isBuy ? 'var(--green)' : 'var(--red)';
+    const color = isBuy ? 'var(--up)' : 'var(--down)';
     const icon  = isBuy ? '▲' : '▼';
     const label = isBuy ? '매수 진입' : '매도 준비';
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
@@ -2345,20 +2349,20 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       {data:closes.map(()=>d.targetPrice), borderColor:'rgba(0,212,170,.5)', borderDash:[6,3], borderWidth:1, pointRadius:0},
       {data:closes.map(()=>d.stopLoss),    borderColor:'rgba(255,75,110,.5)', borderDash:[6,3], borderWidth:1, pointRadius:0},
       // 보조 신호
-      sigDS(bbUpperTouch, 'rgba(255,75,110,0.7)', 'BB 상단 터치 — 과열·차익실현 경계'),
-      sigDS(bbLowerTouch, 'rgba(0,212,170,0.7)',  'BB 하단 터치 — 과매도·반등 후보'),
+      sigDS(bbUpperTouch, 'rgba(239,68,68,0.7)', 'BB 상단 터치 — 과열·차익실현 경계'),
+      sigDS(bbLowerTouch, 'rgba(59,130,246,0.7)',  'BB 하단 터치 — 과매도·반등 후보'),
       sigDS(bbSqueeze,    'rgba(245,158,11,0.75)','BB 스퀴즈 — 변동성 압축, 큰 움직임 예고', 4, 'rectRot'),
       sigDS(sma20CrossUp, 'rgba(96,165,250,0.75)','MA20 상향돌파 — 단기 추세 전환(매수 관심)', 4),
       sigDS(sma20CrossDn, 'rgba(249,115,22,0.75)','MA20 하향돌파 — 단기 추세 전환(매도 관심)', 4),
       // 진입점 (크고 굵게)
-      entryDS(bbBuyEntry,  'rgba(0,212,170,1)',   '▲ 매수 진입 — BB 하단 이탈 후 회복: 저점 반등 확인'),
-      entryDS(bbSellEntry, 'rgba(255,75,110,1)',  '▼ 매도 준비 — BB 상단 이탈 후 재진입: 고점 소진 확인', 'rectRot'),
+      entryDS(bbBuyEntry,  'rgba(239,68,68,1)',   '▲ 매수 진입 — BB 하단 이탈 후 회복: 저점 반등 확인'),
+      entryDS(bbSellEntry, 'rgba(59,130,246,1)',  '▼ 매도 준비 — BB 상단 이탈 후 재진입: 고점 소진 확인', 'rectRot'),
     ]},
     options:{...co, plugins:{...co.plugins, legend: mkLegend([
-      ['▲ 매수진입(BB)',   'rgba(0,212,170,1)',   true],
-      ['▼ 매도준비(BB)',   'rgba(255,75,110,1)',  true],
-      ['BB 상단터치',      'rgba(255,75,110,0.7)',false],
-      ['BB 하단터치',      'rgba(0,212,170,0.7)', false],
+      ['▲ 매수진입(BB)',   'rgba(239,68,68,1)',   true],
+      ['▼ 매도준비(BB)',   'rgba(59,130,246,1)',  true],
+      ['BB 상단터치',      'rgba(239,68,68,0.7)',false],
+      ['BB 하단터치',      'rgba(59,130,246,0.7)', false],
       ['BB 스퀴즈',        'rgba(245,158,11,.75)',false],
       ['MA20 상향↑',      'rgba(96,165,250,.75)',false],
       ['MA20 하향↓',      'rgba(249,115,22,.75)',false],
@@ -2371,24 +2375,24 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     data:{ labels, datasets:[
       {data:ind.rsi,             borderColor:'#a78bfa',borderWidth:1.5,pointRadius:0,tension:.3},
       {data:ind.rsi.map(()=>70), borderColor:'rgba(255,75,110,.4)',borderDash:[4,3],borderWidth:1,pointRadius:0},
-      {data:ind.rsi.map(()=>30), borderColor:'rgba(0,212,170,.4)', borderDash:[4,3],borderWidth:1,pointRadius:0},
+      {data:ind.rsi.map(()=>30), borderColor:'rgba(59,130,246,.4)', borderDash:[4,3],borderWidth:1,pointRadius:0},
       // 보조 신호
-      sigDS(rsiOB,      'rgba(255,75,110,0.7)', 'RSI 과매수 진입(≥70) — 고점 경계'),
-      sigDS(rsiOS,      'rgba(0,212,170,0.7)',  'RSI 과매도 진입(≤30) — 저점 반등 후보'),
+      sigDS(rsiOB,      'rgba(239,68,68,0.7)', 'RSI 과매수 진입(≥70) — 고점 경계'),
+      sigDS(rsiOS,      'rgba(59,130,246,0.7)',  'RSI 과매도 진입(≤30) — 저점 반등 후보'),
       sigDS(rsi50Up,    'rgba(96,165,250,0.7)', 'RSI 50 상향돌파 — 강세 모멘텀 전환', 4, 'triangle'),
       sigDS(rsi50Dn,    'rgba(249,115,22,0.7)', 'RSI 50 하향돌파 — 약세 모멘텀 전환', 4, 'triangle'),
       sigDS(rsiDivBull, 'rgba(245,158,11,0.8)', '강세 다이버전스 — 가격↓ RSI↑ 반등 기대', 4, 'star'),
       // 진입점
-      entryDS(rsiBuyEntry,  'rgba(0,212,170,1)',  '▲ 매수 진입 — RSI 과매도(30) 탈출: 매도세력 소진·반등 시작'),
-      entryDS(rsiSellEntry, 'rgba(255,75,110,1)', '▼ 매도 준비 — RSI 과매수(70) 탈출: 매수세력 피로·조정 시작'),
+      entryDS(rsiBuyEntry,  'rgba(239,68,68,1)',  '▲ 매수 진입 — RSI 과매도(30) 탈출: 매도세력 소진·반등 시작'),
+      entryDS(rsiSellEntry, 'rgba(59,130,246,1)', '▼ 매도 준비 — RSI 과매수(70) 탈출: 매수세력 피로·조정 시작'),
     ]},
     options:{...co,
       scales:{...co.scales, y:{...co.scales.y,min:0,max:100}},
       plugins:{...co.plugins, legend: mkLegend([
-        ['▲ 매수진입(RSI)', 'rgba(0,212,170,1)',   true],
+        ['▲ 매수진입(RSI)', 'rgba(239,68,68,1)',   true],
         ['▼ 매도준비(RSI)', 'rgba(255,75,110,1)',  true],
         ['과매수(≥70)',     'rgba(255,75,110,.7)', false],
-        ['과매도(≤30)',     'rgba(0,212,170,.7)',  false],
+        ['과매도(≤30)',     'rgba(59,130,246,.7)',  false],
         ['50 상향↑',       'rgba(96,165,250,.7)', false],
         ['강세다이버',      'rgba(245,158,11,.8)', false],
       ])}
@@ -2399,7 +2403,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   macdChart = new Chart(document.getElementById('macdChart'), {
     type:'bar',
     data:{ labels, datasets:[
-      {type:'bar',  data:ind.hist, backgroundColor:ind.hist.map(v=>v!=null?(v>=0?'rgba(0,212,170,.5)':'rgba(255,75,110,.5)'):null), borderRadius:1},
+      {type:'bar',  data:ind.hist, backgroundColor:ind.hist.map(v=>v!=null?(v>=0?'rgba(239,68,68,.5)':'rgba(59,130,246,.5)'):null), borderRadius:1},
       {type:'line', data:ind.macdLine,borderColor:'#60a5fa',borderWidth:1.2,pointRadius:0},
       {type:'line', data:ind.sigLine, borderColor:'#f97316',borderWidth:1.2,pointRadius:0},
       // 보조 신호
@@ -2407,12 +2411,12 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       sigDS(histCrossDn,'rgba(249,115,22,0.8)', '히스토그램 음전환 — 하락 모멘텀 발생'),
       sigDS(histPeak,   'rgba(245,158,11,0.8)', '히스토그램 피크 — 모멘텀 소진 경고', 4, 'rectRot'),
       // 진입점
-      entryDS(macdBuyEntry,  'rgba(0,212,170,1)',  '▲ 매수 진입 — 골든크로스: MACD 상향 돌파, 추세 전환 확인'),
+      entryDS(macdBuyEntry,  'rgba(239,68,68,1)',  '▲ 매수 진입 — 골든크로스: MACD 상향 돌파, 추세 전환 확인'),
       entryDS(macdSellEntry, 'rgba(255,75,110,1)', '▼ 매도 준비 — 데드크로스: MACD 하향 돌파, 하락 전환 확인'),
     ]},
     options:{...co,
       plugins:{...co.plugins, legend: mkLegend([
-        ['▲ 매수진입(골든크로스)', 'rgba(0,212,170,1)',   true],
+        ['▲ 매수진입(골든크로스)', 'rgba(239,68,68,1)',   true],
         ['▼ 매도준비(데드크로스)', 'rgba(255,75,110,1)',  true],
         ['히스토 양전환',          'rgba(96,165,250,.8)', false],
         ['히스토 음전환',          'rgba(249,115,22,.8)', false],
