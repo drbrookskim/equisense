@@ -2927,7 +2927,7 @@ function renderValueChain({ ticker, companyName, isKr }) {
         });
       });
     });
-    buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor);
+    buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, isDark);
     const div = document.createElement('div');
     div.className = 'vc-nodata';
     div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted2);pointer-events:none';
@@ -2978,7 +2978,7 @@ function renderValueChain({ ticker, companyName, isKr }) {
   wrap.appendChild(div);
 }
 
-function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor) {
+function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, isDark) {
   const link = g.append('g').selectAll('line').data(links).join('line')
     .attr('class','kg-link')
     .attr('stroke', mutedColor)
@@ -2993,9 +2993,25 @@ function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor) {
       .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
       .on('end',   (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
 
+  const vcBg = isDark ? '#0f1320' : '#f1f5f9';
+
+  // 배경 불투명 원 (선이 원 뒤로 가려지도록)
   node.append('circle')
     .attr('r', d => d.size)
-    .attr('fill', d => colorOf(d) + (d.group==='stock'||d.group==='sec'&&d.muted ? '18':'33'))
+    .attr('fill', vcBg)
+    .attr('stroke', 'none');
+
+  // 색상 채움 원
+  node.append('circle')
+    .attr('r', d => d.size)
+    .attr('fill', d => {
+      const base = colorOf(d);
+      if (d.group === 'center') return base + 'cc';
+      if (d.group === 'ind')    return base + 'bb';
+      if (d.group === 'sec')    return base + '88';
+      if (d.group === 'self')   return base + 'aa';
+      return base + '44';  // stock
+    })
     .attr('stroke', d => colorOf(d))
     .attr('stroke-width', d => d.group==='center' ? 3 : 1.5);
 
