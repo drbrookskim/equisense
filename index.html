@@ -967,8 +967,11 @@ function addFav(ticker, name) {
   // 중복 방지
   if ([...f.us, ...f.kr].some(x => x.ticker === ticker)) return;
   // 한국 종목 (.KS / .KQ) 는 kr 그룹에, 나머지는 us 그룹에
-  const isKrTicker = /\.(KS|KQ)$/i.test(ticker);
-  (isKrTicker ? f.kr : f.us).push({ ticker, name: name || ticker });
+  const isKS = /\.KS$/i.test(ticker);
+  const isKQ = /\.KQ$/i.test(ticker);
+  const isKrTicker = isKS || isKQ;
+  const market = isKS ? 'KOSPI' : isKQ ? 'KOSDAQ' : '';
+  (isKrTicker ? f.kr : f.us).push({ ticker, name: name || ticker, market });
   saveFavs(f);
   renderFavs();
 }
@@ -994,15 +997,22 @@ function renderFavs() {
   const body = document.getElementById('fav-body');
   if (!body) return;
 
-  const tileHtml = (item) => `
+  const tileHtml = (item) => {
+    const tickerNum = item.ticker.replace(/\.(KS|KQ)$/i,'');
+    const nameHtml = item.name !== item.ticker
+      ? `${item.name}<br><span style="font-size:0.65rem;color:var(--muted)">${tickerNum}</span>`
+      : item.ticker;
+    const marketBadge = item.market
+      ? `<br><span style="font-size:0.6rem;color:var(--blue);font-weight:600">${item.market}</span>`
+      : '';
+    return `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
       <span class="fav-tile-label">
-        ${item.name !== item.ticker
-          ? `${item.name}<br><span style="font-size:0.65rem;color:var(--muted)">${item.ticker}</span>`
-          : item.ticker}
+        ${nameHtml}${marketBadge}
       </span>
       <span class="tile-del" onclick="event.stopPropagation();removeFav('${item.ticker}')">✕</span>
     </span>`;
+  };
 
   body.innerHTML = `
     <div class="fav-group">
@@ -2639,16 +2649,23 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
   // 줌/패닝
   const g = svg.append('g');
   // ── 공통 상수 ──
-  const GR = 14; // 균일 반지름
+  const GR = 7; // 균일 반지름
   const isDark = !document.documentElement.classList.contains('light');
   const kgBg   = isDark ? '#0f1320' : '#f1f5f9';
   const textCol = isDark ? '#e2e8f0' : '#1e293b';
   const linkCol = isDark ? '#334155' : '#cbd5e1';
 
-  // 그레이 팔레트: 0=가장 어두움(좋음) → 4=가장 밝음(나쁨)
+  // 그레이 팔레트: 0=가장 어두움(좋음) → 4=레드블랙(나쁨)
   const GRAYS = isDark
-    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#334155']
-    : ['#1e293b','#334155','#475569','#64748b','#94a3b8'];
+    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#7f1d1d']
+    : ['#1e293b','#334155','#475569','#64748b','#7f1d1d'];
+
+  // 핵심 노드용 radial gradient
+  const defs = svg.append('defs');
+  const grad = defs.append('radialGradient').attr('id','kg-center-grad')
+    .attr('cx','40%').attr('cy','35%').attr('r','60%');
+  grad.append('stop').attr('offset','0%').attr('stop-color', isDark ? '#f8fafc' : '#ffffff');
+  grad.append('stop').attr('offset','100%').attr('stop-color', isDark ? '#6366f1' : '#4f46e5');
 
   // 신호 → 그레이 인덱스 (center/cat 별도)
   const sigIdx = s => ({ bull:0, cat:1, center:0, neutral:2, bear:4 }[s] ?? 2);
@@ -2684,9 +2701,9 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
   // 배경 원 (선 가리기)
   node.append('circle').attr('class','bg-c').attr('r', GR).attr('fill', kgBg).attr('stroke','none');
 
-  // 컬러 원 (그레이 스케일)
+  // 컬러 원 (그레이 스케일, 핵심노드는 그라데이션)
   node.append('circle').attr('class','cl-c').attr('r', GR)
-    .attr('fill', d => GRAYS[sigIdx(d.sig)])
+    .attr('fill', d => d.group === 'center' ? 'url(#kg-center-grad)' : GRAYS[sigIdx(d.sig)])
     .attr('stroke','none');
 
   // 텍스트 — 원 하단
@@ -2969,13 +2986,23 @@ function renderValueChain({ ticker, companyName, isKr }) {
 }
 
 function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
-  const VR     = 14; // 균일 반지름
+  const VR     = 7; // 균일 반지름
   const vcBg   = isDark ? '#0f1320' : '#f1f5f9';
   const textCol = isDark ? '#e2e8f0' : '#1e293b';
   const linkCol = isDark ? '#334155' : '#cbd5e1';
   const GRAYS  = isDark
-    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#334155']
-    : ['#1e293b','#334155','#475569','#64748b','#94a3b8'];
+    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#7f1d1d']
+    : ['#1e293b','#334155','#475569','#64748b','#7f1d1d'];
+
+  // 핵심 노드용 radial gradient (VC)
+  const svgForDefs = g.node().closest('svg');
+  if (svgForDefs && !svgForDefs.querySelector('#vc-center-grad')) {
+    const defs = d3.select(svgForDefs).append('defs');
+    const grad = defs.append('radialGradient').attr('id','vc-center-grad')
+      .attr('cx','40%').attr('cy','35%').attr('r','60%');
+    grad.append('stop').attr('offset','0%').attr('stop-color', isDark ? '#f8fafc' : '#ffffff');
+    grad.append('stop').attr('offset','100%').attr('stop-color', isDark ? '#6366f1' : '#4f46e5');
+  }
 
   const applyZoom = k => {
     const r  = k < 0.28 ? 2.5 : k < 0.55 ? VR * 0.55 : VR;
@@ -3001,9 +3028,9 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
   // 배경 원
   node.append('circle').attr('class','bg-c').attr('r', VR).attr('fill', vcBg).attr('stroke','none');
 
-  // 관련도 기반 그레이 원
+  // 관련도 기반 그레이 원 (최고 관련 노드는 그라데이션)
   node.append('circle').attr('class','cl-c').attr('r', VR)
-    .attr('fill', d => GRAYS[relIdx(d.rel ?? 0.3)])
+    .attr('fill', d => (d.rel ?? 0) >= 1.0 ? 'url(#vc-center-grad)' : GRAYS[relIdx(d.rel ?? 0.3)])
     .attr('stroke','none');
 
   // 텍스트 — 원 하단
