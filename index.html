@@ -3049,65 +3049,179 @@ function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, isD
 // ══════════════════════════════════════════════════════
 let acTimer = null, acIdx = -1;
 
-// ── 한국 종목 내장 사전 (Yahoo Finance 검색 실패 시 폴백) ──
-const KR_DICT = {
-  // KOSPI 대형주
-  '삼성전자':'005930.KS','삼성전자우':'005935.KS',
-  'sk하이닉스':'000660.KS','sk 하이닉스':'000660.KS',
-  'lg에너지솔루션':'373220.KS',
-  '삼성바이오로직스':'207940.KS',
-  '현대차':'005380.KS','현대자동차':'005380.KS',
-  '셀트리온':'068270.KS',
-  '기아':'000270.KS','기아차':'000270.KS',
-  'kb금융':'105560.KS',
-  '신한지주':'055550.KS',
-  'lg화학':'051910.KS',
-  '삼성sdi':'006400.KS',
-  '현대모비스':'012330.KS',
-  '포스코홀딩스':'005490.KS','포스코':'005490.KS',
-  '카카오':'035720.KS',
-  '네이버':'035420.KS','naver':'035420.KS',
-  'sk이노베이션':'096770.KS',
-  '하나금융지주':'086790.KS',
-  '우리금융지주':'316140.KS',
-  '삼성물산':'028260.KS',
-  'lg전자':'066570.KS',
-  'sk텔레콤':'017670.KS',
-  'kt':'030200.KS',
-  '롯데케미칼':'011170.KS',
-  '고려아연':'010130.KS',
-  '두산에너빌리티':'034020.KS',
-  // KOSDAQ
-  '에코프로':'086520.KQ',
-  '에코프로비엠':'247540.KQ',
-  '셀트리온헬스케어':'091990.KQ',
-  'hlo':'028300.KQ',
-  '카카오게임즈':'293490.KQ',
-  '펄어비스':'263750.KQ',
-  '엔씨소프트':'036570.KS',
-  'cj제일제당':'097950.KS',
-  '한미반도체':'042700.KS',
-  '리노공업':'058470.KQ',
-  '이오테크닉스':'039030.KQ',
-  '솔브레인':'357780.KQ',
-  'sk바이오팜':'326030.KS',
-  '레인보우로보틱스':'277810.KQ',
-  '클래시스':'214150.KQ',
-  '알테오젠':'196170.KQ',
-  '휴젤':'145020.KQ',
-  '오스템임플란트':'048260.KQ',
-  '한화에어로스페이스':'012450.KS','한화에어로':'012450.KS',
-  '한화오션':'042660.KS',
-  '현대중공업':'329180.KS',
-  'ks한국조선해양':'009540.KS','한국조선해양':'009540.KS',
-  '두산로보틱스':'454910.KS',
-};
+// ── 한국 종목 내장 사전 [이름, 티커, 시장] ──
+const KR_STOCKS = [
+  // ── KOSPI ──
+  ['삼성전자','005930.KS','KOSPI'],['삼성전자우','005935.KS','KOSPI'],
+  ['SK하이닉스','000660.KS','KOSPI'],['LG에너지솔루션','373220.KS','KOSPI'],
+  ['삼성바이오로직스','207940.KS','KOSPI'],['현대차','005380.KS','KOSPI'],
+  ['현대자동차','005380.KS','KOSPI'],['셀트리온','068270.KS','KOSPI'],
+  ['기아','000270.KS','KOSPI'],['기아차','000270.KS','KOSPI'],
+  ['KB금융','105560.KS','KOSPI'],['신한지주','055550.KS','KOSPI'],
+  ['LG화학','051910.KS','KOSPI'],['삼성SDI','006400.KS','KOSPI'],
+  ['현대모비스','012330.KS','KOSPI'],['POSCO홀딩스','005490.KS','KOSPI'],
+  ['포스코홀딩스','005490.KS','KOSPI'],['카카오','035720.KS','KOSPI'],
+  ['NAVER','035420.KS','KOSPI'],['네이버','035420.KS','KOSPI'],
+  ['SK이노베이션','096770.KS','KOSPI'],['하나금융지주','086790.KS','KOSPI'],
+  ['우리금융지주','316140.KS','KOSPI'],['삼성물산','028260.KS','KOSPI'],
+  ['LG전자','066570.KS','KOSPI'],['SK텔레콤','017670.KS','KOSPI'],
+  ['KT','030200.KS','KOSPI'],['LG유플러스','032640.KS','KOSPI'],
+  ['두산에너빌리티','034020.KS','KOSPI'],['한화에어로스페이스','012450.KS','KOSPI'],
+  ['한화에어로','012450.KS','KOSPI'],['한화오션','042660.KS','KOSPI'],
+  ['HD현대중공업','329180.KS','KOSPI'],['HD한국조선해양','009540.KS','KOSPI'],
+  ['한국조선해양','009540.KS','KOSPI'],['삼성중공업','010140.KS','KOSPI'],
+  ['한미반도체','042700.KS','KOSPI'],['LG이노텍','011070.KS','KOSPI'],
+  ['삼성전기','009150.KS','KOSPI'],['SK','034730.KS','KOSPI'],
+  ['한국전력','015760.KS','KOSPI'],['HD현대일렉트릭','267260.KS','KOSPI'],
+  ['효성중공업','298040.KS','KOSPI'],['LS ELECTRIC','010120.KS','KOSPI'],
+  ['한화시스템','272210.KS','KOSPI'],['LIG넥스원','079550.KS','KOSPI'],
+  ['현대로템','064350.KS','KOSPI'],['한국항공우주','047810.KS','KOSPI'],
+  ['두산로보틱스','454910.KS','KOSPI'],['포스코퓨처엠','003670.KS','KOSPI'],
+  ['엘앤에프','066970.KS','KOSPI'],['에코프로머티리얼즈','450080.KS','KOSPI'],
+  ['셀트리온제약','068760.KS','KOSPI'],['한미약품','128940.KS','KOSPI'],
+  ['SK바이오팜','326030.KS','KOSPI'],['유한양행','000100.KS','KOSPI'],
+  ['대웅제약','069620.KS','KOSPI'],['종근당','185750.KS','KOSPI'],
+  ['CJ제일제당','097950.KS','KOSPI'],['오리온','271560.KS','KOSPI'],
+  ['농심','004370.KS','KOSPI'],['삼양식품','003230.KS','KOSPI'],
+  ['롯데케미칼','011170.KS','KOSPI'],['OCI홀딩스','010060.KS','KOSPI'],
+  ['한화솔루션','009830.KS','KOSPI'],['현대제철','004020.KS','KOSPI'],
+  ['POSCO인터내셔널','047050.KS','KOSPI'],['포스코인터내셔널','047050.KS','KOSPI'],
+  ['SK가스','018670.KS','KOSPI'],['한국가스공사','036460.KS','KOSPI'],
+  ['고려아연','010130.KS','KOSPI'],['영풍','000670.KS','KOSPI'],
+  ['풍산','103140.KS','KOSPI'],['LS','006260.KS','KOSPI'],
+  ['대한항공','003490.KS','KOSPI'],['아시아나항공','020560.KS','KOSPI'],
+  ['현대건설','000720.KS','KOSPI'],['GS건설','006360.KS','KOSPI'],
+  ['대우건설','047040.KS','KOSPI'],['삼성엔지니어링','028050.KS','KOSPI'],
+  ['현대백화점','069960.KS','KOSPI'],['신세계','004170.KS','KOSPI'],
+  ['롯데쇼핑','023530.KS','KOSPI'],['이마트','139480.KS','KOSPI'],
+  ['호텔신라','008770.KS','KOSPI'],['강원랜드','035250.KS','KOSPI'],
+  ['파라다이스','034230.KS','KOSPI'],['GKL','114090.KS','KOSPI'],
+  ['삼성생명','032830.KS','KOSPI'],['삼성화재','000810.KS','KOSPI'],
+  ['한화생명','088350.KS','KOSPI'],['메리츠금융지주','138040.KS','KOSPI'],
+  ['기업은행','024110.KS','KOSPI'],['NH투자증권','005940.KS','KOSPI'],
+  ['미래에셋증권','006800.KS','KOSPI'],['키움증권','039490.KS','KOSPI'],
+  ['HD현대','267250.KS','KOSPI'],['LS에코에너지','229640.KS','KOSPI'],
+  ['대한전선','001440.KS','KOSPI'],['일진전기','103590.KS','KOSPI'],
+  ['씨에스윈드','112610.KS','KOSPI'],['한화','000880.KS','KOSPI'],
+  ['CJ','001040.KS','KOSPI'],['롯데지주','004990.KS','KOSPI'],
+  ['LG','003550.KS','KOSPI'],['두산','000150.KS','KOSPI'],
+  ['KCC','002380.KS','KOSPI'],['효성','004800.KS','KOSPI'],
+  ['SK오션플랜트','100090.KS','KOSPI'],['삼천리','004690.KS','KOSPI'],
+  ['서울가스','017390.KS','KOSPI'],['한국카본','017960.KS','KOSPI'],
+  ['DL이앤씨','375500.KS','KOSPI'],['HDC현대산업개발','294870.KS','KOSPI'],
+  ['F&F','383220.KS','KOSPI'],['휠라홀딩스','081660.KS','KOSPI'],
+  ['영원무역','111770.KS','KOSPI'],['한세실업','105630.KS','KOSPI'],
+  ['화승엔터프라이즈','241590.KS','KOSPI'],['태웅','044490.KS','KOSPI'],
+  ['성광벤드','014620.KS','KOSPI'],['비에이치아이','083650.KS','KOSPI'],
+  ['세아제강','306200.KS','KOSPI'],['넥스틸','092790.KS','KOSPI'],
+  ['롯데에너지머티리얼즈','020150.KS','KOSPI'],['남해화학','025860.KS','KOSPI'],
+  ['한전기술','053210.KS','KOSPI'],['한전KPS','051600.KS','KOSPI'],
+  ['한국전력기술','053210.KS','KOSPI'],['SNT다이내믹스','003570.KS','KOSPI'],
+  ['현대오토에버','307950.KS','KOSPI'],['현대모비스','012330.KS','KOSPI'],
+  ['HL만도','204320.KS','KOSPI'],['에스엘','005850.KS','KOSPI'],
+  ['명신산업','009900.KS','KOSPI'],['성우하이텍','015750.KS','KOSPI'],
+  ['하이록코리아','013030.KS','KOSPI'],['태광','023160.KS','KOSPI'],
+  ['인텔리안테크','189300.KS','KOSPI'],['LX세미콘','108320.KS','KOSPI'],
+  ['DB하이텍','000990.KS','KOSPI'],['해성디에스','195870.KS','KOSPI'],
+  ['이수페타시스','007660.KS','KOSPI'],['심텍','222800.KS','KOSPI'],
+  ['대덕전자','008060.KS','KOSPI'],['코리아써키트','007회로'],
+  ['원익IPS','240810.KS','KOSPI'],['한화비전','212670.KS','KOSPI'],
+  ['파크시스템스','140860.KS','KOSPI'],['케이씨텍','281820.KS','KOSPI'],
+  ['티씨케이','064760.KS','KOSPI'],['원익QnC','074600.KS','KOSPI'],
+  ['한솔케미칼','014680.KS','KOSPI'],['동진쎄미켐','005290.KS','KOSPI'],
+  ['후성','093370.KS','KOSPI'],['솔브레인홀딩스','036830.KS','KOSPI'],
+  ['SFA반도체','036540.KS','KOSPI'],['하나마이크론','067310.KS','KOSPI'],
+  ['두산테스나','131030.KS','KOSPI'],['SK오션플랜트','100090.KS','KOSPI'],
+  ['한화엔진','082740.KS','KOSPI'],['HD현대마린엔진','082740.KS','KOSPI'],
+  ['STX엔진','077970.KS','KOSPI'],['세진중공업','075580.KS','KOSPI'],
+  ['케이프','케이프'],['동성화인텍','033180.KS','KOSPI'],
+  ['HJ중공업','097230.KS','KOSPI'],['대한조선','159580.KS','KOSPI'],
+  ['LG씨엔에스','LG씨엔에스'],['삼성SDS','018260.KS','KOSPI'],
+  ['롯데정밀화학','004000.KS','KOSPI'],['한국콜마','161890.KS','KOSPI'],
+  ['코스맥스','044820.KS','KOSPI'],['에이피알','278470.KS','KOSPI'],
+  ['도레이첨단소재','도레이'],
 
-// 역방향: 티커 → 대표 종목명 (중복 키 중 첫 번째 값 사용)
+  // ── KOSDAQ ──
+  ['에코프로','086520.KQ','KOSDAQ'],['에코프로비엠','247540.KQ','KOSDAQ'],
+  ['알테오젠','196170.KQ','KOSDAQ'],['셀트리온헬스케어','091990.KQ','KOSDAQ'],
+  ['HLB','028300.KQ','KOSDAQ'],['리가켐바이오','141080.KQ','KOSDAQ'],
+  ['펩트론','087010.KQ','KOSDAQ'],['에이비엘바이오','298380.KQ','KOSDAQ'],
+  ['클래시스','214150.KQ','KOSDAQ'],['파마리서치','214450.KQ','KOSDAQ'],
+  ['휴젤','145020.KQ','KOSDAQ'],['원텍','336570.KQ','KOSDAQ'],
+  ['휴메딕스','200670.KQ','KOSDAQ'],['엘앤씨바이오','290650.KQ','KOSDAQ'],
+  ['에스티팜','237690.KQ','KOSDAQ'],['올릭스','226950.KQ','KOSDAQ'],
+  ['삼양바이오팜','삼양바이오팜'],['보로노이','310210.KQ','KOSDAQ'],
+  ['디앤디파마텍','347850.KQ','KOSDAQ'],['오름테라퓨틱','475730.KQ','KOSDAQ'],
+  ['레인보우로보틱스','277810.KQ','KOSDAQ'],['로보티즈','108490.KQ','KOSDAQ'],
+  ['에스피지','058610.KQ','KOSDAQ'],['씨메스','418720.KQ','KOSDAQ'],
+  ['카카오게임즈','293490.KQ','KOSDAQ'],['펄어비스','263750.KQ','KOSDAQ'],
+  ['엔씨소프트','036570.KS','KOSPI'],['크래프톤','259960.KS','KOSPI'],
+  ['리노공업','058470.KQ','KOSDAQ'],['이오테크닉스','039030.KQ','KOSDAQ'],
+  ['HPSP','403870.KQ','KOSDAQ'],['솔브레인','357780.KQ','KOSDAQ'],
+  ['에스앤에스텍','101490.KQ','KOSDAQ'],['덕산테코피아','317330.KQ','KOSDAQ'],
+  ['코미코','183300.KQ','KOSDAQ'],['에프에스티','036810.KQ','KOSDAQ'],
+  ['한미반도체','042700.KS','KOSPI'],['퀄리타스반도체','432720.KQ','KOSDAQ'],
+  ['칩스앤미디어','094360.KQ','KOSDAQ'],['가온칩스','399720.KQ','KOSDAQ'],
+  ['에이직랜드','에이직랜드'],['파두','440110.KQ','KOSDAQ'],
+  ['제주반도체','080220.KQ','KOSDAQ'],['텔레칩스','054450.KQ','KOSDAQ'],
+  ['LB세미콘','365270.KQ','KOSDAQ'],['한양디지텍','078350.KQ','KOSDAQ'],
+  ['네패스','033640.KQ','KOSDAQ'],['네패스아크','330860.KQ','KOSDAQ'],
+  ['케이엠더블유','032500.KQ','KOSDAQ'],['쏠리드','050890.KQ','KOSDAQ'],
+  ['RFHIC','218410.KQ','KOSDAQ'],['이노와이어리스','073490.KQ','KOSDAQ'],
+  ['에이스테크','088800.KQ','KOSDAQ'],['와이솔','122990.KQ','KOSDAQ'],
+  ['기가레인','049080.KQ','KOSDAQ'],['오이솔루션','138080.KQ','KOSDAQ'],
+  ['다산네트웍스','039560.KQ','KOSDAQ'],['유비쿼스','078070.KQ','KOSDAQ'],
+  ['NHN','181710.KQ','KOSDAQ'],['카카오페이','377300.KS','KOSPI'],
+  ['더존비즈온','012510.KQ','KOSDAQ'],['헥토파이낸셜','234340.KQ','KOSDAQ'],
+  ['코나아이','052400.KQ','KOSDAQ'],['웹케시','053580.KQ','KOSDAQ'],
+  ['비에이치','090460.KQ','KOSDAQ'],['인터플렉스','051370.KQ','KOSDAQ'],
+  ['디케이티','290550.KQ','KOSDAQ'],['파인엠텍','441270.KQ','KOSDAQ'],
+  ['KH바텍','060720.KQ','KOSDAQ'],['덕산네오룩스','213420.KQ','KOSDAQ'],
+  ['이녹스첨단소재','272290.KQ','KOSDAQ'],['세경하이테크','148150.KQ','KOSDAQ'],
+  ['삼화콘덴서','001820.KS','KOSPI'],['아모텍','052710.KQ','KOSDAQ'],
+  ['엠씨넥스','097520.KQ','KOSDAQ'],['퓨런티어','370090.KQ','KOSDAQ'],
+  ['에스오에스랩','269280.KQ','KOSDAQ'],['스마트레이더시스템','스마트레이더'],
+  ['에코프로비엠','247540.KQ','KOSDAQ'],['대주전자재료','대주전자'],
+  ['나노신소재','121600.KQ','KOSDAQ'],['성일하이텍','365340.KQ','KOSDAQ'],
+  ['비나텍','126340.KQ','KOSDAQ'],['아모그린텍','170790.KQ','KOSDAQ'],
+  ['두산퓨얼셀','336260.KQ','KOSDAQ'],['범한퓨얼셀','382900.KQ','KOSDAQ'],
+  ['씨아이에스','222080.KQ','KOSDAQ'],['피엔티','137400.KQ','KOSDAQ'],
+  ['원준','382840.KQ','KOSDAQ'],['필에너지','194610.KQ','KOSDAQ'],
+  ['유일에너테크','에너테크'],['레몬','294140.KQ','KOSDAQ'],
+  ['신성에스티','011930.KQ','KOSDAQ'],['와이엠텍','와이엠텍'],
+  ['LS머트리얼즈','278990.KQ','KOSDAQ'],['코칩','094360.KQ','KOSDAQ'],
+  ['마녀공장','439090.KQ','KOSDAQ'],['토니모리','214420.KQ','KOSDAQ'],
+  ['코스메카코리아','241710.KQ','KOSDAQ'],['실리콘투','257720.KQ','KOSDAQ'],
+  ['브이티','비티씨'],['에이블씨엔씨','078520.KQ','KOSDAQ'],
+  ['삐아','삐아'],['하나투어','039130.KQ','KOSDAQ'],
+  ['모두투어','080160.KQ','KOSDAQ'],['노랑풍선','104620.KQ','KOSDAQ'],
+  ['글로벌텍스프리','204620.KQ','KOSDAQ'],['롯데관광개발','032350.KQ','KOSDAQ'],
+  ['이구산업','025820.KQ','KOSDAQ'],['대창','012800.KQ','KOSDAQ'],
+  ['서원','021050.KQ','KOSDAQ'],['KBI메탈','441270.KQ','KOSDAQ'],
+  ['슈어소프트테크','046620.KQ','KOSDAQ'],['아우토크립트','철거'],
+  ['라닉스','065060.KQ','KOSDAQ'],['넥스트칩','칩'],
+  ['오비고','비고'],['인포뱅크','036220.KQ','KOSDAQ'],
+  ['엔켐','348370.KQ','KOSDAQ'],['이수스페셜티케미컬','이수스페셜'],
+  ['한농화성','농화성'],['씨에스베어링','씨에스베어링'],
+  ['동국S&C','동국'],['유니슨','018000.KQ','KOSDAQ'],
+  ['SDN','099220.KQ','KOSDAQ'],['대명에너지','389260.KQ','KOSDAQ'],
+  ['그리드위즈','357750.KQ','KOSDAQ'],['보성파워텍','008142.KQ','KOSDAQ'],
+  ['제일일렉트릭','제일전기'],['세명전기','007820.KQ','KOSDAQ'],
+  ['우리기술','032820.KQ','KOSDAQ'],['우진','105840.KQ','KOSDAQ'],
+  ['우진엔텍','우진엔텍'],['일진파워','332370.KQ','KOSDAQ'],
+  ['에너토크','에너토크'],['한신기계','항'],
+  ['산일전기','062040.KS','KOSPI'],['제룡전기','대'],
+  ['가온전선','가온'],['LS마린솔루션','가론'],
+  ['대원전선','가온'],
+];
+
+// KR_DICT 호환 (기존 코드 동작 유지)
+const KR_DICT = {};
+KR_STOCKS.forEach(([name, sym]) => { if (sym && sym.includes('.')) KR_DICT[name.toLowerCase()] = sym; });
+
+// 역방향: 티커 → 대표 종목명
 const TICKER_NAME = {};
-for (const [name, sym] of Object.entries(KR_DICT)) {
-  if (!TICKER_NAME[sym]) TICKER_NAME[sym] = name;
-}
+KR_STOCKS.forEach(([name, sym]) => { if (sym && sym.includes('.') && !TICKER_NAME[sym]) TICKER_NAME[sym] = name; });
 // 영어 회사명도 추가
 const EN_TICKER_NAME = {
   'AAPL':'Apple','MSFT':'Microsoft','NVDA':'NVIDIA','GOOGL':'Alphabet',
@@ -3127,13 +3241,33 @@ function resolveTickerName(ticker) {
 
 function krDictSearch(q) {
   const key = q.trim().toLowerCase();
-  // 정확히 일치
-  if (KR_DICT[key]) return [{ symbol: KR_DICT[key], longname: q, exchDisp: 'KRX' }];
-  // 부분 일치
-  const matches = Object.entries(KR_DICT)
-    .filter(([name]) => name.includes(key) || key.includes(name))
-    .map(([name, sym]) => ({ symbol: sym, longname: name, exchDisp: 'KRX' }));
-  return matches;
+  if (!key) return [];
+
+  const seen = new Set();
+  const results = [];
+
+  // 유효한 티커 보유 항목만 검색
+  const valid = KR_STOCKS.filter(([,sym]) => sym && sym.includes('.'));
+
+  // 우선순위: 0=정확일치, 1=앞부터일치, 2=포함
+  const scored = [];
+  for (const [name, sym, market] of valid) {
+    const n = name.toLowerCase();
+    let score = -1;
+    if (n === key)            score = 0;
+    else if (n.startsWith(key)) score = 1;
+    else if (n.includes(key)) score = 2;
+    if (score >= 0) scored.push({ score, name, sym, market: market || 'KRX' });
+  }
+
+  scored.sort((a, b) => a.score - b.score || a.name.length - b.name.length);
+
+  for (const { name, sym, market } of scored) {
+    if (seen.has(sym)) continue;
+    seen.add(sym);
+    results.push({ symbol: sym, longname: name, exchDisp: market });
+  }
+  return results;
 }
 
 // ── 영어 회사명 내장 사전 ──
@@ -3167,38 +3301,53 @@ const PROXIES = [
   'https://corsproxy.org/?',
 ];
 
-async function fetchWithProxy(url) {
+async function fetchWithProxy(url, signal) {
   for (const proxy of PROXIES) {
     try {
-      const resp = await fetch(proxy + encodeURIComponent(url));
+      const resp = await fetch(proxy + encodeURIComponent(url), signal ? { signal } : {});
       if (resp.ok) return resp;
-    } catch { /* 다음 프록시 시도 */ }
+    } catch (e) {
+      if (e?.name === 'AbortError') throw e;  // 타임아웃은 즉시 중단
+    }
   }
   throw new Error('모든 프록시 실패');
 }
 
 async function searchTickers(q) {
+  const isKorean = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(q);
+
   // 1) 내장 한국 사전
   const dictHits = krDictSearch(q);
   // 2) 내장 영어 사전
   const enHits = enDictSearch(q);
 
-  // 3) Yahoo Finance API 검색
+  // 한글 검색: 로컬 사전 결과 즉시 반환 (API 대기 없음)
+  if (isKorean) {
+    const seen = new Set();
+    return [...dictHits, ...enHits].filter(r => {
+      if (seen.has(r.symbol)) return false;
+      seen.add(r.symbol); return true;
+    });
+  }
+
+  // 영문 검색: Yahoo Finance API (3초 타임아웃)
   const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0&enableFuzzyQuery=true`;
   let apiHits = [];
   try {
-    const resp = await fetchWithProxy(searchUrl);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    const resp = await fetchWithProxy(searchUrl, ctrl.signal);
+    clearTimeout(timer);
     const json = await resp.json();
     apiHits = (json.quotes || []).filter(r => r.symbol && r.quoteType !== 'OPTION');
-  } catch { /* API 실패 시 사전 결과만 사용 */ }
+  } catch { /* API 실패·타임아웃 시 사전 결과만 사용 */ }
 
   // 합치기 (중복 제거)
   const seen = new Set();
-  const combined = [...dictHits, ...enHits, ...apiHits].filter(r => {
+  return [...dictHits, ...enHits, ...apiHits].filter(r => {
     if (seen.has(r.symbol)) return false;
     seen.add(r.symbol); return true;
   });
-  return combined;
 }
 
 function showAC(items) {
@@ -3207,13 +3356,17 @@ function showAC(items) {
   if (!items.length) { list.style.display = 'none'; return; }
 
   list.innerHTML = items.map((r, i) => {
-    const exchFlag = r.exchange?.startsWith('KO') || r.symbol?.endsWith('.KS') || r.symbol?.endsWith('.KQ') ? '🇰🇷 ' : '🇺🇸 ';
+    const isKr = r.exchange?.startsWith('KO') || r.symbol?.endsWith('.KS') || r.symbol?.endsWith('.KQ');
+    const exchFlag = isKr ? '🇰🇷' : '🇺🇸';
+    const exchLabel = r.exchDisp || r.exchange || '';
     const name = r.longname || r.shortname || r.symbol;
+    // KOSPI/KOSDAQ 배지 색상
+    const badgeColor = exchLabel === 'KOSPI' ? '#3b82f6' : exchLabel === 'KOSDAQ' ? '#a78bfa' : '#64748b';
     return `<div class="ac-item" data-sym="${r.symbol}" data-idx="${i}"
       onmousedown="pickAC('${r.symbol}')">
       <span class="ac-ticker">${r.symbol}</span>
       <span class="ac-name">${name}</span>
-      <span class="ac-exch">${exchFlag}${r.exchDisp || r.exchange || ''}</span>
+      <span class="ac-exch">${exchFlag} <span style="color:${badgeColor};font-weight:600">${exchLabel}</span></span>
     </div>`;
   }).join('');
   list.style.display = 'block';
