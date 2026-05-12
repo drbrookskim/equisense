@@ -792,10 +792,21 @@
     .row-bottom { grid-template-columns: 1fr; }
     .mini-row   { grid-template-columns: 1fr 1fr; }
   }
-  @media (max-width: 600px) {
-    .search-wrap { flex-wrap: wrap; }
-    .select-box  { width: 100%; }
-    .btn-run     { width: 100%; }
+  @media (max-width: 700px) {
+    .search-wrap {
+      flex-direction: column;
+      gap: 8px;
+    }
+    .search-outer,
+    .select-box,
+    .btn-run,
+    .btn-report {
+      width: 100%;
+      box-sizing: border-box;
+      justify-content: center;
+    }
+    .btn-run { padding: 13px 26px; }
+    .btn-report { height: auto; padding: 13px 20px; }
   }
 </style>
 </head>
@@ -986,7 +997,7 @@ function isFaved(ticker) {
   return [...f.us, ...f.kr].some(x => x.ticker === ticker);
 }
 
-function addFav(ticker, name) {
+function addFav(ticker, name, exchange) {
   const f = loadFavs();
   // 중복 방지
   if ([...f.us, ...f.kr].some(x => x.ticker === ticker)) return;
@@ -994,7 +1005,7 @@ function addFav(ticker, name) {
   const isKS = /\.KS$/i.test(ticker);
   const isKQ = /\.KQ$/i.test(ticker);
   const isKrTicker = isKS || isKQ;
-  const market = isKS ? 'KOSPI' : isKQ ? 'KOSDAQ' : '';
+  const market = isKS ? 'KOSPI' : isKQ ? 'KOSDAQ' : (exchange || '');
   // 이름이 티커와 같으면 KR_STOCKS 사전에서 한국어 종목명 조회
   let resolvedName = name || ticker;
   if (isKrTicker && (!resolvedName || resolvedName === ticker)) {
@@ -1038,6 +1049,13 @@ function renderFavs() {
         changed = true;
       }
     });
+    // 미국 종목 market 없으면 거래소 추정
+    f.us.forEach(item => {
+      if (!item.market && typeof guessExchange === 'function') {
+        item.market = guessExchange(item.ticker);
+        changed = true;
+      }
+    });
     if (changed) saveFavs(f);
   }
   const body = document.getElementById('fav-body');
@@ -1046,7 +1064,15 @@ function renderFavs() {
   const tileHtml = (item) => {
     const hasName = item.name && item.name !== item.ticker;
     const displayName = hasName ? item.name : item.ticker;
-    const subLine = hasName ? item.ticker : '';   // e.g. 005930.KS
+    // subLine: 종목번호.KS 또는 AAPL.NASDAQ 형태
+    let subLine = '';
+    if (hasName) {
+      if (item.market) {
+        subLine = `${item.ticker}.${item.market}`;
+      } else {
+        subLine = item.ticker;
+      }
+    }
     return `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
       <span class="fav-tile-label" style="white-space:normal;line-height:1.5">
@@ -2027,13 +2053,26 @@ async function runAnalysis() {
 // ══════════════════════════════════════════════════════
 //  렌더링
 // ══════════════════════════════════════════════════════
-function toggleFavFromResult(ticker, name) {
+function toggleFavFromResult(ticker, name, exchange) {
   if (isFaved(ticker)) {
     removeFav(ticker);
   } else {
-    addFav(ticker, name);
+    addFav(ticker, name, exchange);
     updateFavBtn(ticker);
   }
+}
+
+// 미국 주요 NYSE 종목 티커 목록 (간이 판별)
+const NYSE_TICKERS = new Set(['BRK-B','BRK-A','JPM','BAC','WFC','GS','MS','C','USB','AXP','V','MA','AIG','MET','PRU','TRV','ALL','CB','BLK','SCHW','WMT','HD','TGT','COST','LOW','MCD','SBUX','NKE','PG','KO','PEP','PM','MO','GE','BA','CAT','MMM','HON','UPS','FDX','RTX','LMT','NOC','GD','F','GM','X','AA','DD','DOW','EMN','IBM','T','VZ','TWX','CMCSA','DIS','NWS','CVX','XOM','COP','OXY','SLB','HAL','MRK','PFE','JNJ','ABT','MDT','BMY','LLY','UNH','CI','HUM','AET','CVS','CAH','MCK']);
+
+function guessExchange(ticker) {
+  if (/\.(KS|KQ)$/i.test(ticker)) return '';
+  const t = ticker.toUpperCase().replace('-','');
+  // ETF는 대부분 NYSE Arca
+  if (['SPY','QQQ','DIA','IWM','GLD','SLV','TLT','VTI','VOO','ARKK','XLK','XLF','XLE','XLV','EEM','EFA'].includes(ticker.toUpperCase())) return 'NYSE';
+  if (NYSE_TICKERS.has(ticker.toUpperCase())) return 'NYSE';
+  // 기본: NASDAQ (FAANG, 반도체 등 대부분)
+  return 'NASDAQ';
 }
 
 function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency,
@@ -2110,7 +2149,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       </div>
       <div style="margin-top:14px">
         <button id="fav-btn" class="btn-fav${isFaved(ticker)?' starred':''}"
-          onclick="toggleFavFromResult('${ticker}','${(fundInfo?.companyName||ticker).replace(/'/g,"\\'")}')">
+          onclick="toggleFavFromResult('${ticker}','${(fundInfo?.companyName||ticker).replace(/'/g,"\\'")}','${isKr ? '' : guessExchange(ticker)}')">
           ${isFaved(ticker) ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}
         </button>
       </div>
@@ -2700,17 +2739,18 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
   const textCol = isDark ? '#e2e8f0' : '#1e293b';
   const linkCol = isDark ? '#334155' : '#cbd5e1';
 
-  // 그레이 팔레트: 0=가장 어두움(좋음) → 4=레드블랙(나쁨)
+  // 그레이 팔레트: 0=가장 좋음(어두움) → 4=레드블랙(나쁨)
+  // 다크모드: 라이트모드와 반대 방향 — 좋을수록 밝은 원, 나쁠수록 어두운 원
   const GRAYS = isDark
-    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#7f1d1d']
+    ? ['#f1f5f9','#94a3b8','#64748b','#334155','#7f1d1d']
     : ['#1e293b','#334155','#475569','#64748b','#7f1d1d'];
 
   // 핵심 노드용 radial gradient
   const defs = svg.append('defs');
   const grad = defs.append('radialGradient').attr('id','kg-center-grad')
     .attr('cx','40%').attr('cy','35%').attr('r','60%');
-  grad.append('stop').attr('offset','0%').attr('stop-color', isDark ? '#f8fafc' : '#ffffff');
-  grad.append('stop').attr('offset','100%').attr('stop-color', isDark ? '#6366f1' : '#4f46e5');
+  grad.append('stop').attr('offset','0%').attr('stop-color', isDark ? '#ffffff' : '#ffffff');
+  grad.append('stop').attr('offset','100%').attr('stop-color', isDark ? '#818cf8' : '#4f46e5');
 
   // 신호 → 그레이 인덱스 (center/cat 별도)
   const sigIdx = s => ({ bull:0, cat:1, center:0, neutral:2, bear:4 }[s] ?? 2);
@@ -3035,8 +3075,9 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
   const vcBg   = isDark ? '#0f1320' : '#f1f5f9';
   const textCol = isDark ? '#e2e8f0' : '#1e293b';
   const linkCol = isDark ? '#334155' : '#cbd5e1';
+  // 다크모드: 좋을수록 밝은 원(라이트모드와 반대 방향)
   const GRAYS  = isDark
-    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#7f1d1d']
+    ? ['#f1f5f9','#94a3b8','#64748b','#334155','#7f1d1d']
     : ['#1e293b','#334155','#475569','#64748b','#7f1d1d'];
 
   // 핵심 노드용 radial gradient (VC)
@@ -3045,8 +3086,8 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
     const defs = d3.select(svgForDefs).append('defs');
     const grad = defs.append('radialGradient').attr('id','vc-center-grad')
       .attr('cx','40%').attr('cy','35%').attr('r','60%');
-    grad.append('stop').attr('offset','0%').attr('stop-color', isDark ? '#f8fafc' : '#ffffff');
-    grad.append('stop').attr('offset','100%').attr('stop-color', isDark ? '#6366f1' : '#4f46e5');
+    grad.append('stop').attr('offset','0%').attr('stop-color', '#ffffff');
+    grad.append('stop').attr('offset','100%').attr('stop-color', isDark ? '#818cf8' : '#4f46e5');
   }
 
   const applyZoom = k => {
