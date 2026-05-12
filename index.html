@@ -958,25 +958,25 @@ function setTicker(t, el) {
 // ══════════════════════════════════════════════════════
 //  즐겨찾기
 // ══════════════════════════════════════════════════════
-const FAV_KEY = 'tsa_favorites';
+const FAV_KEY = 'tsa_favorites_v2'; // v2: name+market 필드 포함
 const DEFAULT_FAVS = {
   us:  [
-    { ticker:'AAPL',    name:'AAPL' },
-    { ticker:'MSFT',    name:'MSFT' },
-    { ticker:'NVDA',    name:'NVDA' },
-    { ticker:'TSLA',    name:'TSLA' },
-    { ticker:'META',    name:'META' },
-    { ticker:'GOOGL',   name:'GOOGL' },
-    { ticker:'SPY',     name:'SPY' },
-    { ticker:'QQQ',     name:'QQQ' },
+    { ticker:'AAPL',    name:'Apple',     market:'NASDAQ' },
+    { ticker:'MSFT',    name:'Microsoft', market:'NASDAQ' },
+    { ticker:'NVDA',    name:'NVIDIA',    market:'NASDAQ' },
+    { ticker:'TSLA',    name:'Tesla',     market:'NASDAQ' },
+    { ticker:'META',    name:'Meta',      market:'NASDAQ' },
+    { ticker:'GOOGL',   name:'Alphabet',  market:'NASDAQ' },
+    { ticker:'SPY',     name:'S&P 500 ETF', market:'NYSE' },
+    { ticker:'QQQ',     name:'NASDAQ 100 ETF', market:'NASDAQ' },
   ],
   kr: [
-    { ticker:'005930.KS', name:'삼성전자' },
-    { ticker:'000660.KS', name:'SK하이닉스' },
-    { ticker:'035420.KS', name:'NAVER' },
-    { ticker:'086520.KQ', name:'에코프로' },
-    { ticker:'373220.KS', name:'LG에너지솔루션' },
-    { ticker:'005380.KS', name:'현대차' },
+    { ticker:'005930.KS', name:'삼성전자',       market:'KOSPI' },
+    { ticker:'000660.KS', name:'SK하이닉스',      market:'KOSPI' },
+    { ticker:'035420.KS', name:'NAVER',          market:'KOSPI' },
+    { ticker:'086520.KQ', name:'에코프로',        market:'KOSDAQ' },
+    { ticker:'373220.KS', name:'LG에너지솔루션',  market:'KOSPI' },
+    { ticker:'005380.KS', name:'현대차',          market:'KOSPI' },
   ]
 };
 
@@ -1049,8 +1049,12 @@ function renderFavs() {
         changed = true;
       }
     });
-    // 미국 종목 market 없으면 거래소 추정
+    // 미국 종목: 이름 없으면 EN_TICKER_NAME 사전 조회, market 없으면 거래소 추정
     f.us.forEach(item => {
+      if (!item.name || item.name === item.ticker) {
+        const looked = (typeof EN_TICKER_NAME !== 'undefined' ? EN_TICKER_NAME[item.ticker] : null);
+        if (looked) { item.name = looked; changed = true; }
+      }
       if (!item.market && typeof guessExchange === 'function') {
         item.market = guessExchange(item.ticker);
         changed = true;
@@ -1062,22 +1066,19 @@ function renderFavs() {
   if (!body) return;
 
   const tileHtml = (item) => {
-    const hasName = item.name && item.name !== item.ticker;
-    const displayName = hasName ? item.name : item.ticker;
-    // subLine: 종목번호.KS 또는 AAPL.NASDAQ 형태
-    let subLine = '';
-    if (hasName) {
-      if (item.market) {
-        subLine = `${item.ticker}.${item.market}`;
-      } else {
-        subLine = item.ticker;
-      }
-    }
+    // 이름 확정: 사전 fallback 포함
+    let displayName = item.name && item.name !== item.ticker
+      ? item.name
+      : (typeof EN_TICKER_NAME !== 'undefined' && EN_TICKER_NAME[item.ticker])
+        || item.name || item.ticker;
+    // 두 번째 줄: 티커.거래소 (항상 표시)
+    const subLine = item.market ? `${item.ticker}.${item.market}` : item.ticker;
+    const showSub = subLine !== displayName; // 이름과 동일하면 생략
     return `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
       <span class="fav-tile-label" style="white-space:normal;line-height:1.5">
         <span style="display:block;font-size:0.78rem;font-weight:600">${displayName}</span>
-        ${subLine ? `<span style="display:block;font-size:0.62rem;color:var(--muted);margin-top:1px">${subLine}</span>` : ''}
+        ${showSub ? `<span style="display:block;font-size:0.62rem;color:var(--muted);margin-top:1px">${subLine}</span>` : ''}
       </span>
       <span class="tile-del" onclick="event.stopPropagation();removeFav('${item.ticker}')">✕</span>
     </span>`;
