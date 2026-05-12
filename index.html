@@ -2638,89 +2638,90 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
 
   // 줌/패닝
   const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.4, 3]).on('zoom', e => g.attr('transform', e.transform)));
-
-  // 색상 맵
+  // ── 공통 상수 ──
+  const GR = 14; // 균일 반지름
   const isDark = !document.documentElement.classList.contains('light');
-  const colorMap = {
-    bull:    isDark ? '#ff4b6e' : '#be123c',
-    bear:    isDark ? '#3b82f6' : '#1d4ed8',
-    neutral: isDark ? '#fbbf24' : '#b45309',
-    cat:     isDark ? '#a78bfa' : '#6d28d9',
-    center:  isDark ? '#a78bfa' : '#6d28d9',
+  const kgBg   = isDark ? '#0f1320' : '#f1f5f9';
+  const textCol = isDark ? '#e2e8f0' : '#1e293b';
+  const linkCol = isDark ? '#334155' : '#cbd5e1';
+
+  // 그레이 팔레트: 0=가장 어두움(좋음) → 4=가장 밝음(나쁨)
+  const GRAYS = isDark
+    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#334155']
+    : ['#1e293b','#334155','#475569','#64748b','#94a3b8'];
+
+  // 신호 → 그레이 인덱스 (center/cat 별도)
+  const sigIdx = s => ({ bull:0, cat:1, center:0, neutral:2, bear:4 }[s] ?? 2);
+
+  // 줌 핸들러 (adaptive sizing)
+  const applyZoom = (k) => {
+    const r  = k < 0.28 ? 2.5 : k < 0.55 ? GR * 0.55 : GR;
+    const ta = k < 0.55 ? 0 : 1;
+    g.selectAll('.kg-node circle').attr('r', r);
+    g.selectAll('.kg-node text').style('opacity', ta);
   };
-  const textColor = isDark ? '#f1f5f9' : '#0f172a';
-  const mutedColor = isDark ? '#94a3b8' : '#64748b';
-  const bgColor   = isDark ? '#111827' : '#ffffff';
+  svg.call(d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => {
+    g.attr('transform', e.transform);
+    applyZoom(e.transform.k);
+  }));
 
   // 링크
   const link = g.append('g').selectAll('line').data(links).join('line')
-    .attr('class', 'kg-link')
-    .attr('stroke', mutedColor)
-    .attr('stroke-width', d => d.dashed ? 1 : 1.5)
-    .attr('stroke-dasharray', d => d.dashed ? '4 3' : null);
+    .attr('class','kg-link')
+    .attr('stroke', linkCol)
+    .attr('stroke-width', d => d.dashed ? 1 : 1.2)
+    .attr('stroke-dasharray', d => d.dashed ? '4 3' : null)
+    .attr('stroke-opacity', 0.5);
 
   // 노드 그룹
   const node = g.append('g').selectAll('g').data(nodes).join('g')
-    .attr('class', 'kg-node')
+    .attr('class','kg-node')
     .call(d3.drag()
-      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
-      .on('drag',  (e, d) => { d.fx=e.x; d.fy=e.y; })
-      .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+      .on('start', (e,d) => { if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end',   (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
 
-  // 원 — 배경 불투명 + 색상 채움, 테두리 없음
-  const kgBg = isDark ? '#0f1320' : '#f1f5f9';
-  node.append('circle')
-    .attr('r', d => d.size)
-    .attr('fill', kgBg)
-    .attr('stroke', 'none');
-  node.append('circle')
-    .attr('r', d => d.size)
-    .attr('fill', d => {
-      const c = colorMap[d.sig] || mutedColor;
-      if (d.group==='center') return c + 'cc';
-      if (d.group==='cat')    return c + '99';
-      return c + '44';
-    })
-    .attr('stroke', 'none');
+  // 배경 원 (선 가리기)
+  node.append('circle').attr('class','bg-c').attr('r', GR).attr('fill', kgBg).attr('stroke','none');
 
-  // 레이블
+  // 컬러 원 (그레이 스케일)
+  node.append('circle').attr('class','cl-c').attr('r', GR)
+    .attr('fill', d => GRAYS[sigIdx(d.sig)])
+    .attr('stroke','none');
+
+  // 텍스트 — 원 하단
   node.append('text')
-    .attr('text-anchor', 'middle')
-    .attr('fill', d => d.group==='leaf' ? mutedColor : textColor)
-    .attr('font-size', d => d.group==='center' ? 13 : d.group==='cat' ? 11 : 9.5)
-    .attr('font-weight', d => d.group!=='leaf' ? '700' : '500')
-    .attr('dy', 1)
+    .attr('class','nd-lbl')
+    .attr('text-anchor','middle')
+    .attr('dy', GR + 11)
+    .attr('fill', textCol)
+    .attr('font-size', 9)
+    .attr('font-weight', '500')
     .each(function(d) {
       const lines = d.label.split('\n');
-      if (lines.length === 1) {
-        d3.select(this).text(d.label);
-      } else {
-        lines.forEach((l, i) => {
-          d3.select(this).append('tspan')
-            .attr('x', 0).attr('dy', i === 0 ? -5 : 12)
-            .text(l);
-        });
+      if (lines.length === 1) { d3.select(this).text(d.label); }
+      else {
+        lines.forEach((l,i) => d3.select(this).append('tspan')
+          .attr('x',0).attr('dy', i===0 ? 0 : 11).text(l));
       }
     });
 
-  // ── 시뮬레이션 ──
+  // 시뮬레이션
   const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(d => {
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(d => {
       const s = nodes.find(n=>n.id===d.source.id||n.id===d.source);
       const t = nodes.find(n=>n.id===d.target.id||n.id===d.target);
-      if (s?.group==='center' || t?.group==='center') return 120;
-      if (s?.group==='cat' || t?.group==='cat') return 90;
-      return 70;
+      if (s?.group==='center'||t?.group==='center') return 130;
+      if (s?.group==='cat'   ||t?.group==='cat')    return 100;
+      return 80;
     }).strength(0.6))
-    .force('charge', d3.forceManyBody().strength(d => d.group==='center'?-600:d.group==='cat'?-300:-120))
+    .force('charge', d3.forceManyBody().strength(d => d.group==='center'?-500:d.group==='cat'?-250:-100))
     .force('center', d3.forceCenter(W/2, H/2))
-    .force('collision', d3.forceCollide(d => d.size + 8))
+    .force('collision', d3.forceCollide(GR + 18))
     .on('tick', () => {
-      link
-        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-      node.attr('transform', d => `translate(${d.x},${d.y})`);
+      link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+          .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      node.attr('transform',d=>`translate(${d.x},${d.y})`);
     });
 }
 
@@ -2901,37 +2902,29 @@ function renderValueChain({ ticker, companyName, isKr }) {
   const clrStock   = isDark ? '#475569' : '#94a3b8';
   const clrSelf    = isDark ? '#fbbf24' : '#b45309';
 
-  const colorOf = d => {
-    if (d.group==='center') return clrCenter;
-    if (d.group==='ind')    return clrInd;
-    if (d.group==='sec')    return clrSec;
-    if (d.group==='self')   return clrSelf;
-    return clrStock;
-  };
+  // relevance 0(낮음)~1(높음) → 그레이 인덱스: 1=어두움(높음), 4=밝음(낮음)
+  const relIdx = r => r >= 0.85 ? 0 : r >= 0.65 ? 1 : r >= 0.45 ? 2 : r >= 0.25 ? 3 : 4;
 
   if (!matchedSector) {
-    // 미등록 — 전체 산업군 + 섹터 맵 (종목은 국적 필터 후 표시)
     const nodes = [], links = [];
-    nodes.push({ id:'_center', label: (companyName||ticker).slice(0,14), group:'center', size:20 });
+    nodes.push({ id:'_center', label:(companyName||ticker).slice(0,14), rel:1.0 });
     VALUE_CHAIN_DATA.forEach((ind, i) => {
       const indId = `ind_${i}`;
-      const label = ind.industry.length>13 ? ind.industry.slice(0,13)+'…' : ind.industry;
-      nodes.push({ id:indId, label, group:'ind', size:13 });
+      nodes.push({ id:indId, label: ind.industry.length>13?ind.industry.slice(0,13)+'…':ind.industry, rel:0.5 });
       links.push({ source:'_center', target:indId });
       ind.sectors.forEach((sec, j) => {
         const filtered = filterByNation(sec.stocks);
         if (!filtered.length) return;
         const secId = `sec_${i}_${j}`;
-        nodes.push({ id:secId, label: sec.name.length>11?sec.name.slice(0,11)+'…':sec.name, group:'sec', size:9 });
+        nodes.push({ id:secId, label: sec.name.length>11?sec.name.slice(0,11)+'…':sec.name, rel:0.3 });
         links.push({ source:indId, target:secId });
         filtered.forEach((s, k) => {
-          const sid = `st_${i}_${j}_${k}`;
-          nodes.push({ id:sid, label:s, group:'stock', size:8 });
-          links.push({ source:secId, target:sid });
+          nodes.push({ id:`st_${i}_${j}_${k}`, label:s, rel:0.15 });
+          links.push({ source:secId, target:`st_${i}_${j}_${k}` });
         });
       });
     });
-    buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, isDark);
+    buildVCGraph(g, W, H, nodes, links, relIdx, isDark);
     const div = document.createElement('div');
     div.className = 'vc-nodata';
     div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted2);pointer-events:none';
@@ -2940,41 +2933,34 @@ function renderValueChain({ ticker, companyName, isKr }) {
     return;
   }
 
-  // ── 매칭된 경우: 분석 종목 → 산업군 → 모든 섹터 → 각 섹터 종목(국적 필터) ──
+  // ── 매칭된 경우 ──
   const nodes = [], links = [];
-  const displayName = (companyName || ticker);
+  const displayName = companyName || ticker;
 
-  // 중심
-  nodes.push({ id:'_center', label: displayName.length>13?displayName.slice(0,13)+'…':displayName, group:'center', size:24 });
-
-  // 산업군
-  const indLabel = matchedIndustry.industry.length>15 ? matchedIndustry.industry.slice(0,15)+'…' : matchedIndustry.industry;
-  nodes.push({ id:'_industry', label:indLabel, group:'ind', size:17 });
+  nodes.push({ id:'_center', label: displayName.length>13?displayName.slice(0,13)+'…':displayName, rel:1.0 });
+  nodes.push({ id:'_industry', label: matchedIndustry.industry.length>15?matchedIndustry.industry.slice(0,15)+'…':matchedIndustry.industry, rel:0.7 });
   links.push({ source:'_center', target:'_industry' });
 
-  // 같은 산업 내 모든 섹터 + 각 섹터의 (국적 필터된) 종목
   matchedIndustry.sectors.forEach((sec, si) => {
     const isMain = sec === matchedSector;
     const filtered = filterByNation(sec.stocks);
-    if (!filtered.length) return;   // 해당 국적 종목 없는 섹터 제외
+    if (!filtered.length) return;
 
     const secId = `_sec_${si}`;
-    const secLabel = sec.name.length>12 ? sec.name.slice(0,12)+'…' : sec.name;
-    nodes.push({ id:secId, label:secLabel, group:'sec', size: isMain ? 14 : 10, main:isMain });
+    nodes.push({ id:secId, label: sec.name.length>12?sec.name.slice(0,12)+'…':sec.name, rel: isMain ? 0.65 : 0.3 });
     links.push({ source:'_industry', target:secId });
 
     filtered.forEach((s, k) => {
       const isSelf = isSelfStock(s);
-      const sid    = `st_${si}_${k}`;
-      nodes.push({ id:sid, label:s, group: isSelf?'self':'stock', size: isSelf?13:9 });
+      const sid = `st_${si}_${k}`;
+      nodes.push({ id:sid, label:s, rel: isSelf ? 1.0 : isMain ? 0.45 : 0.15, isSelf });
       links.push({ source:secId, target:sid });
       if (isSelf) links.push({ source:'_center', target:sid, dashed:true });
     });
   });
 
-  buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor);
+  buildVCGraph(g, W, H, nodes, links, relIdx, isDark);
 
-  // 산업 경로 라벨
   const div = document.createElement('div');
   div.className = 'vc-info';
   div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted);pointer-events:none';
@@ -2982,13 +2968,28 @@ function renderValueChain({ ticker, companyName, isKr }) {
   wrap.appendChild(div);
 }
 
-function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, isDark) {
+function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
+  const VR     = 14; // 균일 반지름
+  const vcBg   = isDark ? '#0f1320' : '#f1f5f9';
+  const textCol = isDark ? '#e2e8f0' : '#1e293b';
+  const linkCol = isDark ? '#334155' : '#cbd5e1';
+  const GRAYS  = isDark
+    ? ['#e2e8f0','#94a3b8','#64748b','#475569','#334155']
+    : ['#1e293b','#334155','#475569','#64748b','#94a3b8'];
+
+  const applyZoom = k => {
+    const r  = k < 0.28 ? 2.5 : k < 0.55 ? VR * 0.55 : VR;
+    const ta = k < 0.55 ? 0 : 1;
+    g.selectAll('.kg-node circle').attr('r', r);
+    g.selectAll('.kg-node text').style('opacity', ta);
+  };
+
   const link = g.append('g').selectAll('line').data(links).join('line')
     .attr('class','kg-link')
-    .attr('stroke', mutedColor)
+    .attr('stroke', linkCol)
     .attr('stroke-width', d => d.dashed ? 1 : 1.2)
     .attr('stroke-dasharray', d => d.dashed ? '4 3' : null)
-    .attr('stroke-opacity', 0.4);
+    .attr('stroke-opacity', 0.5);
 
   const node = g.append('g').selectAll('g').data(nodes).join('g')
     .attr('class','kg-node')
@@ -2997,46 +2998,44 @@ function buildVCGraph(g, W, H, nodes, links, colorOf, textColor, mutedColor, isD
       .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
       .on('end',   (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
 
-  const vcBg = isDark ? '#0f1320' : '#f1f5f9';
+  // 배경 원
+  node.append('circle').attr('class','bg-c').attr('r', VR).attr('fill', vcBg).attr('stroke','none');
 
-  // 배경 불투명 원 (선이 원 뒤로 가려지도록)
-  node.append('circle')
-    .attr('r', d => d.size)
-    .attr('fill', vcBg)
-    .attr('stroke', 'none');
+  // 관련도 기반 그레이 원
+  node.append('circle').attr('class','cl-c').attr('r', VR)
+    .attr('fill', d => GRAYS[relIdx(d.rel ?? 0.3)])
+    .attr('stroke','none');
 
-  // 색상 채움 원
-  node.append('circle')
-    .attr('r', d => d.size)
-    .attr('fill', d => {
-      const base = colorOf(d);
-      if (d.group === 'center') return base + 'cc';
-      if (d.group === 'ind')    return base + 'bb';
-      if (d.group === 'sec')    return base + '88';
-      if (d.group === 'self')   return base + 'aa';
-      return base + '44';  // stock
-    })
-    .attr('stroke', 'none');
-
+  // 텍스트 — 원 하단
   node.append('text')
+    .attr('class','nd-lbl')
     .attr('text-anchor','middle')
-    .attr('fill', d => d.group==='stock'&&!d.highlight ? mutedColor : textColor)
-    .attr('font-size', d => d.group==='center' ? 12 : d.group==='ind' ? 10 : d.group==='self' ? 11 : 9)
-    .attr('font-weight', d => d.group==='stock'&&!d.highlight ? '400':'600')
-    .attr('dy', 1)
+    .attr('dy', VR + 11)
+    .attr('fill', textCol)
+    .attr('font-size', 9)
+    .attr('font-weight', '500')
     .text(d => d.label);
+
+  // zoom 핸들러는 svg에 등록된 것을 재활용 (wrap의 svg)
+  const svgEl = g.node().closest('svg');
+  if (svgEl) {
+    const zoom = d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => {
+      g.attr('transform', e.transform);
+      applyZoom(e.transform.k);
+    });
+    d3.select(svgEl).call(zoom);
+  }
 
   const sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(d=>d.id).distance(d => {
-      const src = nodes.find(n=>n.id===d.source.id||n.id===d.source);
-      if (src?.group==='center') return 100;
-      if (src?.group==='ind')    return 85;
-      return 65;
+      const src = nodes.find(n=>n.id===(d.source.id??d.source));
+      const r0 = src?.rel ?? 0.5;
+      return r0 >= 0.8 ? 120 : r0 >= 0.5 ? 95 : 72;
     }).strength(0.5))
     .force('charge', d3.forceManyBody().strength(d =>
-      d.group==='center'?-500:d.group==='ind'?-250:d.group==='sec'?-150:-80))
+      (d.rel??0) >= 0.9 ? -480 : (d.rel??0) >= 0.6 ? -240 : (d.rel??0) >= 0.4 ? -140 : -75))
     .force('center', d3.forceCenter(W/2, H/2))
-    .force('collision', d3.forceCollide(d => d.size + 10))
+    .force('collision', d3.forceCollide(VR + 18))
     .on('tick', () => {
       link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
           .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
