@@ -496,7 +496,7 @@
   .grid { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
   .row { display: grid; gap: 14px; margin-bottom: 14px; }
   .row-top    { grid-template-columns: 260px 1fr 240px; }
-  .row-bottom { grid-template-columns: 1fr 280px; }
+  .row-bottom { grid-template-columns: repeat(2, 1fr); }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -596,8 +596,21 @@
   .ac-name   { font-size: 0.82rem; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ac-exch   { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
   .ac-loading { padding: 12px 14px; font-size: 0.82rem; color: var(--muted); text-align: center; }
-  .chart-container { position: relative; height: 340px; }
-  .chart-container-sm { position: relative; height: 120px; }
+  .chart-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  .chart-scroll::-webkit-scrollbar { height: 4px; }
+  .chart-scroll::-webkit-scrollbar-track { background: var(--card2); border-radius: 2px; }
+  .chart-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .chart-container { position: relative; height: 340px; min-width: 480px; }
+  .chart-container-sm { position: relative; height: 120px; min-width: 320px; }
+  .rsi-macd-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  @media (max-width: 600px) {
+    .rsi-macd-grid { grid-template-columns: 1fr; }
+  }
   /* ── 말풍선 아이콘 ── */
   .tip {
     display: inline-flex;
@@ -2230,17 +2243,17 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   <!-- ── Row 4: 차트 (최하단) ── -->
   <div class="card" style="padding:14px 16px;margin-top:0">
     <div class="card-header"><span class="dot" style="background:var(--green)"></span>종가 · Bollinger Band</div>
-    <div class="chart-container"><canvas id="priceChart"></canvas></div>
+    <div class="chart-scroll"><div class="chart-container"><canvas id="priceChart"></canvas></div></div>
     <div id="bbEntryPanel" style="margin-top:10px"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+    <div class="rsi-macd-grid">
       <div>
         <div class="card-header"><span class="dot" style="background:var(--purple)"></span>RSI (14)</div>
-        <div class="chart-container-sm"><canvas id="rsiChart"></canvas></div>
+        <div class="chart-scroll"><div class="chart-container-sm"><canvas id="rsiChart"></canvas></div></div>
         <div id="rsiEntryPanel" style="margin-top:8px"></div>
       </div>
       <div>
         <div class="card-header"><span class="dot" style="background:var(--blue)"></span>MACD</div>
-        <div class="chart-container-sm"><canvas id="macdChart"></canvas></div>
+        <div class="chart-scroll"><div class="chart-container-sm"><canvas id="macdChart"></canvas></div></div>
         <div id="macdEntryPanel" style="margin-top:8px"></div>
       </div>
     </div>
