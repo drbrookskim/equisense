@@ -1,17 +1,4 @@
 {
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /Users/nelcome/Documents/Claude_code_repository && if git diff --quiet && git diff --cached --quiet && [ -z \"$(git ls-files --others --exclude-standard)\" ]; then exit 0; fi && git add -A -- . ':(exclude).claude/settings.local.json' ':(exclude)Skills/' && CHANGED=$(git diff --cached --name-only | head -5 | tr '\\n' ', ' | sed 's/, $//') && git commit -m \"auto: $CHANGED\" --trailer 'Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>' 2>/dev/null || true",
-            "statusMessage": "자동 커밋 중..."
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(.venv/bin/pip install:*)",
@@ -86,7 +73,22 @@
       "Skill(update-config)",
       "Skill(update-config:*)",
       "Bash(bash -c ' *)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/nelcome/Documents/Claude_code_repository && if git diff --quiet && git diff --cached --quiet && [ -z \"$(git ls-files --others --exclude-standard)\" ]; then exit 0; fi && git add -A -- . ':(exclude).claude/settings.local.json' ':(exclude)Skills/' && CHANGED=$(git diff --cached --name-only | head -5 | tr '\\n' ', ' | sed 's/, $//') && git commit -m \"auto: $CHANGED\" --trailer 'Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>' 2>/dev/null || true",
+            "statusMessage": "자동 커밋 중..."
+          }
+        ]
+      }
     ]
   }
 }
