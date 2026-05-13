@@ -179,9 +179,11 @@
     border-radius: 6px;
     transition: filter 0.2s;
   }
-  [data-theme="dark"] .logo-img {
+  html:not(.light) .logo-img {
     filter: invert(1) brightness(1.8) contrast(0.85);
-    border-radius: 6px;
+  }
+  html.light .logo-img {
+    filter: none;
   }
   .welcome-logo {
     height: 53px;
