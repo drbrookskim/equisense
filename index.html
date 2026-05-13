@@ -177,25 +177,29 @@
     width: auto;
     flex-shrink: 0;
     border-radius: 6px;
-    transition: filter 0.2s;
+    transition: filter 0.2s, opacity 0.2s;
   }
+  /* 다크 모드: 흰색 로고 그대로 표시 */
   html:not(.light) .logo-img {
-    filter: invert(1) brightness(0.9);
-  }
-  html.light .logo-img {
     filter: none;
+    opacity: 0.92;
+  }
+  /* 라이트 모드: 흰색 로고를 진한 색으로 반전 */
+  html.light .logo-img {
+    filter: invert(1) brightness(0);
+    opacity: 0.80;
   }
   .welcome-logo {
     height: 53px;
     width: auto;
-    filter: invert(1) brightness(1.6);
-    opacity: 0.9;
+    filter: none;
+    opacity: 0.92;
     margin-bottom: 8px;
     transition: filter .25s, opacity .25s;
   }
   html.light .welcome-logo {
-    filter: none;
-    opacity: 0.85;
+    filter: invert(1) brightness(0);
+    opacity: 0.75;
   }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .pill {
