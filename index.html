@@ -176,12 +176,7 @@
     height: 25px;
     width: auto;
     flex-shrink: 0;
-    /* 투명배경 PNG: 다크모드에서 어두운 글자를 밝게 반전 */
-    filter: invert(1) brightness(1.6);
-    transition: filter .25s;
-  }
-  html.light .logo-img {
-    filter: none;
+    border-radius: 6px;
   }
   .welcome-logo {
     height: 53px;
@@ -854,7 +849,7 @@
 <div id="main-wrap">
 <header class="topbar">
   <div class="logo">
-    <img class="logo-img" src="assets/signnith-logo.png" alt="Signnith" />
+    <img class="logo-img" src="assets/signnith-logo-white.png" alt="Signnith" />
   </div>
   <div class="topbar-right">
     <span class="pill">Serverless Stock Analysis</span>
