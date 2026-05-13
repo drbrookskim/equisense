@@ -177,6 +177,11 @@
     width: auto;
     flex-shrink: 0;
     border-radius: 6px;
+    transition: filter 0.2s;
+  }
+  [data-theme="dark"] .logo-img {
+    filter: invert(1) brightness(1.8) contrast(0.85);
+    border-radius: 6px;
   }
   .welcome-logo {
     height: 53px;
@@ -898,15 +903,18 @@
 
 <div class="grid" id="dashboard">
   <div class="center-msg" id="welcome-msg">
-    <div>종목을 선택하거나 티커를 입력 후 <b style="color:var(--green)">분석 시작</b>을 누르세요</div>
-    <div style="margin-top:16px;font-size:0.8rem;color:var(--muted)">서버 없이 브라우저에서 직접 분석 · Yahoo Finance 실시간 데이터</div>
+    <div style="line-height:1.9">
+      <div>KOSPI · KOSDAQ은 <b style="color:var(--green)">종목명</b> 또는 <b style="color:var(--green)">종목번호</b>를 입력하세요.</div>
+      <div>NYSE · NASDAQ은 <b style="color:var(--green)">종목명</b> 또는 <b style="color:var(--green)">티커</b>를 입력 후 <b style="color:var(--green)">분석 시작</b>을 누르세요.</div>
+    </div>
+    <div style="margin-top:16px;font-size:0.8rem;color:var(--muted)">서버 없이 브라우저에서 실시간 분석</div>
   </div>
 </div>
 
 <footer class="footer">
   <p>⚠️ 이 도구는 참고 목적으로만 제공됩니다. 투자 결정에 대한 책임은 사용자 본인에게 있습니다.</p>
   <p style="margin-top:6px">
-    Powered by Yahoo Finance · © 2026 drbrookskim
+    © 2026 drbrookskim
   </p>
 </footer>
 </div><!-- /#main-wrap -->
