@@ -2952,6 +2952,152 @@ const VC_TICKER_MAP = {
 };
 
 // ──────────────────────────────────────────────────────
+//  미국 주식 → 섹터별 관련 ETF 맵
+// ──────────────────────────────────────────────────────
+const US_SECTOR_ETF = {
+  // 섹터 ETF (분류 기준)
+  sectors: [
+    {
+      name: '기술 (Technology)',
+      etfs: [
+        { ticker:'QQQ',  name:'NASDAQ 100',       rel:0.95 },
+        { ticker:'XLK',  name:'Tech Select',      rel:0.90 },
+        { ticker:'VGT',  name:'Vanguard IT',       rel:0.88 },
+        { ticker:'SOXX', name:'Semi ETF',          rel:0.75 },
+        { ticker:'IGV',  name:'Software ETF',      rel:0.70 },
+        { ticker:'ARKK', name:'ARK Innovation',    rel:0.65 },
+      ],
+      tickers: ['AAPL','MSFT','NVDA','AMD','INTC','QCOM','AVGO','TSM','AMAT','LRCX','KLAC','ASML','MRVL','ADI','TXN','CSCO','ANET','SNPS','CDNS','FTNT','PANW','CRM','ADBE','ORCL','NOW','INTU','TEAM','DDOG','MDB','SNOW','PLTR','SMCI','MSTR','META','GOOGL','GOOG','AMZN'],
+    },
+    {
+      name: '반도체 (Semiconductors)',
+      etfs: [
+        { ticker:'SOXX', name:'iShares Semi',      rel:0.95 },
+        { ticker:'SMH',  name:'VanEck Semi',       rel:0.92 },
+        { ticker:'XSD',  name:'SPDR Semi',         rel:0.85 },
+        { ticker:'SOXQ', name:'PHLX Semi',         rel:0.80 },
+        { ticker:'QQQ',  name:'NASDAQ 100',        rel:0.75 },
+        { ticker:'XLK',  name:'Tech Select',       rel:0.70 },
+      ],
+      tickers: ['NVDA','AMD','INTC','QCOM','AVGO','TSM','AMAT','LRCX','KLAC','ASML','MRVL','ADI','TXN','MU','ON','WOLF','MPWR','SWKS','CRUS','NXPI','STM','AMBA','LITE','COHR','AAOI','GLW','FN','MTSI','CIEN'],
+    },
+    {
+      name: '헬스케어 (Healthcare)',
+      etfs: [
+        { ticker:'XLV',  name:'Health Care Sel',   rel:0.95 },
+        { ticker:'VHT',  name:'Vanguard Health',   rel:0.90 },
+        { ticker:'IBB',  name:'Biotech ETF',        rel:0.85 },
+        { ticker:'XBI',  name:'SPDR Biotech',       rel:0.80 },
+        { ticker:'IHI',  name:'Medical Devices',   rel:0.70 },
+        { ticker:'ARKG', name:'ARK Genomic',       rel:0.65 },
+      ],
+      tickers: ['JNJ','PFE','MRK','ABT','UNH','CVS','HUM','CI','ABBV','BMY','LLY','AMGN','GILD','BIIB','REGN','VRTX','ILMN','ISRG','MDT','SYK','BDX','ZBH','DXCM','IDXX','PODD','TDOC','HIMS'],
+    },
+    {
+      name: '금융 (Financials)',
+      etfs: [
+        { ticker:'XLF',  name:'Financial Sel',     rel:0.95 },
+        { ticker:'VFH',  name:'Vanguard Fin',      rel:0.90 },
+        { ticker:'KBE',  name:'Bank ETF',           rel:0.85 },
+        { ticker:'KRE',  name:'Regional Bank',     rel:0.75 },
+        { ticker:'IAI',  name:'Broker-Dealer',     rel:0.70 },
+        { ticker:'GS',   name:'Goldman Sachs',     rel:0.65 },
+      ],
+      tickers: ['JPM','BAC','WFC','GS','MS','C','USB','AXP','V','MA','BLK','SCHW','COF','DFS','SYF','ALLY','BX','KKR','APO','CG'],
+    },
+    {
+      name: '에너지 (Energy)',
+      etfs: [
+        { ticker:'XLE',  name:'Energy Select',     rel:0.95 },
+        { ticker:'VDE',  name:'Vanguard Energy',   rel:0.90 },
+        { ticker:'OIH',  name:'Oil Services',      rel:0.85 },
+        { ticker:'XOP',  name:'Oil & Gas E&P',     rel:0.80 },
+        { ticker:'MLP',  name:'MLP ETF',            rel:0.70 },
+        { ticker:'ICLN', name:'Clean Energy',      rel:0.65 },
+      ],
+      tickers: ['XOM','CVX','COP','SLB','HAL','BKR','PSX','VLO','MPC','EOG','PXD','OXY','DVN','FANG','LNG','KMI','WMB','ET'],
+    },
+    {
+      name: '소비재 (Consumer)',
+      etfs: [
+        { ticker:'XLY',  name:'Cons Discret Sel',  rel:0.90 },
+        { ticker:'XLP',  name:'Cons Staples Sel',  rel:0.85 },
+        { ticker:'VCR',  name:'Vanguard Cons D',   rel:0.80 },
+        { ticker:'RTH',  name:'Retail ETF',         rel:0.75 },
+        { ticker:'RETL', name:'Retail Bull 3x',    rel:0.60 },
+        { ticker:'SPY',  name:'S&P 500',            rel:0.55 },
+      ],
+      tickers: ['AMZN','TSLA','NKE','MCD','SBUX','TGT','WMT','COST','HD','LOW','TJX','ROST','DG','DLTR','BABA','JD','PDD','MELI','SHOP','ETSY','EBAY'],
+    },
+    {
+      name: '통신/미디어 (Communication)',
+      etfs: [
+        { ticker:'XLC',  name:'Comm Services',     rel:0.95 },
+        { ticker:'VOX',  name:'Vanguard Comm',     rel:0.90 },
+        { ticker:'IYZ',  name:'Telecom ETF',        rel:0.80 },
+        { ticker:'SOCL', name:'Social Media',      rel:0.75 },
+        { ticker:'QQQ',  name:'NASDAQ 100',        rel:0.70 },
+        { ticker:'SPY',  name:'S&P 500',            rel:0.55 },
+      ],
+      tickers: ['META','GOOGL','GOOG','NFLX','DIS','CMCSA','T','VZ','TMUS','SNAP','PINS','SPOT','TTWO','EA','ATVI','RBLX','U'],
+    },
+    {
+      name: '산업재 (Industrials)',
+      etfs: [
+        { ticker:'XLI',  name:'Industrial Sel',    rel:0.95 },
+        { ticker:'VIS',  name:'Vanguard Ind',      rel:0.90 },
+        { ticker:'ITA',  name:'Aerospace&Defense', rel:0.85 },
+        { ticker:'XAR',  name:'SPDR A&D',          rel:0.80 },
+        { ticker:'ROBO', name:'Robotics ETF',      rel:0.70 },
+        { ticker:'UFO',  name:'Space ETF',          rel:0.60 },
+      ],
+      tickers: ['GE','BA','CAT','MMM','HON','UPS','FDX','RTX','LMT','NOC','GD','HII','AXON','KTOS','RKLB','ASTS','JOBY','ACHR'],
+    },
+    {
+      name: '부동산/유틸리티 (REIT/Utility)',
+      etfs: [
+        { ticker:'VNQ',  name:'Vanguard REIT',     rel:0.95 },
+        { ticker:'XLRE', name:'Real Estate Sel',   rel:0.90 },
+        { ticker:'XLU',  name:'Utilities Sel',     rel:0.85 },
+        { ticker:'IYR',  name:'iShares REIT',      rel:0.80 },
+        { ticker:'AMT',  name:'Am Tower (REIT)',   rel:0.65 },
+        { ticker:'SPY',  name:'S&P 500',            rel:0.50 },
+      ],
+      tickers: ['AMT','CCI','EQIX','PLD','SPG','O','DLR','AVB','EQR','WY','VTR','WELL','NEE','DUK','SO','AEP','EXC','PCG'],
+    },
+    {
+      name: '원자재/금 (Materials/Gold)',
+      etfs: [
+        { ticker:'GLD',  name:'Gold ETF',           rel:0.90 },
+        { ticker:'SLV',  name:'Silver ETF',         rel:0.85 },
+        { ticker:'GDX',  name:'Gold Miners',        rel:0.85 },
+        { ticker:'XLB',  name:'Materials Sel',     rel:0.80 },
+        { ticker:'PDBC', name:'Commodity ETF',     rel:0.70 },
+        { ticker:'USO',  name:'Oil Fund',           rel:0.65 },
+      ],
+      tickers: ['NEM','GOLD','AEM','WPM','FCX','AA','NUE','STLD','CLF','MP','USLM','LIN','APD','SHW','ECL','PPG','VMC','MLM'],
+    },
+  ],
+  // 기본 ETF (섹터 미매칭 시)
+  fallback: [
+    { ticker:'SPY',  name:'S&P 500',         rel:0.85 },
+    { ticker:'QQQ',  name:'NASDAQ 100',      rel:0.80 },
+    { ticker:'DIA',  name:'Dow Jones',       rel:0.75 },
+    { ticker:'IWM',  name:'Russell 2000',    rel:0.70 },
+    { ticker:'VTI',  name:'Total Market',    rel:0.65 },
+    { ticker:'IVV',  name:'iShares S&P 500', rel:0.60 },
+  ],
+};
+
+function getUsEtfData(ticker) {
+  const t = ticker.toUpperCase();
+  for (const sec of US_SECTOR_ETF.sectors) {
+    if (sec.tickers.includes(t)) return { sectorName: sec.name, etfs: sec.etfs };
+  }
+  return { sectorName: null, etfs: US_SECTOR_ETF.fallback };
+}
+
+// ──────────────────────────────────────────────────────
 //  Value Chain 그래프 렌더링
 // ──────────────────────────────────────────────────────
 function renderValueChain({ ticker, companyName, isKr }) {
@@ -3007,29 +3153,61 @@ function renderValueChain({ ticker, companyName, isKr }) {
 
   if (!matchedSector) {
     const nodes = [], links = [];
-    nodes.push({ id:'_center', label:(companyName||ticker).slice(0,14), rel:1.0 });
-    VALUE_CHAIN_DATA.forEach((ind, i) => {
-      const indId = `ind_${i}`;
-      nodes.push({ id:indId, label: ind.industry.length>13?ind.industry.slice(0,13)+'…':ind.industry, rel:0.5 });
-      links.push({ source:'_center', target:indId });
-      ind.sectors.forEach((sec, j) => {
-        const filtered = filterByNation(sec.stocks);
-        if (!filtered.length) return;
-        const secId = `sec_${i}_${j}`;
-        nodes.push({ id:secId, label: sec.name.length>11?sec.name.slice(0,11)+'…':sec.name, rel:0.3 });
-        links.push({ source:indId, target:secId });
-        filtered.forEach((s, k) => {
-          nodes.push({ id:`st_${i}_${j}_${k}`, label:s, rel:0.15 });
-          links.push({ source:secId, target:`st_${i}_${j}_${k}` });
+    const centerLabel = (companyName||ticker).slice(0,14);
+    nodes.push({ id:'_center', label: centerLabel, rel:1.0 });
+
+    if (!isKr) {
+      // ── 미국 주식: 섹터별 관련 ETF 그래프 ──
+      const { sectorName, etfs } = getUsEtfData(ticker);
+
+      if (sectorName) {
+        // 섹터 노드
+        const secLabel = sectorName.length > 14 ? sectorName.slice(0,14)+'…' : sectorName;
+        nodes.push({ id:'_sector', label: secLabel, rel:0.75 });
+        links.push({ source:'_center', target:'_sector' });
+        etfs.forEach((e, i) => {
+          nodes.push({ id:`etf_${i}`, label:`${e.ticker}\n${e.name.slice(0,10)}`, rel: e.rel });
+          links.push({ source:'_sector', target:`etf_${i}` });
+        });
+      } else {
+        // 섹터 미매칭: fallback ETF 직접 연결
+        etfs.forEach((e, i) => {
+          nodes.push({ id:`etf_${i}`, label:`${e.ticker}\n${e.name.slice(0,10)}`, rel: e.rel });
+          links.push({ source:'_center', target:`etf_${i}` });
+        });
+      }
+
+      buildVCGraph(g, W, H, nodes, links, relIdx, isDark);
+      const div = document.createElement('div');
+      div.className = 'vc-nodata';
+      div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted);pointer-events:none';
+      div.innerHTML = `<b style="color:var(--blue)">${companyName||ticker}</b> · ${sectorName || 'US 전체'} 관련 ETF`;
+      wrap.appendChild(div);
+    } else {
+      // ── 한국 주식 미등록: 전체 산업 맵 (기존 동작) ──
+      VALUE_CHAIN_DATA.forEach((ind, i) => {
+        const indId = `ind_${i}`;
+        nodes.push({ id:indId, label: ind.industry.length>13?ind.industry.slice(0,13)+'…':ind.industry, rel:0.5 });
+        links.push({ source:'_center', target:indId });
+        ind.sectors.forEach((sec, j) => {
+          const filtered = filterByNation(sec.stocks);
+          if (!filtered.length) return;
+          const secId = `sec_${i}_${j}`;
+          nodes.push({ id:secId, label: sec.name.length>11?sec.name.slice(0,11)+'…':sec.name, rel:0.3 });
+          links.push({ source:indId, target:secId });
+          filtered.forEach((s, k) => {
+            nodes.push({ id:`st_${i}_${j}_${k}`, label:s, rel:0.15 });
+            links.push({ source:secId, target:`st_${i}_${j}_${k}` });
+          });
         });
       });
-    });
-    buildVCGraph(g, W, H, nodes, links, relIdx, isDark);
-    const div = document.createElement('div');
-    div.className = 'vc-nodata';
-    div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted2);pointer-events:none';
-    div.textContent = `${companyName||ticker}: 밸류체인 미등록 — ${isKr?'한국':'미국'} 전체 산업 맵`;
-    wrap.appendChild(div);
+      buildVCGraph(g, W, H, nodes, links, relIdx, isDark);
+      const div = document.createElement('div');
+      div.className = 'vc-nodata';
+      div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted);pointer-events:none';
+      div.textContent = `${companyName||ticker}: 밸류체인 미등록 — 한국 전체 산업 맵`;
+      wrap.appendChild(div);
+    }
     return;
   }
 
