@@ -173,15 +173,26 @@
     cursor: default;
   }
   .logo-img {
-    height: 36px;
+    height: 25px;
     width: auto;
-    border-radius: 10px;
+    border-radius: 7px;
     flex-shrink: 0;
-    /* 다크모드: 흰 배경 로고를 반전시켜 밝게 표시 */
     filter: invert(1) brightness(1.8);
     transition: filter .25s;
   }
   html.light .logo-img {
+    filter: none;
+  }
+  .welcome-logo {
+    height: 53px;   /* 76px * 0.7 */
+    width: auto;
+    border-radius: 10px;
+    filter: invert(1) brightness(1.8);
+    opacity: 0.92;
+    margin-bottom: 8px;
+    transition: filter .25s;
+  }
+  html.light .welcome-logo {
     filter: none;
   }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
@@ -871,20 +882,7 @@
 
 <div class="grid" id="dashboard">
   <div class="center-msg" id="welcome-msg">
-    <div class="icon" style="margin-bottom:8px">
-      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:76px;height:76px;opacity:0.92">
-        <line x1="37" y1="21" x2="18" y2="21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <line x1="37" y1="29" x2="13" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <line x1="37" y1="37" x2="9"  y2="37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <line x1="43" y1="21" x2="62" y2="21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <line x1="43" y1="29" x2="67" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <line x1="43" y1="37" x2="71" y2="37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <rect x="38.5" y="15" width="3" height="59" rx="1.5" fill="currentColor"/>
-        <circle cx="40" cy="10" r="6" fill="currentColor"/>
-        <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="5" fill="none"/>
-      </svg>
-    </div>
-    <div style="font-size:1.5rem;font-weight:700;margin-bottom:8px;background:linear-gradient(90deg,#a78bfa,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Signnith</div>
+    <img class="welcome-logo" src="assets/signnith-logo.png" alt="Signnith" />
     <div>종목을 선택하거나 티커를 입력 후 <b style="color:var(--green)">분석 시작</b>을 누르세요</div>
     <div style="margin-top:16px;font-size:0.8rem;color:var(--muted)">서버 없이 브라우저에서 직접 분석 · Yahoo Finance 실시간 데이터</div>
   </div>
