@@ -186,14 +186,19 @@
   .welcome-logo {
     height: 53px;   /* 76px * 0.7 */
     width: auto;
-    border-radius: 10px;
-    filter: invert(1) brightness(1.8);
-    opacity: 0.92;
+    border-radius: 0;
+    /* 다크모드: invert 후 screen으로 검정 배경 투명화 → 글자만 표시 */
+    filter: invert(1) brightness(2);
+    mix-blend-mode: screen;
+    opacity: 0.88;
     margin-bottom: 8px;
-    transition: filter .25s;
+    transition: filter .25s, opacity .25s;
   }
   html.light .welcome-logo {
-    filter: none;
+    /* 라이트모드: multiply로 흰 배경 투명화 → 글자만 표시 */
+    filter: brightness(0);
+    mix-blend-mode: multiply;
+    opacity: 0.75;
   }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .pill {
