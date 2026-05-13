@@ -184,21 +184,20 @@
     filter: none;
   }
   .welcome-logo {
-    height: 53px;   /* 76px * 0.7 */
+    height: 53px;
     width: auto;
-    border-radius: 0;
-    /* 다크모드: invert 후 screen으로 검정 배경 투명화 → 글자만 표시 */
-    filter: invert(1) brightness(2);
+    /* 다크모드: invert → 흰글자/검정배경, screen으로 검정 투명화 */
+    filter: invert(1) brightness(1.6);
     mix-blend-mode: screen;
-    opacity: 0.88;
+    opacity: 0.9;
     margin-bottom: 8px;
     transition: filter .25s, opacity .25s;
   }
   html.light .welcome-logo {
-    /* 라이트모드: multiply로 흰 배경 투명화 → 글자만 표시 */
-    filter: brightness(0);
+    /* 라이트모드: 원본(어두운글자/흰배경), multiply로 흰배경 투명화 */
+    filter: none;
     mix-blend-mode: multiply;
-    opacity: 0.75;
+    opacity: 1;
   }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .pill {
