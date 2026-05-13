@@ -2147,7 +2147,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       </div>
       <div style="margin-top:14px">
         <button id="fav-btn" class="btn-fav${isFaved(ticker)?' starred':''}"
-          onclick="toggleFavFromResult('${ticker}','${(fundInfo?.companyName||ticker).replace(/'/g,"\\'")}','${isKr ? '' : guessExchange(ticker)}')">
+          onclick="toggleFavFromResult('${ticker}','${(companyName||ticker).replace(/'/g,"\\'")}','${isKr ? '' : guessExchange(ticker)}')">
           ${isFaved(ticker) ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}
         </button>
       </div>
