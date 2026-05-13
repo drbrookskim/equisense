@@ -52,7 +52,43 @@
       "Bash(gh auth *)",
       "Bash(git init *)",
       "Bash(git config *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat: Stock Analyzer — 기술/기본 분석 통합 대시보드 v1.0 *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "Bash(node -e \"const fs=require\\('fs'\\);const html=fs.readFileSync\\('index.html','utf8'\\);const m=html.match\\(/<script>\\([\\\\s\\\\S]*\\)<\\\\/script>/\\);if\\(m\\){try{new Function\\(m[1]\\);console.log\\('JS OK'\\);}catch\\(e\\){console.log\\('ERROR:',e.message\\);}}\")",
+      "Bash(git commit *)",
+      "mcp__Control_Chrome__list_tabs",
+      "mcp__Claude_in_Chrome__get_page_text",
+      "Bash(npx --version)",
+      "Bash(ls ~/Downloads/ | grep -i \"sign\\\\|logo\\\\|png\\\\|jpg\\\\|webp\\\\|svg\" | head -10)",
+      "Bash(sort -t_ -k1)",
+      "Bash(xargs ls -lt)",
+      "Bash(mkdir -p /Users/nelcome/Documents/Claude_code_repository/assets && cp \"/Users/nelcome/Downloads/Screenshot 2026-05-13 at 22.47.07.png\" /Users/nelcome/Documents/Claude_code_repository/assets/signnith-logo.png && echo \"done\")",
+      "Bash(git checkout *)",
+      "Bash(git cherry-pick *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(bash -c ' *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/nelcome/Documents/Claude_code_repository && if git diff --quiet && git diff --cached --quiet && [ -z \"$(git ls-files --others --exclude-standard)\" ]; then exit 0; fi && git add -A -- . ':(exclude).claude/settings.local.json' ':(exclude)Skills/' && CHANGED=$(git diff --cached --name-only | head -5 | tr '\\n' ', ' | sed 's/, $//') && git commit -m \"auto: $CHANGED\" --trailer 'Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>' 2>/dev/null || true",
+            "statusMessage": "자동 커밋 중..."
+          }
+        ]
+      }
     ]
   }
 }
