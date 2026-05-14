@@ -2069,6 +2069,13 @@ async function runAnalysis() {
     // 검색 기록 저장
     saveHistory(ticker, fundInfo.companyName || ticker);
 
+    // 마지막 분석 상태 저장 (새로고침 복원용)
+    try {
+      sessionStorage.setItem('last_ticker',  ticker);
+      sessionStorage.setItem('last_period',  document.getElementById('period-select').value);
+      sessionStorage.setItem('last_style',   document.getElementById('style-select').value);
+    } catch(e) {}
+
     renderDashboard({
       ticker, bars, ind, tech, fund, decision, price, isKr, currency,
       companyName: fundInfo.companyName || resolveTickerName(ticker) || ticker,
@@ -3830,6 +3837,23 @@ document.addEventListener('click', e => {
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 renderFavs();
 renderHistory();
+
+// 새로고침 시 마지막 분석 결과 자동 복원
+(function restoreLastSession() {
+  try {
+    const t = sessionStorage.getItem('last_ticker');
+    const p = sessionStorage.getItem('last_period');
+    const s = sessionStorage.getItem('last_style');
+    if (!t) return;
+    const input  = document.getElementById('ticker-input');
+    const period = document.getElementById('period-select');
+    const style  = document.getElementById('style-select');
+    if (input)  input.value  = t;
+    if (period && p) period.value = p;
+    if (style  && s) style.value  = s;
+    runAnalysis();
+  } catch(e) {}
+})();
 
 // ── 리포트 페이지 열기 ──
 function openReport() {
