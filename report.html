@@ -104,21 +104,23 @@
   .topbar-logo{
     display:flex; align-items:center; gap:10px;
     text-decoration:none;
-    color: #f1f5f9;
   }
-  html.light .topbar-logo { color: #C26336; }
-  .logo-icon-r { height:48px; width:auto; flex-shrink:0; }
-  .logo-letter { font-family: 'Geist', 'DM Sans', sans-serif; font-weight: 900; }
-  .logo-name-r {
-    font-size:1.15rem; font-weight:700; letter-spacing:-0.01em;
-    background: linear-gradient(90deg, #a78bfa 0%, #38bdf8 50%, #34d399 100%);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    background-clip:text;
+  .logo-img-r {
+    height: 28px;
+    width: auto;
+    flex-shrink: 0;
+    border-radius: 6px;
+    transition: filter 0.2s, opacity 0.2s;
   }
-  html.light .logo-name-r {
-    background: linear-gradient(90deg, #7C5CE7 0%, #D96B6B 100%);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    background-clip:text;
+  /* 다크 모드: 반전해서 밝게 */
+  html:not(.light) .logo-img-r {
+    filter: invert(1) brightness(0.92);
+    opacity: 0.92;
+  }
+  /* 라이트 모드: 원본 그대로 */
+  html.light .logo-img-r {
+    filter: none;
+    opacity: 0.85;
   }
   .topbar-right { display:flex; align-items:center; gap:10px; }
   .back-btn{
@@ -391,19 +393,7 @@
 
 <header class="topbar">
   <a class="topbar-logo" href="index.html">
-    <svg class="logo-icon-r" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-
-      <line x1="37" y1="21" x2="18" y2="21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-      <line x1="37" y1="29" x2="13" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-      <line x1="37" y1="37" x2="9"  y2="37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-      <line x1="43" y1="21" x2="62" y2="21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-      <line x1="43" y1="29" x2="67" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-      <line x1="43" y1="37" x2="71" y2="37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-      <rect x="38.5" y="15" width="3" height="59" rx="1.5" fill="currentColor"/>
-      <circle cx="40" cy="10" r="6" fill="currentColor"/>
-      <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="5" fill="none"/>
-    </svg>
-    <span class="logo-name-r">Signnith</span>
+    <img class="logo-img-r" src="assets/signnith-logo-white.png" alt="Signnith" />
   </a>
   <div class="topbar-right">
     <button class="btn-theme-r" id="theme-btn-r" onclick="toggleThemeR()" title="테마 전환">🌙</button>
@@ -964,6 +954,14 @@ function renderReport(data) {
   <div class="action-bar">
     <button class="action-btn" onclick="window.print()">🖨️ 인쇄 / PDF</button>
     <button class="action-btn" onclick="navigator.clipboard?.writeText(location.href).then(()=>alert('링크 복사됨'))">🔗 링크 복사</button>
+    <button class="action-btn" onclick="shareToX()" title="X(트위터)에 공유">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      X에 공유
+    </button>
+    <button class="action-btn" onclick="shareToThreads()" title="Threads에 공유">
+      <svg width="14" height="14" viewBox="0 0 192 192" fill="currentColor" style="flex-shrink:0"><path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.73-8.695 14.724-10.548 21.348-10.548h.232c8.236.054 14.46 2.452 18.502 7.13 2.932 3.405 4.893 8.11 5.864 14.05-7.314-1.244-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 7.047 4.652 16.124 6.927 25.557 6.412 12.458-.683 22.231-5.436 29.049-14.127 5.178-6.6 8.453-15.153 9.899-25.93 5.937 3.583 10.337 8.298 12.767 13.966 4.132 9.635 4.373 25.468-8.546 38.376-11.319 11.308-24.925 16.2-45.488 16.351-22.809-.169-40.06-7.484-51.275-21.742C35.236 139.966 29.808 120.682 29.605 96c.203-24.682 5.63-43.966 16.133-57.317C56.954 24.425 74.204 17.11 97.013 16.94c22.975.17 40.526 7.52 52.171 21.847 5.71 7.026 10.015 15.86 12.853 26.162l16.147-4.308c-3.44-12.68-8.853-23.606-16.219-32.668C147.036 9.607 125.202.195 97.07 0h-.113C68.882.195 47.292 9.642 32.788 28.08 19.882 44.485 13.224 67.315 13.001 95.932L13 96v.067c.224 28.617 6.882 51.447 19.788 67.854C47.292 182.358 68.882 191.805 96.957 192h.113c24.96-.173 42.554-6.708 57.048-21.189 18.963-18.945 18.392-42.692 12.142-57.27-4.484-10.454-13.033-18.945-24.723-24.553zm-43.16 40.512c-10.44.588-21.286-4.098-21.82-14.135-.397-7.442 5.296-15.745 22.461-16.735 1.966-.113 3.895-.169 5.79-.169 6.235 0 12.068.606 17.371 1.765-1.978 24.702-13.58 28.713-23.802 29.274z"/></svg>
+      Threads에 공유
+    </button>
   </div>
 
   <div class="main-title-card">
@@ -1042,6 +1040,27 @@ function renderReport(data) {
       </div>`;
   }
 })();
+
+// ══════════════════════════════════════════════════════
+// ── SNS 공유 함수 ──
+// ══════════════════════════════════════════════════════
+function getShareText() {
+  const ticker = new URLSearchParams(location.search).get('ticker') || '';
+  const nameEl = document.querySelector('h1');
+  const name = nameEl ? nameEl.textContent.replace(/\s+[A-Z0-9.]+$/, '').trim() : ticker;
+  const actionEl = document.querySelector('.badge');
+  const action = actionEl ? actionEl.textContent.trim() : '';
+  return `📊 ${name} (${ticker}) ${action ? '— ' + action : ''} | Signnith 분석 리포트`;
+}
+function shareToX() {
+  const text = encodeURIComponent(getShareText());
+  const url  = encodeURIComponent(location.href);
+  window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+}
+function shareToThreads() {
+  const text = encodeURIComponent(getShareText() + '\n' + location.href);
+  window.open(`https://www.threads.net/intent/post?text=${text}`, '_blank');
+}
 
 // ══════════════════════════════════════════════════════
 // ── 테마 동기화 (index.html과 동일한 localStorage key) ──

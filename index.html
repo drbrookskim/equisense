@@ -920,7 +920,7 @@
 <footer class="footer">
   <p>⚠️ 이 도구는 참고 목적으로만 제공됩니다. 투자 결정에 대한 책임은 사용자 본인에게 있습니다.</p>
   <p style="margin-top:6px">
-    © 2026 drbrookskim
+    © 2026 Provided by Dr. Brooks.
   </p>
 </footer>
 </div><!-- /#main-wrap -->
@@ -1077,14 +1077,14 @@ function renderFavs() {
       ? item.name
       : (typeof EN_TICKER_NAME !== 'undefined' && EN_TICKER_NAME[item.ticker])
         || item.name || item.ticker;
-    // 두 번째 줄: 티커.거래소 (항상 표시)
+    // 두 번째 줄: 미국 주식은 티커.거래소, 한국 주식은 티커.거래소
+    const isKr = /\.(KS|KQ)$/i.test(item.ticker);
     const subLine = item.market ? `${item.ticker}.${item.market}` : item.ticker;
-    const showSub = subLine !== displayName; // 이름과 동일하면 생략
     return `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
       <span class="fav-tile-label" style="white-space:normal;line-height:1.5">
         <span style="display:block;font-size:0.78rem;font-weight:600">${displayName}</span>
-        ${showSub ? `<span style="display:block;font-size:0.62rem;color:var(--muted);margin-top:1px">${subLine}</span>` : ''}
+        <span style="display:block;font-size:0.62rem;color:var(--muted);margin-top:1px">${subLine}</span>
       </span>
       <span class="tile-del" onclick="event.stopPropagation();removeFav('${item.ticker}')">✕</span>
     </span>`;
@@ -2743,8 +2743,8 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
   const GR = 5; // 균일 반지름
   const isDark = !document.documentElement.classList.contains('light');
   const kgBg   = isDark ? '#0f1320' : '#f1f5f9';
-  const textCol = isDark ? '#e2e8f0' : '#1e293b';
-  const linkCol = isDark ? '#334155' : '#cbd5e1';
+  const textCol = isDark ? '#f8fafc' : '#1e293b';
+  const linkCol = isDark ? '#475569' : '#cbd5e1';
 
   // 그레이 팔레트: 0=가장 좋음(어두움) → 4=레드블랙(나쁨)
   // 다크모드: 라이트모드와 반대 방향 — 좋을수록 밝은 원, 나쁠수록 어두운 원
@@ -3149,8 +3149,8 @@ function renderValueChain({ ticker, companyName, isKr }) {
   svg.call(d3.zoom().scaleExtent([0.25, 3]).on('zoom', e => g.attr('transform', e.transform)));
 
   const isDark     = !document.documentElement.classList.contains('light');
-  const textColor  = isDark ? '#f1f5f9' : '#0f172a';
-  const mutedColor = isDark ? '#94a3b8' : '#64748b';
+  const textColor  = isDark ? '#f8fafc' : '#0f172a';
+  const mutedColor = isDark ? '#cbd5e1' : '#64748b';
   const clrCenter  = isDark ? '#a78bfa' : '#6d28d9';
   const clrInd     = isDark ? '#f97316' : '#c2410c';
   const clrSec     = isDark ? '#3b82f6' : '#1d4ed8';
