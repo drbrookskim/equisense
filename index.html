@@ -1407,6 +1407,80 @@ async function fetchOHLCV(ticker, period) {
   };
 }
 
+// ── 투자자별 동향 조회 (KRX → 네이버 fallback) ──
+async function fetchInvestorTrend(ticker) {
+  const code = ticker.replace(/\.(KS|KQ)$/i, '');
+  // 날짜 계산 (오늘 or 전일)
+  function getDateStr(daysAgo = 0) {
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    d.setDate(d.getDate() - daysAgo);
+    return d.toISOString().slice(0,10).replace(/-/g,'');
+  }
+
+  // 네이버 금융 investor API
+  try {
+    const today = getDateStr(0), weekAgo = getDateStr(7);
+    const url = `https://api.stock.naver.com/stock/${code}/investor?startDateTime=${weekAgo}&endDateTime=${today}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error();
+    const j = await r.json();
+    const list = j?.investorList || j?.list || [];
+    if (!list.length) throw new Error();
+    // 가장 최근 거래일 데이터
+    const latest = list[0];
+    const date = latest.localTradedAt || latest.date || '';
+    const foreign = latest.foreignNetBuySell ?? latest.foreignBuySell ?? null;
+    const inst    = latest.institutionNetBuySell ?? latest.institutionBuySell ?? null;
+    const retail  = latest.individualNetBuySell ?? latest.individualBuySell ?? null;
+
+    // 추세: 최근 3일 평균으로 방향 판단
+    const trend = (vals, key) => {
+      const recent = list.slice(0,3).map(x => x[key] ?? 0);
+      const avg = recent.reduce((a,b)=>a+b,0)/recent.length;
+      return avg > 0 ? '📈 순매수 우위' : avg < 0 ? '📉 순매도 우위' : '→ 중립';
+    };
+    return {
+      date: date.slice(0,4)+'/'+date.slice(4,6)+'/'+date.slice(6,8),
+      foreign, inst, retail,
+      foreignTrend: trend(list, 'foreignNetBuySell') || trend(list, 'foreignBuySell'),
+      instTrend:    trend(list, 'institutionNetBuySell') || trend(list, 'institutionBuySell'),
+      retailTrend:  trend(list, 'individualNetBuySell') || trend(list, 'individualBuySell'),
+    };
+  } catch {}
+
+  // fallback: Yahoo Finance 보유 비율
+  return { date: null, foreign: null, inst: null, retail: null,
+           foreignTrend: null, instTrend: null, retailTrend: null };
+}
+
+// ── NXT(넥스트트레이드) 가격 조회 ──
+async function fetchNxtPrice(ticker) {
+  // 종목코드 추출 (005930.KS → 005930)
+  const code = ticker.replace(/\.(KS|KQ)$/i, '');
+  try {
+    // KRX 정보데이터시스템 API (CORS 허용)
+    const url = `https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd?bld=dbms/MDC/STAT/standard/MDCSTAT01901&isuCd=${code}&strtDd=${_todayStr()}&endDd=${_todayStr()}&share=1&money=1`;
+    const r = await fetch(url, { headers: { Referer: 'https://data.krx.co.kr/' } });
+    if (!r.ok) throw new Error();
+    const j = await r.json();
+    const item = j?.output?.[0];
+    if (item?.CLSPRC_NXT) return parseInt(item.CLSPRC_NXT.replace(/,/g,''));
+  } catch {}
+  // KRX API 실패 시 네이버 증권 API 시도
+  try {
+    const url2 = `https://m.stock.naver.com/api/stock/${ticker.replace(/\.(KS|KQ)$/i,'')}/basic`;
+    const r2 = await fetch(url2);
+    if (!r2.ok) throw new Error();
+    const j2 = await r2.json();
+    if (j2?.nxtPrice) return j2.nxtPrice;
+  } catch {}
+  return null;
+}
+function _todayStr() {
+  return new Date().toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})
+    .replace(/\./g,'').replace(/\s/g,'').padStart(8,'0');
+}
+
 // ── 실시간 시세 (현재가·등락률·52주 고저) ──
 async function fetchQuote(ticker) {
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,fiftyTwoWeekHigh,fiftyTwoWeekLow,marketState,regularMarketTime`;
@@ -2078,12 +2152,49 @@ async function runAnalysis() {
 
     renderDashboard({
       ticker, bars, ind, tech, fund, decision, price, isKr, currency,
-      companyName: fundInfo.companyName || resolveTickerName(ticker) || ticker,
+      companyName: fundInfo.companyName || quote?.longName || quote?.shortName || resolveTickerName(ticker) || ticker,
       sector: fundInfo.sector || '-',
       changeAmt, changePct, high52w, low52w, mktState, updatedAt,
       fundInfo, cs, ew, ichi, smc, quant, advanced,
       exchangeName: quote?.fullExchangeName || quote?.exchange || '',
     });
+
+    // 투자자별 동향 비동기 업데이트 (한국 종목만)
+    if (isKr) {
+      fetchInvestorTrend(ticker).then(data => {
+        const label = document.getElementById('investor-date-label');
+        if (label) label.textContent = data.date ? `${data.date} 기준` : '데이터 없음';
+        function setInv(id, trendId, val, trend) {
+          const el = document.getElementById(id);
+          const te = document.getElementById(trendId);
+          if (!el) return;
+          if (val == null) { el.textContent = '-'; return; }
+          const n = parseInt(val);
+          el.textContent = (n >= 0 ? '+' : '') + n.toLocaleString('ko-KR') + '주';
+          el.style.color = n > 0 ? 'var(--up)' : n < 0 ? 'var(--down)' : '';
+          if (te && trend) te.textContent = trend;
+        }
+        setInv('inv-foreign', 'inv-foreign-trend', data.foreign, data.foreignTrend);
+        setInv('inv-inst',    'inv-inst-trend',    data.inst,    data.instTrend);
+        setInv('inv-retail',  'inv-retail-trend',  data.retail,  data.retailTrend);
+      });
+    }
+
+    // NXT 가격 비동기 업데이트 (한국 종목만)
+    if (/\.(KS|KQ)$/i.test(ticker)) {
+      const nxtEl = document.getElementById('nxt-price-val');
+      if (nxtEl) {
+        fetchNxtPrice(ticker).then(nxtP => {
+          if (!nxtEl) return;
+          if (nxtP) {
+            nxtEl.textContent = nxtP.toLocaleString('ko-KR') + ' 원';
+          } else {
+            nxtEl.textContent = '미제공';
+            nxtEl.style.color = 'var(--muted)';
+          }
+        });
+      }
+    }
 
   } catch(e) {
     dash.innerHTML = `
@@ -2146,9 +2257,26 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
          ${chgArrow} ${fmt(Math.abs(changeAmt),isKr)} (${changePct>=0?'+':''}${changePct?.toFixed(2)}%)
        </span>` : '';
 
-  // 장 상태 뱃지
+  // 장 상태 뱃지 — 한국 종목은 KST 기준 직접 계산, 미국은 Yahoo 값 사용
+  function calcMarketState(ticker, yahooState) {
+    const isKrTicker = /\.(KS|KQ)$/i.test(ticker);
+    if (isKrTicker) {
+      const now = new Date();
+      const kst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const day  = kst.getDay(); // 0=일, 6=토
+      const h    = kst.getHours(), m = kst.getMinutes();
+      const mins = h * 60 + m;
+      if (day === 0 || day === 6) return 'CLOSED';
+      if (mins >= 540 && mins < 930) return 'REGULAR'; // 09:00~15:30
+      if (mins >= 480 && mins < 540) return 'PRE';     // 08:00~09:00 (NXT 프리)
+      if (mins >= 930 && mins < 960) return 'POST';    // 15:30~16:00 (동시호가)
+      return 'CLOSED';
+    }
+    return yahooState || 'CLOSED';
+  }
+  const resolvedState = calcMarketState(ticker, mktState);
   const stateMap = { REGULAR:'🟢 장중', PRE:'🟡 프리마켓', POST:'🟡 애프터마켓', CLOSED:'⚫ 장마감' };
-  const mktBadge = `<span style="font-size:0.7rem;color:var(--muted)">${stateMap[mktState]||mktState||''}</span>`;
+  const mktBadge = `<span style="font-size:0.7rem;color:var(--muted)">${stateMap[resolvedState]||resolvedState||''}</span>`;
 
   // 데이터 기준 시각
   const timeStr = updatedAt
@@ -2174,6 +2302,10 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         <div class="label">현재가 <span style="font-size:0.65rem;color:var(--muted);font-weight:400">${timeStr} 기준</span>${isKr ? ' <span style="font-size:0.65rem;background:rgba(59,130,246,0.15);color:var(--blue);border-radius:4px;padding:1px 6px;font-weight:600">KRX</span>' : ''}</div>
         <div class="big-num">${fmt(price,isKr)} <span style="font-size:0.85rem;color:var(--muted)">${currency}</span></div>
         <div style="margin-top:2px">${chgHtml}</div>
+        ${isKr ? `<div style="margin-top:6px;font-size:0.72rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+          <span style="font-size:0.62rem;background:rgba(168,85,247,0.15);color:var(--purple);border-radius:4px;padding:1px 6px;font-weight:600">NXT</span>
+          <span id="nxt-price-val">조회 중…</span>
+        </div>` : ''}
       </div>
       ${high52w!=null?`
       <div style="margin-top:12px;font-size:0.78rem;color:var(--muted)">
@@ -2364,26 +2496,13 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   ${isKr ? `
   <div class="row" style="margin-top:0">
     <div class="card" style="grid-column:1/-1">
-      <div class="card-header"><span class="dot" style="background:var(--blue)"></span>투자자별 동향 <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">※ Yahoo Finance 기준 (KRX 실시간 아님)</span></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
-        <div class="mini-card" style="text-align:center">
-          <div class="label">기관 보유 비율</div>
-          <div class="num-sm" style="font-size:1.1rem">${fundInfo.institutionalPct!=null?(fundInfo.institutionalPct*100).toFixed(1)+'%':'-'}</div>
-          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">기관 순매수 추세</div>
-        </div>
-        <div class="mini-card" style="text-align:center">
-          <div class="label">내부자 보유 비율</div>
-          <div class="num-sm" style="font-size:1.1rem">${fundInfo.insiderPct!=null?(fundInfo.insiderPct*100).toFixed(1)+'%':'-'}</div>
-          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">임원·대주주 보유</div>
-        </div>
-        <div class="mini-card" style="text-align:center">
-          <div class="label">외국인 추정</div>
-          <div class="num-sm" style="font-size:1.1rem">${fundInfo.institutionalPct!=null && fundInfo.insiderPct!=null ? ((1 - fundInfo.institutionalPct - fundInfo.insiderPct)*100).toFixed(1)+'%' : '-'}</div>
-          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">추정 소매+외국인</div>
-        </div>
+      <div class="card-header"><span class="dot" style="background:var(--blue)"></span>투자자별 동향
+        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px" id="investor-date-label">전일 기준 조회 중…</span>
       </div>
-      <div style="margin-top:10px;font-size:0.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:8px">
-        ⚠️ 외국인/기관/개인 실시간 순매수는 KRX API 제약으로 미지원. 위 수치는 Yahoo Finance 분기 보고 기준입니다.
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px" id="investor-grid">
+        <div class="mini-card" style="text-align:center"><div class="label">외국인 순매수</div><div class="num-sm" style="font-size:1.1rem" id="inv-foreign">-</div><div style="font-size:0.68rem;color:var(--muted);margin-top:2px" id="inv-foreign-trend">-</div></div>
+        <div class="mini-card" style="text-align:center"><div class="label">기관 순매수</div><div class="num-sm" style="font-size:1.1rem" id="inv-inst">-</div><div style="font-size:0.68rem;color:var(--muted);margin-top:2px" id="inv-inst-trend">-</div></div>
+        <div class="mini-card" style="text-align:center"><div class="label">개인 순매수</div><div class="num-sm" style="font-size:1.1rem" id="inv-retail">-</div><div style="font-size:0.68rem;color:var(--muted);margin-top:2px" id="inv-retail-trend">-</div></div>
       </div>
     </div>
   </div>` : ''}
