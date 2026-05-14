@@ -1085,7 +1085,9 @@ function renderFavs() {
         || item.name || item.ticker;
     // 두 번째 줄: 미국 주식은 티커.거래소, 한국 주식은 티커.거래소
     const isKr = /\.(KS|KQ)$/i.test(item.ticker);
-    const subLine = item.market ? `${item.ticker}.${item.market}` : item.ticker;
+    // 005930.KS → 005930 / AAPL → AAPL (거래소 접미사 제거 후 마켓 표시)
+    const codeOnly = item.ticker.replace(/\.(KS|KQ|T|L|HK)$/i, '');
+    const subLine = item.market ? `${codeOnly}.${item.market}` : codeOnly;
     return `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
       <span class="fav-tile-label" style="white-space:normal;line-height:1.5">
@@ -2099,7 +2101,11 @@ async function runAnalysis() {
     return;
   }
 
-  dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${ticker} 데이터 수집 중…</div></div>`;
+  const tickerDisplayName = resolveTickerName(ticker) || '';
+  const tickerLabel = tickerDisplayName ? `${tickerDisplayName} · ${ticker}` : ticker;
+  // 검색창에도 종목명 표시
+  document.getElementById('ticker-input').value = tickerDisplayName ? `${tickerDisplayName} (${ticker})` : ticker;
+  dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${tickerLabel} 데이터 수집 중…</div></div>`;
 
   try {
     const [ohlcvData, fundInfo, quote] = await Promise.all([
@@ -2122,7 +2128,9 @@ async function runAnalysis() {
       ? new Date(quote.regularMarketTime * 1000) : dataUpdatedAt;
     const isKr = currency === 'KRW';
 
-    dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${ticker} 분석 중…</div></div>`;
+    const analysisName = fundInfo.companyName || quote?.longName || resolveTickerName(ticker) || ticker;
+    const analysisLabel = analysisName !== ticker ? `${analysisName} · ${ticker}` : ticker;
+    dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${analysisLabel} 분석 중…</div></div>`;
 
     const ind      = computeIndicators(bars);
     const tech     = scoreTechnical(ind, price);
@@ -2141,7 +2149,12 @@ async function runAnalysis() {
     const decision = makeDecision(tech, fund, style, price, advanced);
 
     // 검색 기록 저장
-    saveHistory(ticker, fundInfo.companyName || ticker);
+    const resolvedName = fundInfo.companyName || quote?.longName || quote?.shortName || resolveTickerName(ticker) || '';
+    saveHistory(ticker, resolvedName || ticker);
+
+    // 검색창을 최종 종목명으로 업데이트
+    const inputEl = document.getElementById('ticker-input');
+    if (inputEl) inputEl.value = resolvedName ? `${resolvedName} (${ticker})` : ticker;
 
     // 마지막 분석 상태 저장 (새로고침 복원용)
     try {
