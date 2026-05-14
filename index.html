@@ -1078,15 +1078,20 @@ function renderFavs() {
   if (!body) return;
 
   const tileHtml = (item) => {
-    // 이름 확정: 사전 fallback 포함
-    let displayName = item.name && item.name !== item.ticker
-      ? item.name
-      : (typeof EN_TICKER_NAME !== 'undefined' && EN_TICKER_NAME[item.ticker])
-        || item.name || item.ticker;
-    // 두 번째 줄: 미국 주식은 티커.거래소, 한국 주식은 티커.거래소
-    const isKr = /\.(KS|KQ)$/i.test(item.ticker);
-    // 005930.KS → 005930 / AAPL → AAPL (거래소 접미사 제거 후 마켓 표시)
+    // 거래소 접미사 제거한 순수 코드 (005930.KS → 005930, AAPL → AAPL)
     const codeOnly = item.ticker.replace(/\.(KS|KQ|T|L|HK)$/i, '');
+
+    // 이름 확정: 사전 fallback → 코드만 표시
+    let rawName = item.name || '';
+    // 이름이 티커 전체나 코드와 같으면 사전 조회
+    if (!rawName || rawName === item.ticker || rawName === codeOnly) {
+      rawName = (typeof EN_TICKER_NAME !== 'undefined' && EN_TICKER_NAME[item.ticker])
+             || (typeof KR_STOCKS !== 'undefined'
+                 && (KR_STOCKS.find(([,t]) => t === item.ticker) || [])[0])
+             || '';
+    }
+    const displayName = rawName || codeOnly; // 최후 fallback은 코드(숫자)
+    // 두 번째 줄: 코드.거래소
     const subLine = item.market ? `${codeOnly}.${item.market}` : codeOnly;
     return `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
@@ -2055,6 +2060,10 @@ function looksLikeTicker(q) {
 }
 
 async function resolveTicker(input) {
+  // "종목명 (티커)" 형식에서 티커 추출 (예: "삼성전자 (005930.KS)" → "005930.KS")
+  const parenMatch = input.trim().match(/\(([A-Z0-9]+(?:\.[A-Z]{1,3})?)\)\s*$/i);
+  if (parenMatch) return parenMatch[1].toUpperCase();
+
   const q = input.trim();
 
   // 1) 내장 사전 (한국어·영어 종목명 → 티커)
@@ -2273,19 +2282,28 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   // 장 상태 뱃지 — 한국 종목은 KST 기준 직접 계산, 미국은 Yahoo 값 사용
   function calcMarketState(ticker, yahooState) {
     const isKrTicker = /\.(KS|KQ)$/i.test(ticker);
+
     if (isKrTicker) {
-      const now = new Date();
-      const kst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-      const day  = kst.getDay(); // 0=일, 6=토
-      const h    = kst.getHours(), m = kst.getMinutes();
-      const mins = h * 60 + m;
+      // ── 한국 KST 기준 ──
+      const kst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const day = kst.getDay(); // 0=일, 6=토
+      const mins = kst.getHours() * 60 + kst.getMinutes();
       if (day === 0 || day === 6) return 'CLOSED';
-      if (mins >= 540 && mins < 930) return 'REGULAR'; // 09:00~15:30
-      if (mins >= 480 && mins < 540) return 'PRE';     // 08:00~09:00 (NXT 프리)
-      if (mins >= 930 && mins < 960) return 'POST';    // 15:30~16:00 (동시호가)
+      if (mins >= 540 && mins < 930)  return 'REGULAR'; // 09:00~15:30 정규장
+      if (mins >= 480 && mins < 540)  return 'PRE';     // 08:00~09:00 NXT 프리
+      if (mins >= 930 && mins < 960)  return 'POST';    // 15:30~16:00 시간외
+      return 'CLOSED';
+    } else {
+      // ── 미국 ET 기준 (NYSE/NASDAQ) ──
+      const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const day = et.getDay(); // 0=일, 6=토
+      const mins = et.getHours() * 60 + et.getMinutes();
+      if (day === 0 || day === 6) return 'CLOSED';
+      if (mins >= 570 && mins < 960)  return 'REGULAR'; // 09:30~16:00 정규장
+      if (mins >= 240 && mins < 570)  return 'PRE';     // 04:00~09:30 프리마켓
+      if (mins >= 960 && mins < 1200) return 'POST';    // 16:00~20:00 애프터마켓
       return 'CLOSED';
     }
-    return yahooState || 'CLOSED';
   }
   const resolvedState = calcMarketState(ticker, mktState);
   const stateMap = { REGULAR:'🟢 장중', PRE:'🟡 프리마켓', POST:'🟡 애프터마켓', CLOSED:'⚫ 장마감' };
