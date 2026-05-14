@@ -56,7 +56,7 @@
     --orange:    #c2410c;
     --shadow:    rgba(0,0,0,.12);
   }
-  html { font-size: 16.8px; } /* 24px × 0.7 = 16.8px */
+  html { font-size: 18.5px; } /* 기본 폰트 크기 10% 확대 */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
@@ -531,6 +531,8 @@
   .grid { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
   .row { display: grid; gap: 14px; margin-bottom: 14px; }
   .row-top    { grid-template-columns: 260px 1fr 240px; }
+  /* current-state 카드는 기존 크기 유지 (html font-size 확대 보정) */
+  #dashboard .row-top .card:first-child { font-size: 0.908em; }
   .row-bottom { grid-template-columns: repeat(2, 1fr); }
   .card {
     background: var(--card);
@@ -792,6 +794,10 @@
     pointer-events: none;
     user-select: none;
   }
+  html:not(.light) .kg-node text,
+  html:not(.light) .kg-wrap svg text { fill: #f8fafc; }
+  html.light .kg-node text,
+  html.light .kg-wrap svg text { fill: #1e293b; }
   .kg-link { stroke-opacity: 0.45; }
   .kg-legend {
     position: absolute;
@@ -1434,6 +1440,8 @@ async function fetchFundamentals(ticker) {
       debtToEquity:  g(r.financialData,      'debtToEquity'),
       currentRatio:  g(r.financialData,      'currentRatio'),
       dividendYield: g(r.summaryDetail,      'dividendYield'),
+      institutionalPct: r.defaultKeyStatistics?.institutionsPercentHeld?.raw ?? null,
+      insiderPct:       r.defaultKeyStatistics?.insidersPercentHeld?.raw ?? null,
     };
   } catch(e) { return {}; }
 }
@@ -1516,7 +1524,29 @@ function computeIndicators(bars) {
     volRatio[i]=avg>0?(V[i]||0)/avg:1;
   }
 
-  return { C, H, L, V, macdLine, sigLine, hist, rsi, stochK, stochD, sma20, bbU, bbL, bbPct, atr, volRatio };
+  // OBV (On-Balance Volume)
+  const obv = new Array(n).fill(null);
+  obv[0] = V[0] || 0;
+  for (let i = 1; i < n; i++) {
+    if (C[i] == null || V[i] == null) { obv[i] = obv[i-1]; continue; }
+    obv[i] = obv[i-1] + (C[i] > C[i-1] ? V[i] : C[i] < C[i-1] ? -V[i] : 0);
+  }
+
+  // Stochastic Slow
+  const stochSlowK = new Array(n).fill(null);
+  const stochSlowD = new Array(n).fill(null);
+  for (let i = 2; i < n; i++) {
+    if (stochK[i]!=null && stochK[i-1]!=null && stochK[i-2]!=null) {
+      stochSlowK[i] = (stochK[i] + stochK[i-1] + stochK[i-2]) / 3;
+    }
+  }
+  for (let i = 2; i < n; i++) {
+    if (stochSlowK[i]!=null && stochSlowK[i-1]!=null && stochSlowK[i-2]!=null) {
+      stochSlowD[i] = (stochSlowK[i] + stochSlowK[i-1] + stochSlowK[i-2]) / 3;
+    }
+  }
+
+  return { C, H, L, V, macdLine, sigLine, hist, rsi, stochK, stochD, stochSlowK, stochSlowD, sma20, bbU, bbL, bbPct, atr, volRatio, obv };
 }
 
 // ══════════════════════════════════════════════════════
@@ -1827,7 +1857,10 @@ function scoreTechnical(ind, price) {
     indicators: {
       rsi: rsiV, macd: last(ind.macdLine), macdHist: mh,
       stochK: k, stochD: d, bbPct: bbP,
-      bbUpper: last(ind.bbU), bbLower: last(ind.bbL), atr: atrV, volRatio: vr
+      bbUpper: last(ind.bbU), bbLower: last(ind.bbL), atr: atrV, volRatio: vr,
+      obv: last(ind.obv),
+      stochSlowK: last(ind.stochSlowK),
+      stochSlowD: last(ind.stochSlowD),
     }
   };
 }
@@ -2042,6 +2075,7 @@ async function runAnalysis() {
       sector: fundInfo.sector || '-',
       changeAmt, changePct, high52w, low52w, mktState, updatedAt,
       fundInfo, cs, ew, ichi, smc, quant, advanced,
+      exchangeName: quote?.fullExchangeName || quote?.exchange || '',
     });
 
   } catch(e) {
@@ -2084,7 +2118,7 @@ function guessExchange(ticker) {
 
 function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency,
     companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt, fundInfo,
-    cs, ew, ichi, smc, quant, advanced }) {
+    cs, ew, ichi, smc, quant, advanced, exchangeName }) {
   const flag      = isKr ? '🇰🇷' : '🇺🇸';
   const badgeCls  = {BUY:'buy',SELL:'sell',HOLD:'hold'}[d.action]||'hold';
   const badgeLbl  = {BUY:'● 매수 BUY',SELL:'● 매도 SELL',HOLD:'● 관망 HOLD'}[d.action];
@@ -2130,7 +2164,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       </div>
       <div class="badge ${badgeCls}">${badgeLbl}</div>
       <div style="margin-top:12px">
-        <div class="label">현재가 <span style="font-size:0.65rem;color:var(--muted);font-weight:400">${timeStr} 기준</span></div>
+        <div class="label">현재가 <span style="font-size:0.65rem;color:var(--muted);font-weight:400">${timeStr} 기준</span>${isKr ? ' <span style="font-size:0.65rem;background:rgba(59,130,246,0.15);color:var(--blue);border-radius:4px;padding:1px 6px;font-weight:600">KRX</span>' : ''}</div>
         <div class="big-num">${fmt(price,isKr)} <span style="font-size:0.85rem;color:var(--muted)">${currency}</span></div>
         <div style="margin-top:2px">${chgHtml}</div>
       </div>
@@ -2301,6 +2335,9 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('BB %', I.bbPct!=null?(I.bbPct*100).toFixed(1)+'%':'-', '', TIPS.bbPct.title, TIPS.bbPct.body)}
       ${mrow('ATR', I.atr!=null?fmt(I.atr,isKr):'-', '', TIPS.atr.title, TIPS.atr.body)}
       ${mrow('거래량 비율', I.volRatio!=null?I.volRatio.toFixed(2)+'x':'-', I.volRatio>1?'var(--up)':'var(--down)', TIPS.volRatio.title, TIPS.volRatio.body)}
+      ${mrow('OBV', I.obv!=null?(I.obv>=0?'+':'')+Math.round(I.obv/1000)+'K':'-', I.obv!=null&&I.obv>0?'var(--up)':'var(--down)')}
+      ${mrow('Stoch Slow %K', I.stochSlowK!=null?I.stochSlowK.toFixed(1):'-', I.stochSlowK!=null&&I.stochSlowK<20?'var(--up)':I.stochSlowK!=null&&I.stochSlowK>80?'var(--down)':'')}
+      ${mrow('Stoch Slow %D', I.stochSlowD!=null?I.stochSlowD.toFixed(1):'-', '')}
     </div>
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>기본적 지표</div>
@@ -2315,6 +2352,34 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--up)':'var(--down)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
     </div>
   </div>
+
+  <!-- ── 투자자별 동향 (한국 종목) ── -->
+  ${isKr ? `
+  <div class="row" style="margin-top:0">
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-header"><span class="dot" style="background:var(--blue)"></span>투자자별 동향 <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">※ Yahoo Finance 기준 (KRX 실시간 아님)</span></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
+        <div class="mini-card" style="text-align:center">
+          <div class="label">기관 보유 비율</div>
+          <div class="num-sm" style="font-size:1.1rem">${fundInfo.institutionalPct!=null?(fundInfo.institutionalPct*100).toFixed(1)+'%':'-'}</div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">기관 순매수 추세</div>
+        </div>
+        <div class="mini-card" style="text-align:center">
+          <div class="label">내부자 보유 비율</div>
+          <div class="num-sm" style="font-size:1.1rem">${fundInfo.insiderPct!=null?(fundInfo.insiderPct*100).toFixed(1)+'%':'-'}</div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">임원·대주주 보유</div>
+        </div>
+        <div class="mini-card" style="text-align:center">
+          <div class="label">외국인 추정</div>
+          <div class="num-sm" style="font-size:1.1rem">${fundInfo.institutionalPct!=null && fundInfo.insiderPct!=null ? ((1 - fundInfo.institutionalPct - fundInfo.insiderPct)*100).toFixed(1)+'%' : '-'}</div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">추정 소매+외국인</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:0.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:8px">
+        ⚠️ 외국인/기관/개인 실시간 순매수는 KRX API 제약으로 미지원. 위 수치는 Yahoo Finance 분기 보고 기준입니다.
+      </div>
+    </div>
+  </div>` : ''}
 
   <!-- ── Row 4: 차트 (최하단) ── -->
   <div class="card" style="padding:14px 16px;margin-top:0">
@@ -2536,9 +2601,51 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     }};
   }
 
+  // ── 매물대 (Volume Profile) 계산 ──
+  function computeVolumeProfile(barsData, bins = 20) {
+    const closes2 = barsData.map(b => b.close).filter(v => v != null);
+    const vols2   = barsData.map(b => b.volume || 0);
+    if (!closes2.length) return [];
+    const minP = Math.min(...closes2), maxP = Math.max(...closes2);
+    const step = (maxP - minP) / bins || 1;
+    const profile = Array.from({length: bins}, (_, i) => ({
+      price: minP + (i + 0.5) * step,
+      low:   minP + i * step,
+      high:  minP + (i + 1) * step,
+      vol:   0,
+    }));
+    barsData.forEach((b, i) => {
+      if (b.close == null) return;
+      const idx = Math.min(bins - 1, Math.floor((b.close - minP) / step));
+      profile[idx].vol += (vols2[i] || 0);
+    });
+    const maxVol = Math.max(...profile.map(p => p.vol));
+    return profile.map(p => ({ ...p, pct: maxVol > 0 ? p.vol / maxVol : 0 }));
+  }
+  const vpProfile = computeVolumeProfile(bars);
+  const volProfilePlugin = {
+    id: 'volProfile',
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea: { left, right, top, bottom }, scales } = chart;
+      if (!scales.y) return;
+      const barMaxW = (right - left) * 0.15;
+      ctx.save();
+      vpProfile.forEach(p => {
+        const y1 = scales.y.getPixelForValue(p.high);
+        const y2 = scales.y.getPixelForValue(p.low);
+        const h  = Math.max(1, Math.abs(y2 - y1) - 1);
+        const w  = barMaxW * p.pct;
+        ctx.fillStyle = 'rgba(168,85,247,0.25)';
+        ctx.fillRect(right - w, Math.min(y1,y2), w, h);
+      });
+      ctx.restore();
+    }
+  };
+
   // ── Bollinger Band 차트 ──
   priceChart = new Chart(document.getElementById('priceChart'), {
     type:'line',
+    plugins: [volProfilePlugin],
     data:{ labels, datasets:[
       {data:closes,   borderColor:'#e2e8f0', borderWidth:1.5, pointRadius:0, tension:.3},
       {data:ind.sma20,borderColor:'#f59e0b', borderWidth:1,   pointRadius:0, tension:.3},
@@ -2565,6 +2672,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ['BB 스퀴즈',        'rgba(245,158,11,.75)',false],
       ['MA20 상향↑',      'rgba(96,165,250,.75)',false],
       ['MA20 하향↓',      'rgba(249,115,22,.75)',false],
+      ['매물대(VP)',       'rgba(168,85,247,0.5)', false],
     ])}}
   });
 
