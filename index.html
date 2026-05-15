@@ -2684,17 +2684,38 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     </div>`;
   }
   // BB: 2열 그리드 / RSI·MACD: 1열
-  function renderEntryPanel(elId, rows, cols) {
+  function renderEntryPanel(elId, rows, cols, foldAt) {
     const el = document.getElementById(elId);
     if (!el) return;
     if (!rows.length) { el.innerHTML = ''; return; }
-    const rowCount  = cols === 2 ? Math.ceil(rows.length / 2) : rows.length;
-    const gridStyle = cols === 2
-      ? `display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(${rowCount},auto);grid-auto-flow:column;gap:6px;margin-top:6px`
-      : 'display:flex;flex-direction:column;gap:6px;margin-top:6px';
+
+    const hasFold   = foldAt != null && rows.length > foldAt;
+    const visible   = hasFold ? rows.slice(0, foldAt) : rows;
+    const hidden    = hasFold ? rows.slice(foldAt)    : [];
+
+    function makeGrid(items) {
+      const rc = cols === 2 ? Math.ceil(items.length / 2) : items.length;
+      const gs = cols === 2
+        ? `display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(${rc},auto);grid-auto-flow:column;gap:6px`
+        : 'display:flex;flex-direction:column;gap:6px';
+      return `<div style="${gs}">${items.join('')}</div>`;
+    }
+
+    const foldHtml = hasFold ? `
+      <div id="${elId}-extra" style="display:none;margin-top:6px">${makeGrid(hidden)}</div>
+      <button onclick="(function(btn,extra){
+        const open = extra.style.display!=='none';
+        extra.style.display = open?'none':'block';
+        btn.innerHTML = open ? '▼ 더보기 (${hidden.length}건)' : '▲ 접기';
+      })(this, document.getElementById('${elId}-extra'))"
+        style="width:100%;margin-top:8px;padding:5px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-size:0.73rem">
+        ▼ 더보기 (${hidden.length}건)
+      </button>` : '';
+
     el.innerHTML = `<div style="background:var(--card2,#0f1923);border-radius:8px;padding:8px 12px;margin-top:2px">
-      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:2px;font-weight:600">📍 진입점 이력 (최근 ${rows.length}건)</div>
-      <div style="${gridStyle}">${rows.join('')}</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:6px;font-weight:600">📍 진입점 이력 (최근 ${rows.length}건)</div>
+      ${makeGrid(visible)}
+      ${foldHtml}
     </div>`;
   }
 
@@ -2732,8 +2753,8 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   });
 
   renderEntryPanel('bbEntryPanel',   bbEntries.slice(-10).reverse(), 2);
-  renderEntryPanel('rsiEntryPanel',  rsiEntries.slice(-10).reverse(), 1);
-  renderEntryPanel('macdEntryPanel', macdEntries.slice(-10).reverse(), 1);
+  renderEntryPanel('rsiEntryPanel',  rsiEntries.slice(-10).reverse(), 1, 5);
+  renderEntryPanel('macdEntryPanel', macdEntries.slice(-10).reverse(), 1, 5);
 
   // ── Knowledge Graph 렌더링 ──
   renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt, companyName });
