@@ -1038,9 +1038,16 @@ function renderReport(data) {
     const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant);
     const d        = makeDecision(tech, fund, style, price, advanced);
 
+    // 종목명 우선순위: fundInfo → quote longName/shortName → ticker
+    const companyName = (fundInfo.companyName && fundInfo.companyName !== ticker)
+      ? fundInfo.companyName
+      : (quote?.longName || quote?.shortName || fundInfo.companyName || ticker);
+
+    document.title = `${companyName} (${ticker}) 리포트 — signnith`;
+
     renderReport({
       ticker, price, prevClose, isKr, currency, ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced,
-      companyName: fundInfo.companyName || ticker,
+      companyName,
       sector: fundInfo.sector || '-',
     });
 
