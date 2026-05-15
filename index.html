@@ -929,16 +929,58 @@
       <div class="settings-title">⚙️ 설정</div>
       <button style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer" onclick="closeSettings()">✕</button>
     </div>
-    <div class="settings-section">
-      <div class="settings-label">🏛️ DART API 키 (한국 종목 재무/공시)</div>
-      <input class="settings-input" id="dart-key-input" type="password" placeholder="발급받은 DART API 인증키 입력" autocomplete="off" />
-      <div class="dart-status" id="dart-key-status"></div>
+
+    <!-- ── 최초 등록 패널 (API 키 미등록 시) ── -->
+    <div id="dart-register-panel" class="settings-section" style="display:none">
+      <div class="settings-label">🏛️ DART API 키 등록 (최초 1회)</div>
+      <input class="settings-input" id="dart-key-input" type="password"
+        placeholder="DART API 인증키"
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        oncopy="return false" oncut="return false" oncontextmenu="return false" />
+      <input class="settings-input" id="dart-pw-register" type="password"
+        placeholder="보호 비밀번호 설정"
+        autocomplete="new-password"
+        style="margin-top:8px"
+        oncopy="return false" oncut="return false" oncontextmenu="return false" />
+      <input class="settings-input" id="dart-pw-confirm" type="password"
+        placeholder="비밀번호 확인"
+        autocomplete="new-password"
+        style="margin-top:8px"
+        oncopy="return false" oncut="return false" oncontextmenu="return false" />
+      <div class="dart-status" id="dart-register-status"></div>
       <div class="settings-hint">
-        DART(금융감독원 전자공시) API 키를 입력하면 한국 종목의 분기 실적·최대주주·임원 정보를 정확하게 조회합니다.<br>
+        API 키는 비밀번호로 암호화되어 저장됩니다. 저장 후 키는 다시 볼 수 없습니다.<br>
         무료 발급: <a href="https://opendart.fss.or.kr/" target="_blank">opendart.fss.or.kr</a> → 인증키 신청/관리
       </div>
+      <button class="settings-save" style="margin-top:14px" onclick="dartRegister()">암호화하여 저장</button>
     </div>
-    <button class="settings-save" onclick="saveSettings()">저장</button>
+
+    <!-- ── 잠금해제 패널 (API 키 등록 후) ── -->
+    <div id="dart-unlock-panel" class="settings-section" style="display:none">
+      <div class="settings-label">🔒 DART API 키 잠금해제</div>
+      <div class="dart-status" id="dart-unlock-badge" style="margin-bottom:10px"></div>
+      <input class="settings-input" id="dart-pw-unlock" type="password"
+        placeholder="비밀번호 입력"
+        autocomplete="current-password"
+        oncopy="return false" oncut="return false" oncontextmenu="return false"
+        onkeydown="if(event.key==='Enter')dartUnlock()" />
+      <div class="dart-status" id="dart-unlock-status" style="margin-top:6px"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="settings-save" onclick="dartUnlock()" style="flex:2">잠금해제</button>
+        <button onclick="dartReset()" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--down);cursor:pointer;font-size:0.85rem">초기화</button>
+      </div>
+      <div class="settings-hint" style="margin-top:10px">비밀번호를 분실하면 초기화 후 재등록해야 합니다.</div>
+    </div>
+
+    <!-- ── 테마 ── -->
+    <div class="settings-section">
+      <div class="settings-label">🎨 테마</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="applyTheme('dark');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🌙 다크</button>
+        <button onclick="applyTheme('light');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🌞 라이트</button>
+        <button onclick="applyTheme('system');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🖥️ 시스템</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1043,48 +1085,142 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 
 // ══════════════════════════════════════════════════════
-//  설정 모달
+//  설정 모달 + DART API 키 AES-256-GCM 암호화
 // ══════════════════════════════════════════════════════
-const DART_KEY_STORAGE = 'tsa_dart_api_key';
+const DART_ENC_STORAGE = 'tsa_dart_enc';   // 암호화된 blob
+let _dartApiKeyInMemory = null;             // 복호화 후 메모리에만 보관
 
+// ── Web Crypto 헬퍼 ──
+async function _deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:310000, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+async function _encrypt(plaintext, password) {
+  const enc  = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await _deriveKey(password, salt);
+  const ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(plaintext));
+  // salt(16) + iv(12) + ciphertext → base64
+  const buf  = new Uint8Array(16 + 12 + ct.byteLength);
+  buf.set(salt, 0); buf.set(iv, 16); buf.set(new Uint8Array(ct), 28);
+  return btoa(String.fromCharCode(...buf));
+}
+async function _decrypt(b64, password) {
+  const buf  = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const salt = buf.slice(0, 16);
+  const iv   = buf.slice(16, 28);
+  const ct   = buf.slice(28);
+  const key  = await _deriveKey(password, salt);
+  const pt   = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct);
+  return new TextDecoder().decode(pt);
+}
+
+// ── 모달 열기/닫기 ──
 function openSettings() {
-  const overlay = document.getElementById('settingsOverlay');
-  const input   = document.getElementById('dart-key-input');
-  if (input) input.value = localStorage.getItem(DART_KEY_STORAGE) || '';
-  updateDartKeyStatus();
-  overlay.classList.add('open');
+  const hasEnc = !!localStorage.getItem(DART_ENC_STORAGE);
+  document.getElementById('dart-register-panel').style.display = hasEnc ? 'none' : 'block';
+  document.getElementById('dart-unlock-panel').style.display   = hasEnc ? 'block' : 'none';
+  // 등록 패널 — 입력 초기화
+  if (!hasEnc) {
+    ['dart-key-input','dart-pw-register','dart-pw-confirm'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    _setStatus('dart-register-status', '', '');
+  } else {
+    const badge = document.getElementById('dart-unlock-badge');
+    if (badge) {
+      const unlocked = !!_dartApiKeyInMemory;
+      badge.style.background = unlocked ? 'rgba(34,197,94,.1)' : 'rgba(255,200,0,.08)';
+      badge.style.color      = unlocked ? 'var(--up)' : 'var(--yellow)';
+      badge.textContent      = unlocked ? '✅ 잠금해제됨 — DART 데이터 활성화' : '🔒 잠겨 있음 — 비밀번호를 입력하세요';
+    }
+    const pwEl = document.getElementById('dart-pw-unlock');
+    if (pwEl) { pwEl.value = ''; setTimeout(()=>pwEl.focus(), 120); }
+    _setStatus('dart-unlock-status', '', '');
+  }
+  document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings(e) {
   if (e && !e.target.classList.contains('settings-overlay')) return;
+  // 입력창 내용 모두 지우기
+  ['dart-key-input','dart-pw-register','dart-pw-confirm','dart-pw-unlock'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
   document.getElementById('settingsOverlay').classList.remove('open');
 }
-function saveSettings() {
-  const key = document.getElementById('dart-key-input').value.trim();
-  if (key) localStorage.setItem(DART_KEY_STORAGE, key);
-  else localStorage.removeItem(DART_KEY_STORAGE);
-  updateDartKeyStatus();
-  setTimeout(() => document.getElementById('settingsOverlay').classList.remove('open'), 600);
+function _setStatus(elId, msg, type) {
+  const el = document.getElementById(elId); if (!el) return;
+  const styles = {
+    ok:   ['rgba(34,197,94,.1)',   'var(--up)'],
+    err:  ['rgba(239,68,68,.1)',   'var(--down)'],
+    warn: ['rgba(255,200,0,.08)',  'var(--yellow)'],
+    '':   ['transparent',          'inherit'],
+  };
+  const [bg, color] = styles[type] || styles[''];
+  el.style.background = bg; el.style.color = color; el.textContent = msg;
 }
-function updateDartKeyStatus() {
-  const el = document.getElementById('dart-key-status');
-  if (!el) return;
-  const key = localStorage.getItem(DART_KEY_STORAGE);
-  if (key) {
-    el.style.background = 'rgba(34,197,94,.12)';
-    el.style.color = 'var(--up)';
-    el.textContent = '✅ API 키 등록됨 — 한국 종목 DART 데이터 활성화';
-  } else {
-    el.style.background = 'rgba(255,200,0,.08)';
-    el.style.color = 'var(--yellow)';
-    el.textContent = '⚠️ API 키 미등록 — Yahoo Finance 데이터 사용';
+
+// ── 최초 등록 ──
+async function dartRegister() {
+  const apiKey = document.getElementById('dart-key-input').value.trim();
+  const pw     = document.getElementById('dart-pw-register').value;
+  const pw2    = document.getElementById('dart-pw-confirm').value;
+  if (!apiKey) return _setStatus('dart-register-status', '⚠️ API 키를 입력하세요.', 'warn');
+  if (pw.length < 6) return _setStatus('dart-register-status', '⚠️ 비밀번호는 6자 이상이어야 합니다.', 'warn');
+  if (pw !== pw2)    return _setStatus('dart-register-status', '⚠️ 비밀번호가 일치하지 않습니다.', 'err');
+  _setStatus('dart-register-status', '🔐 암호화 중…', 'warn');
+  try {
+    const enc = await _encrypt(apiKey, pw);
+    localStorage.setItem(DART_ENC_STORAGE, enc);
+    _dartApiKeyInMemory = apiKey;           // 등록 직후는 메모리에 보관
+    // 입력창 즉시 초기화 (복사 불가 + 내용 제거)
+    ['dart-key-input','dart-pw-register','dart-pw-confirm'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    _setStatus('dart-register-status', '✅ 저장 완료 — API 키는 더 이상 표시되지 않습니다.', 'ok');
+    setTimeout(() => closeSettings(), 1400);
+  } catch(e) {
+    _setStatus('dart-register-status', '❌ 암호화 오류: ' + e.message, 'err');
   }
+}
+
+// ── 잠금 해제 ──
+async function dartUnlock() {
+  const pw  = document.getElementById('dart-pw-unlock').value;
+  const enc = localStorage.getItem(DART_ENC_STORAGE);
+  if (!pw)  return _setStatus('dart-unlock-status', '⚠️ 비밀번호를 입력하세요.', 'warn');
+  if (!enc) return _setStatus('dart-unlock-status', '⚠️ 등록된 키가 없습니다.', 'warn');
+  _setStatus('dart-unlock-status', '🔓 복호화 중…', 'warn');
+  try {
+    _dartApiKeyInMemory = await _decrypt(enc, pw);
+    document.getElementById('dart-pw-unlock').value = '';
+    _setStatus('dart-unlock-status', '✅ 잠금해제 — DART 데이터 활성화됨', 'ok');
+    setTimeout(() => closeSettings(), 1000);
+  } catch {
+    _dartApiKeyInMemory = null;
+    _setStatus('dart-unlock-status', '❌ 비밀번호가 올바르지 않습니다.', 'err');
+  }
+}
+
+// ── 초기화 ──
+function dartReset() {
+  if (!confirm('DART API 키를 삭제하고 초기화합니다. 계속하시겠습니까?')) return;
+  localStorage.removeItem(DART_ENC_STORAGE);
+  _dartApiKeyInMemory = null;
+  closeSettings();
+  setTimeout(() => openSettings(), 150);
 }
 
 // ══════════════════════════════════════════════════════
 //  DART API (한국 종목 전용)
 // ══════════════════════════════════════════════════════
 async function fetchDartData(ticker) {
-  const apiKey = localStorage.getItem(DART_KEY_STORAGE);
+  const apiKey = _dartApiKeyInMemory;
   if (!apiKey) return null;
 
   // 6자리 종목코드 추출 (035420.KS → 035420)
