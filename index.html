@@ -2688,8 +2688,9 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     const el = document.getElementById(elId);
     if (!el) return;
     if (!rows.length) { el.innerHTML = ''; return; }
+    const rowCount  = cols === 2 ? Math.ceil(rows.length / 2) : rows.length;
     const gridStyle = cols === 2
-      ? 'display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px'
+      ? `display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(${rowCount},auto);grid-auto-flow:column;gap:6px;margin-top:6px`
       : 'display:flex;flex-direction:column;gap:6px;margin-top:6px';
     el.innerHTML = `<div style="background:var(--card2,#0f1923);border-radius:8px;padding:8px 12px;margin-top:2px">
       <div style="font-size:0.72rem;color:var(--muted);margin-bottom:2px;font-weight:600">📍 진입점 이력 (최근 ${rows.length}건)</div>
