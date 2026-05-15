@@ -4010,8 +4010,10 @@ function openReport() {
   const raw    = document.getElementById('ticker-input').value.trim();
   const period = document.getElementById('period-select').value;
   const style  = document.getElementById('style-select').value;
-  const ticker = raw ? raw.toUpperCase() : '';
-  if (!ticker) { alert('먼저 종목 티커를 입력하세요.'); return; }
+  if (!raw) { alert('먼저 종목 티커를 입력하세요.'); return; }
+  // "종목명 (티커)" 형식에서 순수 티커 추출
+  const parenMatch = raw.match(/\(([A-Z0-9]+(?:\.[A-Z]{1,3})?)\)\s*$/i);
+  const ticker = (parenMatch ? parenMatch[1] : raw).toUpperCase();
   const url = `report.html?ticker=${encodeURIComponent(ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}`;
   window.open(url, '_blank');
 }
