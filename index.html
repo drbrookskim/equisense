@@ -930,15 +930,22 @@
       <button style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer" onclick="closeSettings()">✕</button>
     </div>
     <div class="settings-section">
-      <div class="settings-label">🏛️ DART API 키 (한국 종목 재무/공시)</div>
-      <input class="settings-input" id="dart-key-input" type="password" placeholder="발급받은 DART API 인증키 입력" autocomplete="off" />
-      <div class="dart-status" id="dart-key-status"></div>
+      <div class="settings-label">🏛️ DART 공시 데이터</div>
+      <div class="dart-status" id="dart-key-status" style="background:rgba(34,197,94,.1);color:var(--up)">✅ 서버에서 안전하게 처리됩니다 — API 키 입력 불필요</div>
       <div class="settings-hint">
-        DART(금융감독원 전자공시) API 키를 입력하면 한국 종목의 분기 실적·최대주주·임원 정보를 정확하게 조회합니다.<br>
-        무료 발급: <a href="https://opendart.fss.or.kr/" target="_blank">opendart.fss.or.kr</a> → 인증키 신청/관리
+        DART(금융감독원) API 키는 서버 환경변수에 보관되어 브라우저에 노출되지 않습니다.<br>
+        한국 종목 조회 시 분기 실적·최대주주·임원 정보가 자동으로 표시됩니다.
       </div>
     </div>
-    <button class="settings-save" onclick="saveSettings()">저장</button>
+    <div class="settings-section">
+      <div class="settings-label">🎨 테마</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="applyTheme('dark');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🌙 다크</button>
+        <button onclick="applyTheme('light');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🌞 라이트</button>
+        <button onclick="applyTheme('system');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🖥️ 시스템</button>
+      </div>
+    </div>
+    <button class="settings-save" onclick="closeSettings()">닫기</button>
   </div>
 </div>
 
@@ -1045,155 +1052,86 @@ applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 // ══════════════════════════════════════════════════════
 //  설정 모달
 // ══════════════════════════════════════════════════════
-const DART_KEY_STORAGE = 'tsa_dart_api_key';
-
 function openSettings() {
-  const overlay = document.getElementById('settingsOverlay');
-  const input   = document.getElementById('dart-key-input');
-  if (input) input.value = localStorage.getItem(DART_KEY_STORAGE) || '';
-  updateDartKeyStatus();
-  overlay.classList.add('open');
+  document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings(e) {
   if (e && !e.target.classList.contains('settings-overlay')) return;
   document.getElementById('settingsOverlay').classList.remove('open');
 }
-function saveSettings() {
-  const key = document.getElementById('dart-key-input').value.trim();
-  if (key) localStorage.setItem(DART_KEY_STORAGE, key);
-  else localStorage.removeItem(DART_KEY_STORAGE);
-  updateDartKeyStatus();
-  setTimeout(() => document.getElementById('settingsOverlay').classList.remove('open'), 600);
-}
-function updateDartKeyStatus() {
-  const el = document.getElementById('dart-key-status');
-  if (!el) return;
-  const key = localStorage.getItem(DART_KEY_STORAGE);
-  if (key) {
-    el.style.background = 'rgba(34,197,94,.12)';
-    el.style.color = 'var(--up)';
-    el.textContent = '✅ API 키 등록됨 — 한국 종목 DART 데이터 활성화';
-  } else {
-    el.style.background = 'rgba(255,200,0,.08)';
-    el.style.color = 'var(--yellow)';
-    el.textContent = '⚠️ API 키 미등록 — Yahoo Finance 데이터 사용';
-  }
-}
 
 // ══════════════════════════════════════════════════════
-//  DART API (한국 종목 전용)
+//  DART API — Vercel 서버리스 함수 프록시 경유 (키 노출 없음)
 // ══════════════════════════════════════════════════════
+// 로컬 개발: window.DART_PROXY_BASE = 'http://localhost:3000'  (선택)
+const DART_PROXY = (typeof window !== 'undefined' && window.DART_PROXY_BASE)
+  ? `${window.DART_PROXY_BASE}/api/dart`
+  : '/api/dart';
+
+async function dartFetch(path, params = {}) {
+  const url = new URL(DART_PROXY, location.href);
+  url.searchParams.set('path', path);
+  Object.entries(params).forEach(([k,v]) => { if (v != null) url.searchParams.set(k, v); });
+  const resp = await fetch(url.toString());
+  if (!resp.ok) throw new Error(`DART proxy ${resp.status}`);
+  return resp.json();
+}
+
 async function fetchDartData(ticker) {
-  const apiKey = localStorage.getItem(DART_KEY_STORAGE);
-  if (!apiKey) return null;
-
   // 6자리 종목코드 추출 (035420.KS → 035420)
   const stockCode = ticker.replace(/\.(KS|KQ)$/i, '');
   if (!/^\d{6}$/.test(stockCode)) return null;
 
-  const BASE = 'https://opendart.fss.or.kr/api';
-  const proxy = u => `https://corsproxy.io/?${encodeURIComponent(u)}`;
-
   try {
     // 1) 기업 기본정보 → corp_code 획득
-    const compResp = await fetch(proxy(`${BASE}/company.json?crtfc_key=${apiKey}&stock_code=${stockCode}`));
-    if (!compResp.ok) return null;
-    const compJson = await compResp.json();
-    if (compJson.status !== '000') return null;
-    const corp = compJson;
+    const corp = await dartFetch('company', { stock_code: stockCode });
+    if (corp.status !== '000') return null;
     const corpCode = corp.corp_code;
 
-    // 2) 최신 분기 재무 — 보고서 순서 시도 (1Q→반기→3Q→연간)
-    const now = new Date();
-    const year = now.getFullYear();
-    const reprtCodes = ['11013','11012','11014','11011']; // 1Q, 반기, 3Q, 사업보고서
+    // 2) 최신 분기 재무 (1Q → 반기 → 3Q → 연간 순 시도)
+    const year = new Date().getFullYear();
+    const reprtCodes = ['11013','11012','11014','11011'];
     let qFin = null;
     for (const reprt of reprtCodes) {
-      for (const y of [year, year-1]) {
+      for (const y of [year, year - 1]) {
         try {
-          const r = await fetch(proxy(`${BASE}/fnlttSinglAcnt.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${y}&reprt_code=${reprt}`));
-          if (!r.ok) continue;
-          const j = await r.json();
-          if (j.status === '000' && j.list?.length) {
-            qFin = { list: j.list, year: y, reprt };
-            break;
-          }
+          const j = await dartFetch('fnlttSinglAcnt', { corp_code: corpCode, bsns_year: y, reprt_code: reprt });
+          if (j.status === '000' && j.list?.length) { qFin = { list: j.list, year: y, reprt }; break; }
         } catch { continue; }
       }
       if (qFin) break;
     }
 
-    // 3) 최대주주 현황
-    let majorShareholders = [];
-    try {
-      const msResp = await fetch(proxy(`${BASE}/hyslrSttus.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
-      if (msResp.ok) {
-        const msJson = await msResp.json();
-        if (msJson.status === '000') majorShareholders = msJson.list || [];
-      }
-    } catch {}
+    // 3~5) 최대주주 / 임원 / 배당 병렬 조회
+    const [msJson, exJson, divJson] = await Promise.allSettled([
+      dartFetch('hyslrSttus', { corp_code: corpCode, bsns_year: year - 1, reprt_code: '11011' }),
+      dartFetch('exctvSttus',  { corp_code: corpCode, bsns_year: year - 1, reprt_code: '11011' }),
+      dartFetch('alotMatter',  { corp_code: corpCode, bsns_year: year - 1, reprt_code: '11011' }),
+    ]);
+    const majorShareholders = msJson.status === 'fulfilled' && msJson.value.status === '000' ? msJson.value.list || [] : [];
+    const executives        = exJson.status === 'fulfilled' && exJson.value.status === '000' ? exJson.value.list || [] : [];
+    const dividendInfo      = divJson.status === 'fulfilled' && divJson.value.status === '000' && divJson.value.list?.length ? divJson.value.list[0] : null;
 
-    // 4) 임원 현황 (CEO)
-    let executives = [];
-    try {
-      const exResp = await fetch(proxy(`${BASE}/exctvSttus.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
-      if (exResp.ok) {
-        const exJson = await exResp.json();
-        if (exJson.status === '000') executives = exJson.list || [];
-      }
-    } catch {}
-
-    // 5) 배당 현황
-    let dividendInfo = null;
-    try {
-      const divResp = await fetch(proxy(`${BASE}/alotMatter.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
-      if (divResp.ok) {
-        const divJson = await divResp.json();
-        if (divJson.status === '000' && divJson.list?.length) dividendInfo = divJson.list[0];
-      }
-    } catch {}
-
-    // 재무 데이터 파싱
-    const findAmt = (list, acntNm) => {
-      const row = list?.find(r => r.account_nm?.includes(acntNm) && r.fs_div === 'CFS') ||
-                  list?.find(r => r.account_nm?.includes(acntNm));
+    // 재무 파싱
+    const findAmt = (list, nm) => {
+      const row = list?.find(r => r.account_nm?.includes(nm) && r.fs_div === 'CFS') || list?.find(r => r.account_nm?.includes(nm));
       return row ? parseInt(row.thstrm_amount?.replace(/,/g,'') || '0') : null;
     };
-    const revenue        = findAmt(qFin?.list, '매출액') ?? findAmt(qFin?.list, '수익(매출액)');
-    const operatingProfit= findAmt(qFin?.list, '영업이익');
-    const netIncome      = findAmt(qFin?.list, '당기순이익');
-
-    // 부채비율 계산 (재무상태표 모듈이 없으므로 financialData에서 대체)
-    // CEO 추출
-    const ceo = executives.find(e => e.ofcps?.includes('대표') || e.ofcps?.includes('CEO'));
-    // 최대주주 Top3
-    const top3shareholders = majorShareholders.slice(0, 3).map(s => ({
-      name: s.nm, relation: s.relate, pct: s.trmend_posesn_stock_qota_rt
-    }));
-    // 배당 정보
-    const dartDividend = dividendInfo ? {
-      perShare: dividendInfo.one_shr_alot,
-      totalAmt: dividendInfo.alot_amount,
-      yield: dividendInfo.fdpp_alot
-    } : null;
-
-    // 보고서 유형 레이블
     const reprtLabel = { '11013':'1분기', '11012':'반기', '11014':'3분기', '11011':'연간' };
 
     return {
       corpCode, stockCode,
       companyName: corp.corp_name,
-      ceo: ceo?.nm || corp.ceo_nm || null,
-      industry: corp.induty_code || null,
+      ceo: executives.find(e => e.ofcps?.includes('대표') || e.ofcps?.includes('CEO'))?.nm || corp.ceo_nm || null,
       homepageUrl: corp.hm_url || null,
-      estDate: corp.est_dt || null,
-      qRevenue: revenue,
-      qOperatingIncome: operatingProfit,
-      qNetIncome: netIncome,
+      estDate:     corp.est_dt || null,
+      qRevenue:         findAmt(qFin?.list, '매출액') ?? findAmt(qFin?.list, '수익(매출액)'),
+      qOperatingIncome: findAmt(qFin?.list, '영업이익'),
+      qNetIncome:       findAmt(qFin?.list, '당기순이익'),
       qPeriodLabel: qFin ? `${qFin.year} ${reprtLabel[qFin.reprt] || ''}` : null,
-      top3shareholders,
-      dartDividend,
-      executives: executives.slice(0, 5).map(e => ({ name: e.nm, position: e.ofcps })),
+      top3shareholders: majorShareholders.slice(0,3).map(s => ({ name: s.nm, relation: s.relate, pct: s.trmend_posesn_stock_qota_rt })),
+      dartDividend: dividendInfo ? { perShare: dividendInfo.one_shr_alot, yield: dividendInfo.fdpp_alot } : null,
+      executives: executives.slice(0,5).map(e => ({ name: e.nm, position: e.ofcps })),
     };
   } catch(e) {
     console.warn('DART fetch failed:', e);
