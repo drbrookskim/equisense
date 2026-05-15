@@ -940,6 +940,43 @@
       <button style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer" onclick="closeSettings()">✕</button>
     </div>
 
+    <!-- ── X (Twitter) API ── -->
+    <div class="settings-section">
+      <div class="settings-label">𝕏 X API Bearer Token</div>
+      <div id="x-register-panel">
+        <input class="settings-input" id="x-token-input" type="password"
+          placeholder="Bearer Token (X Developer Portal)"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          oncopy="return false" oncut="return false" oncontextmenu="return false"/>
+        <input class="settings-input" id="x-token-pw" type="password"
+          placeholder="보호 비밀번호 설정 (6자 이상)"
+          autocomplete="new-password" style="margin-top:8px"
+          oncopy="return false" oncut="return false" oncontextmenu="return false"/>
+        <input class="settings-input" id="x-token-pw2" type="password"
+          placeholder="비밀번호 확인"
+          autocomplete="new-password" style="margin-top:8px"
+          oncopy="return false" oncut="return false" oncontextmenu="return false"/>
+        <div class="dart-status" id="x-register-status" style="margin-top:6px"></div>
+        <button class="settings-save" style="margin-top:10px" onclick="xTokenRegister()">암호화하여 저장</button>
+      </div>
+      <div id="x-unlock-panel" style="display:none">
+        <div class="dart-status" id="x-unlock-badge" style="margin-bottom:8px"></div>
+        <input class="settings-input" id="x-token-unlock-pw" type="password"
+          placeholder="비밀번호 입력"
+          autocomplete="current-password"
+          oncopy="return false" oncut="return false" oncontextmenu="return false"
+          onkeydown="if(event.key==='Enter')xTokenUnlock()"/>
+        <div class="dart-status" id="x-unlock-status" style="margin-top:6px"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="settings-save" onclick="xTokenUnlock()" style="flex:2">잠금해제</button>
+          <button onclick="xTokenReset()" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--down);cursor:pointer;font-size:0.85rem">초기화</button>
+        </div>
+      </div>
+      <div class="settings-hint" style="margin-top:8px">
+        무료 발급: <a href="https://developer.x.com/en/portal/dashboard" target="_blank">developer.x.com</a> → Project → App → Keys and Tokens → Bearer Token
+      </div>
+    </div>
+
     <!-- ── 테마 ── -->
     <div class="settings-section">
       <div class="settings-label">🎨 테마</div>
@@ -1058,17 +1095,127 @@ applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 
 // ── 모달 열기/닫기 ──
 function openSettings() {
-  // 현재 저장된 테마로 버튼 활성 상태 갱신
+  // 테마 버튼 활성 상태
   const cur = localStorage.getItem(THEME_KEY) || 'dark';
   ['dark','light','system'].forEach(t => {
     const b = document.getElementById(`theme-btn-${t}`);
     if (b) b.classList.toggle('active', t === cur);
   });
+  // X 토큰 패널 상태
+  const hasX = !!localStorage.getItem(X_ENC_STORAGE);
+  document.getElementById('x-register-panel').style.display = hasX ? 'none' : 'block';
+  document.getElementById('x-unlock-panel').style.display   = hasX ? 'block' : 'none';
+  if (!hasX) {
+    ['x-token-input','x-token-pw','x-token-pw2'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+    _setStatus('x-register-status','','');
+  } else {
+    const badge = document.getElementById('x-unlock-badge');
+    if (badge) {
+      const ok = !!_xTokenInMemory;
+      badge.style.background = ok ? 'rgba(34,197,94,.1)' : 'rgba(255,200,0,.08)';
+      badge.style.color = ok ? 'var(--up)' : 'var(--yellow)';
+      badge.textContent = ok ? '✅ 잠금해제됨 — X 심리 분석 활성화' : '🔒 잠겨 있음 — 비밀번호를 입력하세요';
+    }
+    const pw = document.getElementById('x-token-unlock-pw');
+    if (pw) { pw.value=''; setTimeout(()=>pw.focus(),120); }
+    _setStatus('x-unlock-status','','');
+  }
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings(e) {
   if (e && !e.target.classList.contains('settings-overlay')) return;
+  ['x-token-input','x-token-pw','x-token-pw2','x-token-unlock-pw'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
   document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+// ── AES-256-GCM 암호화 헬퍼 ──
+async function _deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:310000, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+async function _encrypt(plaintext, password) {
+  const enc  = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await _deriveKey(password, salt);
+  const ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(plaintext));
+  const buf  = new Uint8Array(16 + 12 + ct.byteLength);
+  buf.set(salt,0); buf.set(iv,16); buf.set(new Uint8Array(ct),28);
+  return btoa(String.fromCharCode(...buf));
+}
+async function _decrypt(b64, password) {
+  const buf  = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const salt = buf.slice(0,16), iv = buf.slice(16,28), ct = buf.slice(28);
+  const key  = await _deriveKey(password, salt);
+  const pt   = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct);
+  return new TextDecoder().decode(pt);
+}
+
+// ── X API Token 암호화 저장 ──
+const X_ENC_STORAGE = 'tsa_x_enc';
+let _xTokenInMemory = null;
+
+function _setStatus(elId, msg, type) {
+  const el = document.getElementById(elId); if (!el) return;
+  const styles = { ok:['rgba(34,197,94,.1)','var(--up)'], err:['rgba(239,68,68,.1)','var(--down)'], warn:['rgba(255,200,0,.08)','var(--yellow)'], '':['transparent','inherit'] };
+  const [bg,color] = styles[type]||styles[''];
+  el.style.background=bg; el.style.color=color; el.textContent=msg;
+}
+async function xTokenRegister() {
+  const token = document.getElementById('x-token-input').value.trim();
+  const pw    = document.getElementById('x-token-pw').value;
+  const pw2   = document.getElementById('x-token-pw2').value;
+  if (!token)        return _setStatus('x-register-status','⚠️ Bearer Token을 입력하세요.','warn');
+  if (pw.length < 6) return _setStatus('x-register-status','⚠️ 비밀번호는 6자 이상이어야 합니다.','warn');
+  if (pw !== pw2)    return _setStatus('x-register-status','⚠️ 비밀번호가 일치하지 않습니다.','err');
+  _setStatus('x-register-status','🔐 암호화 중…','warn');
+  try {
+    const enc = await _encrypt(token, pw);
+    localStorage.setItem(X_ENC_STORAGE, enc);
+    _xTokenInMemory = token;
+    ['x-token-input','x-token-pw','x-token-pw2'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+    _setStatus('x-register-status','✅ 저장 완료','ok');
+    setTimeout(()=>closeSettings(), 1200);
+  } catch(e) { _setStatus('x-register-status','❌ 오류: '+e.message,'err'); }
+}
+async function xTokenUnlock() {
+  const pw  = document.getElementById('x-token-unlock-pw').value;
+  const enc = localStorage.getItem(X_ENC_STORAGE);
+  if (!pw)  return _setStatus('x-unlock-status','⚠️ 비밀번호를 입력하세요.','warn');
+  if (!enc) return _setStatus('x-unlock-status','⚠️ 등록된 토큰이 없습니다.','warn');
+  _setStatus('x-unlock-status','🔓 복호화 중…','warn');
+  try {
+    _xTokenInMemory = await _decrypt(enc, pw);
+    document.getElementById('x-token-unlock-pw').value = '';
+    _setStatus('x-unlock-status','✅ 잠금해제 완료','ok');
+    setTimeout(()=>closeSettings(), 900);
+  } catch {
+    _xTokenInMemory = null;
+    _setStatus('x-unlock-status','❌ 비밀번호가 올바르지 않습니다.','err');
+  }
+}
+function xTokenReset() {
+  if (!confirm('X API Token을 삭제합니다. 계속하시겠습니까?')) return;
+  localStorage.removeItem(X_ENC_STORAGE);
+  _xTokenInMemory = null;
+  closeSettings();
+  setTimeout(()=>openSettings(), 150);
+}
+
+function switchSentimentTab(tab) {
+  const isNews = tab === 'news';
+  document.getElementById('stab-news-content').style.display = isNews ? 'block' : 'none';
+  document.getElementById('stab-x-content').style.display    = isNews ? 'none' : 'block';
+  const tn = document.getElementById('stab-news');
+  const tx = document.getElementById('stab-x');
+  if (tn) { tn.style.background = isNews?'var(--blue)':'var(--card2)'; tn.style.color = isNews?'#fff':'var(--muted)'; tn.style.fontWeight = isNews?'600':'400'; }
+  if (tx) { tx.style.background = isNews?'var(--card2)':'var(--blue)'; tx.style.color = isNews?'var(--muted)':'#fff'; tx.style.fontWeight = isNews?'400':'600'; }
 }
 
 function setTicker(t, el) {
@@ -1711,12 +1858,61 @@ async function fetchNewsSentiment(ticker, isKr) {
   return results;
 }
 
-function scoreSentiment(news) {
-  const POS = ['상승','급등','돌파','강세','매수','신고가','호실적','흑자','성장','개선','기대','낙관','beat','surge','rally','bullish','upgrade','record','growth','buy','strong'];
-  const NEG = ['하락','급락','저조','약세','매도','신저가','부진','적자','우려','위험','경고','실망','miss','drop','fall','bearish','downgrade','loss','weak','sell','concern','risk'];
+// ── X API v2 검색 (Bearer Token 필요) ──
+async function fetchXSentiment(ticker, companyName, isKr) {
+  if (!_xTokenInMemory) return null;
+  try {
+    const symbol   = ticker.replace(/\.(KS|KQ|T|L|HK)$/i,'');
+    const name     = (companyName || '').replace(/[^\w\s가-힣]/g,'').trim();
+    // 검색 쿼리: 티커 캐시태그 + 회사명 조합
+    const q = isKr
+      ? `(${name} OR $${symbol}) (주가 OR 매수 OR 매도 OR 상승 OR 하락 OR 실적 OR 전망) -is:reply lang:ko`
+      : `($${ticker} OR "${name}") (stock OR earnings OR bullish OR bearish OR buy OR sell) -is:reply lang:en`;
+
+    const params = new URLSearchParams({
+      query: q,
+      max_results: '15',
+      'tweet.fields': 'created_at,public_metrics,text',
+      'expansions': 'author_id',
+      'user.fields': 'username,name',
+      'sort_order': 'relevancy',
+    });
+    const apiUrl = `https://api.twitter.com/2/tweets/search/recent?${params}`;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+
+    const resp = await fetch(proxyUrl, {
+      headers: { 'Authorization': `Bearer ${_xTokenInMemory}`, 'x-cors-headers': JSON.stringify({ 'Authorization': `Bearer ${_xTokenInMemory}` }) }
+    });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    if (!json.data?.length) return null;
+
+    const usersMap = {};
+    (json.includes?.users||[]).forEach(u => { usersMap[u.id] = u; });
+
+    return json.data.map(t => ({
+      text:      t.text,
+      author:    usersMap[t.author_id]?.username || 'unknown',
+      authorName:usersMap[t.author_id]?.name || '',
+      createdAt: t.created_at,
+      likes:     t.public_metrics?.like_count || 0,
+      retweets:  t.public_metrics?.retweet_count || 0,
+      replies:   t.public_metrics?.reply_count || 0,
+      url:       `https://x.com/${usersMap[t.author_id]?.username||'i'}/status/${t.id}`,
+      source:    'X',
+    })).sort((a,b) => (b.likes + b.retweets*2) - (a.likes + a.retweets*2));
+  } catch(e) {
+    console.warn('X fetch failed:', e);
+    return null;
+  }
+}
+
+function scoreSentiment(items) {
+  const POS = ['상승','급등','돌파','강세','매수','신고가','호실적','흑자','성장','개선','기대','낙관','beat','surge','rally','bullish','upgrade','record','growth','buy','strong','soar','jump','rise','profit'];
+  const NEG = ['하락','급락','저조','약세','매도','신저가','부진','적자','우려','위험','경고','실망','miss','drop','fall','bearish','downgrade','loss','weak','sell','concern','risk','crash','plunge','decline'];
   let pos = 0, neg = 0;
-  for (const n of news) {
-    const t = (n.title || '').toLowerCase();
+  for (const n of items) {
+    const t = (n.title||n.text||'').toLowerCase();
     pos += POS.filter(w => t.includes(w)).length;
     neg += NEG.filter(w => t.includes(w)).length;
   }
@@ -2385,25 +2581,71 @@ async function runAnalysis() {
       waccResult,
     });
 
-    // 뉴스/심리 비동기 업데이트
-    fetchNewsSentiment(ticker, isKr).then(news => {
+    // 뉴스 + X 심리 병렬 비동기
+    const _cName = fundInfo.companyName || resolveTickerName(ticker) || ticker;
+    Promise.all([
+      fetchNewsSentiment(ticker, isKr),
+      fetchXSentiment(ticker, _cName, isKr),
+    ]).then(([news, xPosts]) => {
       const el = document.getElementById('news-sentiment-panel');
-      if (!el || !news.length) return;
-      const sent = scoreSentiment(news);
-      const fmt  = d => { try { return new Date(d).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}); } catch { return ''; } };
-      el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <span style="font-size:1.1rem">${sent.icon}</span>
-          <span style="font-size:0.85rem;font-weight:700;color:${sent.color}">${sent.label}</span>
-          <span style="font-size:0.72rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg} (뉴스 ${news.length}건)</span>
-        </div>
+      if (!el) return;
+      const hasNews = news?.length > 0;
+      const hasX    = xPosts?.length > 0;
+      if (!hasNews && !hasX) { el.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">뉴스 데이터를 불러올 수 없습니다.</div>'; return; }
+
+      const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}); } catch { return ''; } };
+      const allItems = [...(news||[]), ...(xPosts||[])];
+      const sent = scoreSentiment(allItems);
+
+      // 탭 구조
+      const newsTab = hasNews ? `
         <div style="display:flex;flex-direction:column;gap:5px">
-          ${news.map(n => `
-          <a href="${n.link}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 8px;background:var(--card2);border-radius:7px;text-decoration:none;border:1px solid var(--border)">
-            <span style="font-size:0.80rem;color:var(--text);line-height:1.4;flex:1">${n.title}</span>
+          ${news.map(n=>`
+          <a href="${n.link||'#'}" target="_blank" rel="noopener"
+             style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:7px 9px;background:var(--card2);border-radius:7px;text-decoration:none;border:1px solid var(--border)">
+            <span style="font-size:0.80rem;color:var(--text);line-height:1.45;flex:1">${n.title}</span>
             <span style="font-size:0.68rem;color:var(--muted);white-space:nowrap;margin-top:2px">${fmt(n.pubDate)}</span>
           </a>`).join('')}
-        </div>`;
+        </div>` : '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">뉴스 데이터 없음</div>';
+
+      const xTab = hasX ? `
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${xPosts.map(p=>{
+            const engColor = p.likes>50?'var(--up)':p.likes>10?'var(--yellow)':'var(--muted)';
+            const pSent = scoreSentiment([p]);
+            const badge = pSent.score>0.2?`<span style="font-size:0.65rem;color:var(--up);font-weight:600">▲긍정</span>`:pSent.score<-0.2?`<span style="font-size:0.65rem;color:var(--down);font-weight:600">▼부정</span>`:'' ;
+            return `
+            <a href="${p.url}" target="_blank" rel="noopener"
+               style="display:block;padding:8px 10px;background:var(--card2);border-radius:8px;text-decoration:none;border:1px solid var(--border)">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <span style="font-size:0.72rem;font-weight:700;color:var(--blue)">@${p.author}</span>
+                <span style="font-size:0.68rem;color:var(--muted)">${fmt(p.createdAt)}</span>
+                ${badge}
+                <span style="margin-left:auto;font-size:0.68rem;color:${engColor}">♥${p.likes} 🔁${p.retweets}</span>
+              </div>
+              <div style="font-size:0.78rem;color:var(--text);line-height:1.5;word-break:break-word">${p.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            </a>`;
+          }).join('')}
+        </div>` : `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">⚙️ 설정에서 X API Bearer Token을 등록하면 X 포스트 심리 분석이 활성화됩니다.</div>`;
+
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+          <span style="font-size:1.1rem">${sent.icon}</span>
+          <span style="font-size:0.88rem;font-weight:700;color:${sent.color}">종합 심리: ${sent.label}</span>
+          <span style="font-size:0.70rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg}</span>
+        </div>
+        <div style="display:flex;gap:0;margin-bottom:10px" id="sentiment-tabs">
+          <button onclick="switchSentimentTab('news')" id="stab-news"
+            style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px 0 0 6px;background:var(--blue);color:#fff;cursor:pointer;font-size:0.80rem;font-weight:600">
+            📰 뉴스 ${hasNews?`(${news.length}건)`:''}
+          </button>
+          <button onclick="switchSentimentTab('x')" id="stab-x"
+            style="flex:1;padding:6px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:var(--card2);color:var(--muted);cursor:pointer;font-size:0.80rem">
+            𝕏 포스트 ${hasX?`(${xPosts.length}건)`:''}
+          </button>
+        </div>
+        <div id="stab-news-content">${newsTab}</div>
+        <div id="stab-x-content" style="display:none">${xTab}</div>`;
     });
 
     // NXT 가격 비동기 업데이트 (한국 종목만)
