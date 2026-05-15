@@ -1576,6 +1576,7 @@ async function fetchFundamentals(ticker) {
     return {
       companyName:   r.quoteType?.longName || r.quoteType?.shortName || resolveTickerName(ticker) || ticker,
       sector:        r.assetProfile?.sector || '-',
+      industry:      r.assetProfile?.industry || '-',
       trailingPE:    g(r.summaryDetail,      'trailingPE'),
       priceToBook:   g(r.defaultKeyStatistics,'priceToBook'),
       returnOnEquity:g(r.financialData,      'returnOnEquity'),
@@ -1587,8 +1588,144 @@ async function fetchFundamentals(ticker) {
       dividendYield: g(r.summaryDetail,      'dividendYield'),
       institutionalPct: r.defaultKeyStatistics?.institutionsPercentHeld?.raw ?? null,
       insiderPct:       r.defaultKeyStatistics?.insidersPercentHeld?.raw ?? null,
+      // WACC 계산용 추가 필드
+      beta:             g(r.defaultKeyStatistics, 'beta'),
+      marketCap:        g(r.summaryDetail,         'marketCap'),
+      totalDebt:        g(r.financialData,         'totalDebt'),
+      ebitda:           g(r.financialData,         'ebitda'),
+      totalRevenue:     g(r.financialData,         'totalRevenue'),
+      operatingCashflow:g(r.financialData,         'operatingCashflow'),
+      taxRate:          g(r.defaultKeyStatistics,  'effectiveTaxRateAnnual') ??
+                        g(r.financialData,         'effectiveTaxRate') ?? null,
     };
   } catch(e) { return {}; }
+}
+
+// ══════════════════════════════════════════════════════
+//  WACC 계산 (섹터 조정 포함)
+// ══════════════════════════════════════════════════════
+function computeWACC(fundInfo, isKr) {
+  // ── 기준 파라미터 ──
+  const rfRate   = isKr ? 0.035 : 0.043;   // 무위험수익률: 한국 3.5% / 미국 4.3% (10yr)
+  const erp      = isKr ? 0.065 : 0.055;   // 시장위험프리미엄
+
+  // ── 섹터별 조정값 ──
+  const SECTOR_ADJ = {
+    'Technology':            { erpAdj: 0.010, sizeAdj: 0.005, label: 'IT/기술' },
+    'Healthcare':            { erpAdj: 0.008, sizeAdj: 0.005, label: '헬스케어' },
+    'Financial Services':    { erpAdj: 0.000, sizeAdj: 0.000, label: '금융' },
+    'Consumer Cyclical':     { erpAdj: 0.005, sizeAdj: 0.005, label: '경기소비재' },
+    'Consumer Defensive':    { erpAdj: -0.005,sizeAdj: 0.000, label: '필수소비재' },
+    'Industrials':           { erpAdj: 0.003, sizeAdj: 0.005, label: '산업재' },
+    'Energy':                { erpAdj: 0.010, sizeAdj: 0.005, label: '에너지' },
+    'Utilities':             { erpAdj: -0.010,sizeAdj: 0.000, label: '유틸리티' },
+    'Real Estate':           { erpAdj: -0.005,sizeAdj: 0.003, label: '부동산' },
+    'Basic Materials':       { erpAdj: 0.008, sizeAdj: 0.005, label: '소재' },
+    'Communication Services':{ erpAdj: 0.005, sizeAdj: 0.003, label: '통신서비스' },
+  };
+  const sector    = fundInfo.sector || '-';
+  const adj       = SECTOR_ADJ[sector] || { erpAdj: 0.005, sizeAdj: 0.003, label: sector };
+  const adjErp    = erp + adj.erpAdj;
+
+  // ── 베타 ──
+  const beta = (fundInfo.beta != null && fundInfo.beta > 0) ? fundInfo.beta : 1.0;
+  const betaAdj = isKr && fundInfo.beta == null ? 1.1 : beta; // KR 미제공 시 1.1 가정
+
+  // ── 자기자본비용 (CAPM + 섹터/규모 프리미엄) ──
+  const re = rfRate + betaAdj * adjErp + adj.sizeAdj;
+
+  // ── 타인자본비용 ──
+  const E  = fundInfo.marketCap  || 0;
+  const D  = fundInfo.totalDebt  || 0;
+  const V  = E + D || 1;
+  const deRatio = D / V;
+  const eRatio  = E / V;
+
+  // 부채비용: 이자보상비율로 추정 or 기본값
+  const ebitda   = fundInfo.ebitda || 0;
+  const interestCoverage = ebitda > 0 && D > 0 ? ebitda / (D * 0.05) : null;
+  let rd = 0.05;
+  if (interestCoverage != null) {
+    if (interestCoverage > 8)  rd = 0.030;
+    else if (interestCoverage > 4) rd = 0.040;
+    else if (interestCoverage > 2) rd = 0.055;
+    else rd = 0.075;
+  }
+  rd = isKr ? rd + 0.005 : rd;  // KR 가산금리
+
+  // ── 법인세율 ──
+  const tc = fundInfo.taxRate != null ? Math.min(Math.max(fundInfo.taxRate, 0), 0.45)
+           : (isKr ? 0.22 : 0.21);
+
+  // ── WACC ──
+  const wacc = eRatio * re + deRatio * rd * (1 - tc);
+
+  return {
+    wacc, re, rd, tc,
+    beta: betaAdj, rfRate, adjErp,
+    eRatio, deRatio,
+    sectorLabel: adj.label,
+    erpAdj: adj.erpAdj,
+    sizeAdj: adj.sizeAdj,
+    interestCoverage,
+  };
+}
+
+// ══════════════════════════════════════════════════════
+//  뉴스/심리 조회
+// ══════════════════════════════════════════════════════
+async function fetchNewsSentiment(ticker, isKr) {
+  const results = [];
+  try {
+    if (isKr) {
+      // 한국 종목: Yahoo Finance 뉴스 RSS
+      const code = ticker.replace(/\.(KS|KQ)$/i, '');
+      const rssUrl = `https://finance.yahoo.com/rss/headline?s=${ticker}`;
+      const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(rssUrl)}`);
+      if (r.ok) {
+        const txt = await r.text();
+        const items = [...txt.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+        for (const m of items.slice(0, 8)) {
+          const title   = (m[1].match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || m[1].match(/<title>(.*?)<\/title>/))?.[1] || '';
+          const link    = (m[1].match(/<link>(.*?)<\/link>/))?.[1] || '';
+          const pubDate = (m[1].match(/<pubDate>(.*?)<\/pubDate>/))?.[1] || '';
+          if (title) results.push({ title, link, pubDate, source: 'Yahoo Finance' });
+        }
+      }
+    } else {
+      // 미국 종목: Yahoo Finance RSS
+      const rssUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${ticker}&region=US&lang=en-US`;
+      const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(rssUrl)}`);
+      if (r.ok) {
+        const txt = await r.text();
+        const items = [...txt.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+        for (const m of items.slice(0, 8)) {
+          const title   = (m[1].match(/<title>(.*?)<\/title>/))?.[1]?.replace(/<!\[CDATA\[(.*?)\]\]>/, '$1') || '';
+          const link    = (m[1].match(/<link>(.*?)<\/link>/))?.[1] || '';
+          const pubDate = (m[1].match(/<pubDate>(.*?)<\/pubDate>/))?.[1] || '';
+          if (title) results.push({ title, link, pubDate, source: 'Yahoo Finance' });
+        }
+      }
+    }
+  } catch {}
+  return results;
+}
+
+function scoreSentiment(news) {
+  const POS = ['상승','급등','돌파','강세','매수','신고가','호실적','흑자','성장','개선','기대','낙관','beat','surge','rally','bullish','upgrade','record','growth','buy','strong'];
+  const NEG = ['하락','급락','저조','약세','매도','신저가','부진','적자','우려','위험','경고','실망','miss','drop','fall','bearish','downgrade','loss','weak','sell','concern','risk'];
+  let pos = 0, neg = 0;
+  for (const n of news) {
+    const t = (n.title || '').toLowerCase();
+    pos += POS.filter(w => t.includes(w)).length;
+    neg += NEG.filter(w => t.includes(w)).length;
+  }
+  const total = pos + neg || 1;
+  const score = (pos - neg) / total;
+  const label = score > 0.2 ? '긍정적' : score < -0.2 ? '부정적' : '중립';
+  const color = score > 0.2 ? 'var(--up)' : score < -0.2 ? 'var(--down)' : 'var(--yellow)';
+  const icon  = score > 0.2 ? '📈' : score < -0.2 ? '📉' : '➡️';
+  return { score, label, color, icon, pos, neg };
 }
 
 // ══════════════════════════════════════════════════════
@@ -2236,6 +2373,8 @@ async function runAnalysis() {
       sessionStorage.setItem('last_style',   document.getElementById('style-select').value);
     } catch(e) {}
 
+    const waccResult = computeWACC(fundInfo, isKr);
+
     renderDashboard({
       ticker, bars, ind, tech, fund, decision, price, isKr, currency,
       companyName: fundInfo.companyName || quote?.longName || quote?.shortName || resolveTickerName(ticker) || ticker,
@@ -2243,6 +2382,28 @@ async function runAnalysis() {
       changeAmt, changePct, high52w, low52w, mktState, updatedAt,
       fundInfo, cs, ew, ichi, smc, quant, advanced,
       exchangeName: quote?.fullExchangeName || quote?.exchange || '',
+      waccResult,
+    });
+
+    // 뉴스/심리 비동기 업데이트
+    fetchNewsSentiment(ticker, isKr).then(news => {
+      const el = document.getElementById('news-sentiment-panel');
+      if (!el || !news.length) return;
+      const sent = scoreSentiment(news);
+      const fmt  = d => { try { return new Date(d).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}); } catch { return ''; } };
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:1.1rem">${sent.icon}</span>
+          <span style="font-size:0.85rem;font-weight:700;color:${sent.color}">${sent.label}</span>
+          <span style="font-size:0.72rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg} (뉴스 ${news.length}건)</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          ${news.map(n => `
+          <a href="${n.link}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 8px;background:var(--card2);border-radius:7px;text-decoration:none;border:1px solid var(--border)">
+            <span style="font-size:0.80rem;color:var(--text);line-height:1.4;flex:1">${n.title}</span>
+            <span style="font-size:0.68rem;color:var(--muted);white-space:nowrap;margin-top:2px">${fmt(n.pubDate)}</span>
+          </a>`).join('')}
+        </div>`;
     });
 
     // NXT 가격 비동기 업데이트 (한국 종목만)
@@ -2301,7 +2462,7 @@ function guessExchange(ticker) {
 
 function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency,
     companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt, fundInfo,
-    cs, ew, ichi, smc, quant, advanced, exchangeName }) {
+    cs, ew, ichi, smc, quant, advanced, exchangeName, waccResult }) {
   const flag      = isKr ? '🇰🇷' : '🇺🇸';
   const badgeCls  = {BUY:'buy',SELL:'sell',HOLD:'hold'}[d.action]||'hold';
   const badgeLbl  = {BUY:'● 매수 BUY',SELL:'● 매도 SELL',HOLD:'● 관망 HOLD'}[d.action];
@@ -2564,6 +2725,54 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-', '', TIPS.divYield.title, TIPS.divYield.body)}
       ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--up)':'var(--down)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
     </div>
+  </div>
+
+  <!-- ── WACC + 뉴스 심리 행 ── -->
+  <div class="row row-bottom" style="margin-top:0">
+
+    <!-- WACC 카드 -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>WACC 할인율 분석
+        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">${waccResult.sectorLabel} 섹터 조정</span>
+      </div>
+      <div style="text-align:center;padding:10px 0 6px">
+        <div style="font-size:2rem;font-weight:800;color:var(--blue)">${(waccResult.wacc*100).toFixed(2)}%</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:2px">가중평균자본비용 (WACC)</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+        <div class="mini-card" style="padding:8px 10px">
+          <div class="label">자기자본비용 (Re)</div>
+          <div style="font-weight:700;font-size:0.95rem;color:var(--up)">${(waccResult.re*100).toFixed(2)}%</div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">비중 ${(waccResult.eRatio*100).toFixed(0)}%</div>
+        </div>
+        <div class="mini-card" style="padding:8px 10px">
+          <div class="label">타인자본비용 (Rd)</div>
+          <div style="font-weight:700;font-size:0.95rem;color:var(--down)">${(waccResult.rd*100).toFixed(2)}%</div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">비중 ${(waccResult.deRatio*100).toFixed(0)}% · 세후</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:0.73rem;color:var(--muted);line-height:1.8;border-top:1px solid var(--border);padding-top:8px">
+        <div style="display:flex;justify-content:space-between"><span>무위험수익률 (Rf)</span><span style="color:var(--text2)">${(waccResult.rfRate*100).toFixed(1)}%</span></div>
+        <div style="display:flex;justify-content:space-between"><span>베타 (β)</span><span style="color:var(--text2)">${waccResult.beta.toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>시장위험프리미엄 (ERP)</span><span style="color:var(--text2)">${(waccResult.adjErp*100).toFixed(1)}% <span style="color:var(--muted)">(섹터조정 ${waccResult.erpAdj>=0?'+':''}${(waccResult.erpAdj*100).toFixed(1)}%)</span></span></div>
+        <div style="display:flex;justify-content:space-between"><span>법인세율 (Tc)</span><span style="color:var(--text2)">${(waccResult.tc*100).toFixed(0)}%</span></div>
+        ${waccResult.interestCoverage!=null?`<div style="display:flex;justify-content:space-between"><span>이자보상배율</span><span style="color:var(--text2)">${waccResult.interestCoverage.toFixed(1)}x</span></div>`:''}
+      </div>
+      <div style="margin-top:8px;font-size:0.68rem;color:var(--muted);padding:6px 8px;background:rgba(255,200,0,.06);border-radius:6px">
+        💡 WACC = Re×E/V + Rd×D/V×(1−Tc) · CAPM 기반 · ${isKr?'한국':'미국'} 시장 기준
+      </div>
+    </div>
+
+    <!-- 뉴스 & 시장 심리 카드 -->
+    <div class="card">
+      <div class="card-header"><span class="dot" style="background:var(--purple)"></span>뉴스 & 시장 심리
+        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">Yahoo Finance 최신 헤드라인</span>
+      </div>
+      <div id="news-sentiment-panel" style="margin-top:6px">
+        <div style="color:var(--muted);font-size:0.8rem;padding:12px 0;text-align:center">뉴스 조회 중…</div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ── Row 4: 차트 (최하단) ── -->
