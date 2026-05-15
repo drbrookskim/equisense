@@ -236,6 +236,53 @@
     transition: background .15s, border-color .15s;
   }
   .btn-theme:hover { border-color: var(--blue); }
+  .btn-settings {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: background .15s, border-color .15s;
+    color: var(--text);
+  }
+  .btn-settings:hover { border-color: var(--blue); }
+  /* 설정 모달 */
+  .settings-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.55); z-index: 2000;
+    align-items: center; justify-content: center;
+  }
+  .settings-overlay.open { display: flex; }
+  .settings-modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px 32px; width: min(480px,92vw);
+    max-height: 85vh; overflow-y: auto;
+    animation: modalIn .18s ease;
+  }
+  .settings-title { font-size: 1.08rem; font-weight: 700; margin-bottom: 20px; }
+  .settings-section { margin-bottom: 22px; }
+  .settings-label { font-size: 0.76rem; color: var(--muted); font-weight: 600; margin-bottom: 6px; letter-spacing: .04em; text-transform: uppercase; }
+  .settings-input {
+    width: 100%; box-sizing: border-box;
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px;
+    color: var(--text); font-size: 0.88rem;
+    outline: none; transition: border-color .15s;
+  }
+  .settings-input:focus { border-color: var(--blue); }
+  .settings-hint { font-size: 0.72rem; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+  .settings-hint a { color: var(--blue); text-decoration: none; }
+  .settings-hint a:hover { text-decoration: underline; }
+  .settings-save {
+    width: 100%; padding: 10px; border-radius: 8px;
+    background: var(--blue); color: #fff; border: none;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    transition: opacity .15s;
+  }
+  .settings-save:hover { opacity: .85; }
+  .dart-status { font-size: 0.78rem; margin-top: 8px; padding: 6px 10px; border-radius: 6px; }
   .search-wrap {
     max-width: 1300px;
     margin: 32px auto 24px;
@@ -870,9 +917,30 @@
   </div>
   <div class="topbar-right">
     <span class="pill">Serverless Stock Analysis</span>
+    <button class="btn-settings" onclick="openSettings()" title="설정">⚙️</button>
     <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
   </div>
 </header>
+
+<!-- 설정 모달 -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings(event)">
+  <div class="settings-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div class="settings-title">⚙️ 설정</div>
+      <button style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-label">🏛️ DART API 키 (한국 종목 재무/공시)</div>
+      <input class="settings-input" id="dart-key-input" type="password" placeholder="발급받은 DART API 인증키 입력" autocomplete="off" />
+      <div class="dart-status" id="dart-key-status"></div>
+      <div class="settings-hint">
+        DART(금융감독원 전자공시) API 키를 입력하면 한국 종목의 분기 실적·최대주주·임원 정보를 정확하게 조회합니다.<br>
+        무료 발급: <a href="https://opendart.fss.or.kr/" target="_blank">opendart.fss.or.kr</a> → 인증키 신청/관리
+      </div>
+    </div>
+    <button class="settings-save" onclick="saveSettings()">저장</button>
+  </div>
+</div>
 
 <div class="search-wrap">
   <div class="search-outer">
@@ -973,6 +1041,165 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 
 // 저장된 테마 복원
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+
+// ══════════════════════════════════════════════════════
+//  설정 모달
+// ══════════════════════════════════════════════════════
+const DART_KEY_STORAGE = 'tsa_dart_api_key';
+
+function openSettings() {
+  const overlay = document.getElementById('settingsOverlay');
+  const input   = document.getElementById('dart-key-input');
+  if (input) input.value = localStorage.getItem(DART_KEY_STORAGE) || '';
+  updateDartKeyStatus();
+  overlay.classList.add('open');
+}
+function closeSettings(e) {
+  if (e && !e.target.classList.contains('settings-overlay')) return;
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+function saveSettings() {
+  const key = document.getElementById('dart-key-input').value.trim();
+  if (key) localStorage.setItem(DART_KEY_STORAGE, key);
+  else localStorage.removeItem(DART_KEY_STORAGE);
+  updateDartKeyStatus();
+  setTimeout(() => document.getElementById('settingsOverlay').classList.remove('open'), 600);
+}
+function updateDartKeyStatus() {
+  const el = document.getElementById('dart-key-status');
+  if (!el) return;
+  const key = localStorage.getItem(DART_KEY_STORAGE);
+  if (key) {
+    el.style.background = 'rgba(34,197,94,.12)';
+    el.style.color = 'var(--up)';
+    el.textContent = '✅ API 키 등록됨 — 한국 종목 DART 데이터 활성화';
+  } else {
+    el.style.background = 'rgba(255,200,0,.08)';
+    el.style.color = 'var(--yellow)';
+    el.textContent = '⚠️ API 키 미등록 — Yahoo Finance 데이터 사용';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  DART API (한국 종목 전용)
+// ══════════════════════════════════════════════════════
+async function fetchDartData(ticker) {
+  const apiKey = localStorage.getItem(DART_KEY_STORAGE);
+  if (!apiKey) return null;
+
+  // 6자리 종목코드 추출 (035420.KS → 035420)
+  const stockCode = ticker.replace(/\.(KS|KQ)$/i, '');
+  if (!/^\d{6}$/.test(stockCode)) return null;
+
+  const BASE = 'https://opendart.fss.or.kr/api';
+  const proxy = u => `https://corsproxy.io/?${encodeURIComponent(u)}`;
+
+  try {
+    // 1) 기업 기본정보 → corp_code 획득
+    const compResp = await fetch(proxy(`${BASE}/company.json?crtfc_key=${apiKey}&stock_code=${stockCode}`));
+    if (!compResp.ok) return null;
+    const compJson = await compResp.json();
+    if (compJson.status !== '000') return null;
+    const corp = compJson;
+    const corpCode = corp.corp_code;
+
+    // 2) 최신 분기 재무 — 보고서 순서 시도 (1Q→반기→3Q→연간)
+    const now = new Date();
+    const year = now.getFullYear();
+    const reprtCodes = ['11013','11012','11014','11011']; // 1Q, 반기, 3Q, 사업보고서
+    let qFin = null;
+    for (const reprt of reprtCodes) {
+      for (const y of [year, year-1]) {
+        try {
+          const r = await fetch(proxy(`${BASE}/fnlttSinglAcnt.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${y}&reprt_code=${reprt}`));
+          if (!r.ok) continue;
+          const j = await r.json();
+          if (j.status === '000' && j.list?.length) {
+            qFin = { list: j.list, year: y, reprt };
+            break;
+          }
+        } catch { continue; }
+      }
+      if (qFin) break;
+    }
+
+    // 3) 최대주주 현황
+    let majorShareholders = [];
+    try {
+      const msResp = await fetch(proxy(`${BASE}/hyslrSttus.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
+      if (msResp.ok) {
+        const msJson = await msResp.json();
+        if (msJson.status === '000') majorShareholders = msJson.list || [];
+      }
+    } catch {}
+
+    // 4) 임원 현황 (CEO)
+    let executives = [];
+    try {
+      const exResp = await fetch(proxy(`${BASE}/exctvSttus.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
+      if (exResp.ok) {
+        const exJson = await exResp.json();
+        if (exJson.status === '000') executives = exJson.list || [];
+      }
+    } catch {}
+
+    // 5) 배당 현황
+    let dividendInfo = null;
+    try {
+      const divResp = await fetch(proxy(`${BASE}/alotMatter.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
+      if (divResp.ok) {
+        const divJson = await divResp.json();
+        if (divJson.status === '000' && divJson.list?.length) dividendInfo = divJson.list[0];
+      }
+    } catch {}
+
+    // 재무 데이터 파싱
+    const findAmt = (list, acntNm) => {
+      const row = list?.find(r => r.account_nm?.includes(acntNm) && r.fs_div === 'CFS') ||
+                  list?.find(r => r.account_nm?.includes(acntNm));
+      return row ? parseInt(row.thstrm_amount?.replace(/,/g,'') || '0') : null;
+    };
+    const revenue        = findAmt(qFin?.list, '매출액') ?? findAmt(qFin?.list, '수익(매출액)');
+    const operatingProfit= findAmt(qFin?.list, '영업이익');
+    const netIncome      = findAmt(qFin?.list, '당기순이익');
+
+    // 부채비율 계산 (재무상태표 모듈이 없으므로 financialData에서 대체)
+    // CEO 추출
+    const ceo = executives.find(e => e.ofcps?.includes('대표') || e.ofcps?.includes('CEO'));
+    // 최대주주 Top3
+    const top3shareholders = majorShareholders.slice(0, 3).map(s => ({
+      name: s.nm, relation: s.relate, pct: s.trmend_posesn_stock_qota_rt
+    }));
+    // 배당 정보
+    const dartDividend = dividendInfo ? {
+      perShare: dividendInfo.one_shr_alot,
+      totalAmt: dividendInfo.alot_amount,
+      yield: dividendInfo.fdpp_alot
+    } : null;
+
+    // 보고서 유형 레이블
+    const reprtLabel = { '11013':'1분기', '11012':'반기', '11014':'3분기', '11011':'연간' };
+
+    return {
+      corpCode, stockCode,
+      companyName: corp.corp_name,
+      ceo: ceo?.nm || corp.ceo_nm || null,
+      industry: corp.induty_code || null,
+      homepageUrl: corp.hm_url || null,
+      estDate: corp.est_dt || null,
+      qRevenue: revenue,
+      qOperatingIncome: operatingProfit,
+      qNetIncome: netIncome,
+      qPeriodLabel: qFin ? `${qFin.year} ${reprtLabel[qFin.reprt] || ''}` : null,
+      top3shareholders,
+      dartDividend,
+      executives: executives.slice(0, 5).map(e => ({ name: e.nm, position: e.ofcps })),
+    };
+  } catch(e) {
+    console.warn('DART fetch failed:', e);
+    return null;
+  }
+}
 
 function setTicker(t, el) {
   document.getElementById('ticker-input').value = t;
@@ -2139,11 +2366,23 @@ async function runAnalysis() {
   dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${tickerLabel} 데이터 수집 중…</div></div>`;
 
   try {
-    const [ohlcvData, fundInfo, quote] = await Promise.all([
+    const isKrTicker = /\.(KS|KQ)$/i.test(ticker);
+    const [ohlcvData, fundInfo, quote, dartData] = await Promise.all([
       fetchOHLCV(ticker, period),
       fetchFundamentals(ticker),
       fetchQuote(ticker),
+      isKrTicker ? fetchDartData(ticker) : Promise.resolve(null),
     ]);
+
+    // DART 데이터로 fundInfo 보강 (한국 종목이고 DART 응답 성공 시)
+    if (dartData) {
+      if (dartData.qRevenue        != null) fundInfo.qRevenue         = dartData.qRevenue;
+      if (dartData.qOperatingIncome!= null) fundInfo.qOperatingIncome = dartData.qOperatingIncome;
+      if (dartData.qNetIncome      != null) fundInfo.qNetIncome       = dartData.qNetIncome;
+      if (dartData.qPeriodLabel)            fundInfo.qEndDate         = dartData.qPeriodLabel;
+      if (dartData.companyName)             fundInfo.companyName      = dartData.companyName;
+      fundInfo.dartData = dartData; // 추가 공시 정보 전달
+    }
 
     const { bars, currency, regularMarketPrice, previousClose, marketState, dataUpdatedAt } = ohlcvData;
 
@@ -2544,23 +2783,94 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--up)':'var(--down)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
     </div>
     <div class="card" style="grid-column:1/-1">
-      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>직전분기 실적${fundInfo.qEndDate ? `<span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:6px">${fundInfo.qEndDate} 기준</span>` : ''}</div>
+      <div class="card-header">
+        <span class="dot" style="background:var(--yellow)"></span>직전분기 실적
+        ${fundInfo.qEndDate ? `<span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:6px">${fundInfo.qEndDate} 기준</span>` : ''}
+        ${fundInfo.dartData ? `<span style="font-size:0.62rem;color:var(--blue);font-weight:500;margin-left:6px">📋 DART</span>` : ''}
+      </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
-        <div class="mini-card" style="text-align:center">
-          <div class="label">매출액</div>
-          <div class="num-sm" style="font-size:1.05rem">${fundInfo.qRevenue!=null ? (isKr ? (Math.abs(fundInfo.qRevenue)>=1e12 ? (fundInfo.qRevenue/1e12).toFixed(1)+'조' : Math.round(fundInfo.qRevenue/1e8)+'억') : (Math.abs(fundInfo.qRevenue)>=1e9 ? (fundInfo.qRevenue/1e9).toFixed(2)+'B' : (fundInfo.qRevenue/1e6).toFixed(0)+'M')) : '-'}</div>
-        </div>
-        <div class="mini-card" style="text-align:center">
-          <div class="label">영업이익</div>
-          <div class="num-sm" style="font-size:1.05rem;color:${fundInfo.qOperatingIncome!=null?(fundInfo.qOperatingIncome>=0?'var(--up)':'var(--down)'):'inherit'}">${fundInfo.qOperatingIncome!=null ? (isKr ? (Math.abs(fundInfo.qOperatingIncome)>=1e12 ? (fundInfo.qOperatingIncome/1e12).toFixed(1)+'조' : Math.round(fundInfo.qOperatingIncome/1e8)+'억') : (Math.abs(fundInfo.qOperatingIncome)>=1e9 ? (fundInfo.qOperatingIncome/1e9).toFixed(2)+'B' : (fundInfo.qOperatingIncome/1e6).toFixed(0)+'M')) : '-'}</div>
-        </div>
-        <div class="mini-card" style="text-align:center">
-          <div class="label">순이익</div>
-          <div class="num-sm" style="font-size:1.05rem;color:${fundInfo.qNetIncome!=null?(fundInfo.qNetIncome>=0?'var(--up)':'var(--down)'):'inherit'}">${fundInfo.qNetIncome!=null ? (isKr ? (Math.abs(fundInfo.qNetIncome)>=1e12 ? (fundInfo.qNetIncome/1e12).toFixed(1)+'조' : Math.round(fundInfo.qNetIncome/1e8)+'억') : (Math.abs(fundInfo.qNetIncome)>=1e9 ? (fundInfo.qNetIncome/1e9).toFixed(2)+'B' : (fundInfo.qNetIncome/1e6).toFixed(0)+'M')) : '-'}</div>
-        </div>
+        ${(()=>{
+          const fmtKrw = v => v==null?'-': Math.abs(v)>=1e12?(v/1e12).toFixed(1)+'조':Math.round(v/1e8)+'억';
+          const fmtUsd = v => v==null?'-': Math.abs(v)>=1e9?(v/1e9).toFixed(2)+'B':(v/1e6).toFixed(0)+'M';
+          const fmtAmt = v => v==null?'-': isKr?fmtKrw(v):fmtUsd(v);
+          const opColor = v => v==null?'inherit':v>=0?'var(--up)':'var(--down)';
+          const opMgn = (op,rev) => (op!=null&&rev!=null&&rev!==0)?((op/rev)*100).toFixed(1)+'%':'-';
+          return `
+          <div class="mini-card" style="text-align:center">
+            <div class="label">매출액</div>
+            <div class="num-sm" style="font-size:1.05rem">${fmtAmt(fundInfo.qRevenue)}</div>
+          </div>
+          <div class="mini-card" style="text-align:center">
+            <div class="label">영업이익 <span style="font-size:0.68rem;color:var(--muted)">(이익률 ${opMgn(fundInfo.qOperatingIncome,fundInfo.qRevenue)})</span></div>
+            <div class="num-sm" style="font-size:1.05rem;color:${opColor(fundInfo.qOperatingIncome)}">${fmtAmt(fundInfo.qOperatingIncome)}</div>
+          </div>
+          <div class="mini-card" style="text-align:center">
+            <div class="label">순이익</div>
+            <div class="num-sm" style="font-size:1.05rem;color:${opColor(fundInfo.qNetIncome)}">${fmtAmt(fundInfo.qNetIncome)}</div>
+          </div>`;
+        })()}
       </div>
     </div>
   </div>
+
+  <!-- ── DART 공시 정보 (한국 종목 + DART 키 있을 때) ── -->
+  ${isKr && fundInfo.dartData ? `
+  <div class="row" style="margin-top:0">
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-header">
+        <span class="dot" style="background:var(--blue)"></span>DART 공시 정보
+        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">금융감독원 전자공시</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:10px">
+        ${fundInfo.dartData.ceo ? `
+        <div class="mini-card">
+          <div class="label">대표이사 (CEO)</div>
+          <div style="font-size:0.92rem;font-weight:600;margin-top:4px">${fundInfo.dartData.ceo}</div>
+        </div>` : ''}
+        ${fundInfo.dartData.estDate ? `
+        <div class="mini-card">
+          <div class="label">설립일</div>
+          <div style="font-size:0.92rem;font-weight:600;margin-top:4px">${fundInfo.dartData.estDate.replace(/(\d{4})(\d{2})(\d{2})/,'$1.$2.$3')}</div>
+        </div>` : ''}
+        ${fundInfo.dartData.homepageUrl ? `
+        <div class="mini-card">
+          <div class="label">홈페이지</div>
+          <div style="font-size:0.82rem;margin-top:4px;word-break:break-all"><a href="${fundInfo.dartData.homepageUrl.startsWith('http')?fundInfo.dartData.homepageUrl:'http://'+fundInfo.dartData.homepageUrl}" target="_blank" style="color:var(--blue);text-decoration:none">${fundInfo.dartData.homepageUrl}</a></div>
+        </div>` : ''}
+        ${fundInfo.dartData.dartDividend ? `
+        <div class="mini-card">
+          <div class="label">주당 배당금</div>
+          <div style="font-size:0.92rem;font-weight:600;margin-top:4px;color:var(--up)">${fundInfo.dartData.dartDividend.perShare ? Number(fundInfo.dartData.dartDividend.perShare).toLocaleString()+'원' : '-'}</div>
+          ${fundInfo.dartData.dartDividend.yield ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">배당수익률 ${fundInfo.dartData.dartDividend.yield}</div>` : ''}
+        </div>` : ''}
+      </div>
+      ${fundInfo.dartData.top3shareholders?.length ? `
+      <div style="margin-top:12px">
+        <div style="font-size:0.72rem;color:var(--muted);font-weight:600;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase">최대주주 현황</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${fundInfo.dartData.top3shareholders.map((s,i) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--card2);border-radius:6px">
+            <div>
+              <span style="font-size:0.72rem;color:var(--muted);margin-right:6px">${i+1}</span>
+              <span style="font-size:0.86rem;font-weight:600">${s.name}</span>
+              ${s.relation?`<span style="font-size:0.7rem;color:var(--muted);margin-left:6px">${s.relation}</span>`:''}
+            </div>
+            <span style="font-size:0.9rem;font-weight:700;color:var(--blue)">${s.pct?s.pct+'%':'-'}</span>
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+      ${fundInfo.dartData.executives?.length ? `
+      <div style="margin-top:12px">
+        <div style="font-size:0.72rem;color:var(--muted);font-weight:600;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase">임원 현황</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${fundInfo.dartData.executives.map(e => `
+          <div style="padding:4px 10px;background:var(--card2);border-radius:20px;font-size:0.78rem">
+            <span style="color:var(--muted);margin-right:4px">${e.position||''}</span><span style="font-weight:600">${e.name}</span>
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>
+  </div>` : ''}
 
   <!-- ── 투자자별 동향 (한국 종목) ── -->
   ${isKr ? `
