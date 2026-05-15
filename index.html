@@ -282,6 +282,18 @@
     transition: opacity .15s;
   }
   .settings-save:hover { opacity: .85; }
+  .theme-opt-btn {
+    flex: 1; padding: 9px 6px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--card2);
+    color: var(--muted); cursor: pointer; font-size: 0.85rem;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .theme-opt-btn:hover { border-color: var(--blue); color: var(--text); }
+  .theme-opt-btn.active {
+    border-color: var(--blue); background: rgba(59,130,246,.15);
+    color: var(--text); font-weight: 600;
+    box-shadow: 0 0 0 1px var(--blue);
+  }
   .search-wrap {
     max-width: 1300px;
     margin: 32px auto 24px;
@@ -932,9 +944,9 @@
     <div class="settings-section">
       <div class="settings-label">🎨 테마</div>
       <div style="display:flex;gap:8px;margin-top:4px">
-        <button onclick="applyTheme('dark');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🌙 다크</button>
-        <button onclick="applyTheme('light');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🌞 라이트</button>
-        <button onclick="applyTheme('system');closeSettings()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font-size:0.85rem">🖥️ 시스템</button>
+        <button id="theme-btn-dark"   onclick="applyTheme('dark')"   class="theme-opt-btn">🌙 다크</button>
+        <button id="theme-btn-light"  onclick="applyTheme('light')"  class="theme-opt-btn">🌞 라이트</button>
+        <button id="theme-btn-system" onclick="applyTheme('system')" class="theme-opt-btn">🖥️ 시스템</button>
       </div>
     </div>
   </div>
@@ -1018,12 +1030,12 @@ function applyTheme(theme) {
     ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
     : theme;
   document.documentElement.classList.toggle('light', resolved === 'light');
-  const btn = document.getElementById('theme-btn');
-  if (btn) {
-    btn.textContent = THEME_ICONS[theme] || '🌙';
-    btn.title = theme === 'dark' ? '다크 모드' : theme === 'light' ? '라이트 모드' : '시스템 설정';
-  }
   localStorage.setItem(THEME_KEY, theme);
+  // 설정 모달 버튼 활성 상태 반영
+  ['dark','light','system'].forEach(t => {
+    const b = document.getElementById(`theme-btn-${t}`);
+    if (b) b.classList.toggle('active', t === theme);
+  });
 }
 
 function toggleTheme() {
@@ -1046,6 +1058,12 @@ applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 
 // ── 모달 열기/닫기 ──
 function openSettings() {
+  // 현재 저장된 테마로 버튼 활성 상태 갱신
+  const cur = localStorage.getItem(THEME_KEY) || 'dark';
+  ['dark','light','system'].forEach(t => {
+    const b = document.getElementById(`theme-btn-${t}`);
+    if (b) b.classList.toggle('active', t === cur);
+  });
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings(e) {
