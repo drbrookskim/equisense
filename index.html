@@ -282,7 +282,6 @@
     transition: opacity .15s;
   }
   .settings-save:hover { opacity: .85; }
-  .dart-status { font-size: 0.78rem; margin-top: 8px; padding: 6px 10px; border-radius: 6px; }
   .search-wrap {
     max-width: 1300px;
     margin: 32px auto 24px;
@@ -930,48 +929,6 @@
       <button style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer" onclick="closeSettings()">✕</button>
     </div>
 
-    <!-- ── 최초 등록 패널 (API 키 미등록 시) ── -->
-    <div id="dart-register-panel" class="settings-section" style="display:none">
-      <div class="settings-label">🏛️ DART API 키 등록 (최초 1회)</div>
-      <input class="settings-input" id="dart-key-input" type="password"
-        placeholder="DART API 인증키"
-        autocomplete="off" autocorrect="off" spellcheck="false"
-        oncopy="return false" oncut="return false" oncontextmenu="return false" />
-      <input class="settings-input" id="dart-pw-register" type="password"
-        placeholder="보호 비밀번호 설정"
-        autocomplete="new-password"
-        style="margin-top:8px"
-        oncopy="return false" oncut="return false" oncontextmenu="return false" />
-      <input class="settings-input" id="dart-pw-confirm" type="password"
-        placeholder="비밀번호 확인"
-        autocomplete="new-password"
-        style="margin-top:8px"
-        oncopy="return false" oncut="return false" oncontextmenu="return false" />
-      <div class="dart-status" id="dart-register-status"></div>
-      <div class="settings-hint">
-        API 키는 비밀번호로 암호화되어 저장됩니다. 저장 후 키는 다시 볼 수 없습니다.<br>
-        무료 발급: <a href="https://opendart.fss.or.kr/" target="_blank">opendart.fss.or.kr</a> → 인증키 신청/관리
-      </div>
-      <button class="settings-save" style="margin-top:14px" onclick="dartRegister()">암호화하여 저장</button>
-    </div>
-
-    <!-- ── 잠금해제 패널 (API 키 등록 후) ── -->
-    <div id="dart-unlock-panel" class="settings-section" style="display:none">
-      <div class="settings-label">🔒 DART API 키 잠금해제</div>
-      <div class="dart-status" id="dart-unlock-badge" style="margin-bottom:10px"></div>
-      <input class="settings-input" id="dart-pw-unlock" type="password"
-        placeholder="비밀번호 입력"
-        autocomplete="current-password"
-        oncopy="return false" oncut="return false" oncontextmenu="return false"
-        onkeydown="if(event.key==='Enter')dartUnlock()" />
-      <div class="dart-status" id="dart-unlock-status" style="margin-top:6px"></div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="settings-save" onclick="dartUnlock()" style="flex:2">잠금해제</button>
-        <button onclick="dartReset()" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--down);cursor:pointer;font-size:0.85rem">초기화</button>
-      </div>
-      <div class="settings-hint" style="margin-top:10px">비밀번호를 분실하면 초기화 후 재등록해야 합니다.</div>
-    </div>
-
     <!-- ── 테마 ── -->
     <div class="settings-section">
       <div class="settings-label">🎨 테마</div>
@@ -1085,256 +1042,16 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 
 // ══════════════════════════════════════════════════════
-//  설정 모달 + DART API 키 AES-256-GCM 암호화
+//  설정 모달
 // ══════════════════════════════════════════════════════
-const DART_ENC_STORAGE = 'tsa_dart_enc';   // 암호화된 blob
-let _dartApiKeyInMemory = null;             // 복호화 후 메모리에만 보관
-
-// ── Web Crypto 헬퍼 ──
-async function _deriveKey(password, salt) {
-  const enc = new TextEncoder();
-  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:310000, hash:'SHA-256' },
-    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
-  );
-}
-async function _encrypt(plaintext, password) {
-  const enc  = new TextEncoder();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const key  = await _deriveKey(password, salt);
-  const ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(plaintext));
-  // salt(16) + iv(12) + ciphertext → base64
-  const buf  = new Uint8Array(16 + 12 + ct.byteLength);
-  buf.set(salt, 0); buf.set(iv, 16); buf.set(new Uint8Array(ct), 28);
-  return btoa(String.fromCharCode(...buf));
-}
-async function _decrypt(b64, password) {
-  const buf  = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  const salt = buf.slice(0, 16);
-  const iv   = buf.slice(16, 28);
-  const ct   = buf.slice(28);
-  const key  = await _deriveKey(password, salt);
-  const pt   = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct);
-  return new TextDecoder().decode(pt);
-}
 
 // ── 모달 열기/닫기 ──
 function openSettings() {
-  const hasEnc = !!localStorage.getItem(DART_ENC_STORAGE);
-  document.getElementById('dart-register-panel').style.display = hasEnc ? 'none' : 'block';
-  document.getElementById('dart-unlock-panel').style.display   = hasEnc ? 'block' : 'none';
-  // 등록 패널 — 입력 초기화
-  if (!hasEnc) {
-    ['dart-key-input','dart-pw-register','dart-pw-confirm'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = '';
-    });
-    _setStatus('dart-register-status', '', '');
-  } else {
-    const badge = document.getElementById('dart-unlock-badge');
-    if (badge) {
-      const unlocked = !!_dartApiKeyInMemory;
-      badge.style.background = unlocked ? 'rgba(34,197,94,.1)' : 'rgba(255,200,0,.08)';
-      badge.style.color      = unlocked ? 'var(--up)' : 'var(--yellow)';
-      badge.textContent      = unlocked ? '✅ 잠금해제됨 — DART 데이터 활성화' : '🔒 잠겨 있음 — 비밀번호를 입력하세요';
-    }
-    const pwEl = document.getElementById('dart-pw-unlock');
-    if (pwEl) { pwEl.value = ''; setTimeout(()=>pwEl.focus(), 120); }
-    _setStatus('dart-unlock-status', '', '');
-  }
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings(e) {
   if (e && !e.target.classList.contains('settings-overlay')) return;
-  // 입력창 내용 모두 지우기
-  ['dart-key-input','dart-pw-register','dart-pw-confirm','dart-pw-unlock'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
   document.getElementById('settingsOverlay').classList.remove('open');
-}
-function _setStatus(elId, msg, type) {
-  const el = document.getElementById(elId); if (!el) return;
-  const styles = {
-    ok:   ['rgba(34,197,94,.1)',   'var(--up)'],
-    err:  ['rgba(239,68,68,.1)',   'var(--down)'],
-    warn: ['rgba(255,200,0,.08)',  'var(--yellow)'],
-    '':   ['transparent',          'inherit'],
-  };
-  const [bg, color] = styles[type] || styles[''];
-  el.style.background = bg; el.style.color = color; el.textContent = msg;
-}
-
-// ── 최초 등록 ──
-async function dartRegister() {
-  const apiKey = document.getElementById('dart-key-input').value.trim();
-  const pw     = document.getElementById('dart-pw-register').value;
-  const pw2    = document.getElementById('dart-pw-confirm').value;
-  if (!apiKey) return _setStatus('dart-register-status', '⚠️ API 키를 입력하세요.', 'warn');
-  if (pw.length < 6) return _setStatus('dart-register-status', '⚠️ 비밀번호는 6자 이상이어야 합니다.', 'warn');
-  if (pw !== pw2)    return _setStatus('dart-register-status', '⚠️ 비밀번호가 일치하지 않습니다.', 'err');
-  _setStatus('dart-register-status', '🔐 암호화 중…', 'warn');
-  try {
-    const enc = await _encrypt(apiKey, pw);
-    localStorage.setItem(DART_ENC_STORAGE, enc);
-    _dartApiKeyInMemory = apiKey;           // 등록 직후는 메모리에 보관
-    // 입력창 즉시 초기화 (복사 불가 + 내용 제거)
-    ['dart-key-input','dart-pw-register','dart-pw-confirm'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = '';
-    });
-    _setStatus('dart-register-status', '✅ 저장 완료 — API 키는 더 이상 표시되지 않습니다.', 'ok');
-    setTimeout(() => closeSettings(), 1400);
-  } catch(e) {
-    _setStatus('dart-register-status', '❌ 암호화 오류: ' + e.message, 'err');
-  }
-}
-
-// ── 잠금 해제 ──
-async function dartUnlock() {
-  const pw  = document.getElementById('dart-pw-unlock').value;
-  const enc = localStorage.getItem(DART_ENC_STORAGE);
-  if (!pw)  return _setStatus('dart-unlock-status', '⚠️ 비밀번호를 입력하세요.', 'warn');
-  if (!enc) return _setStatus('dart-unlock-status', '⚠️ 등록된 키가 없습니다.', 'warn');
-  _setStatus('dart-unlock-status', '🔓 복호화 중…', 'warn');
-  try {
-    _dartApiKeyInMemory = await _decrypt(enc, pw);
-    document.getElementById('dart-pw-unlock').value = '';
-    _setStatus('dart-unlock-status', '✅ 잠금해제 — DART 데이터 활성화됨', 'ok');
-    setTimeout(() => closeSettings(), 1000);
-  } catch {
-    _dartApiKeyInMemory = null;
-    _setStatus('dart-unlock-status', '❌ 비밀번호가 올바르지 않습니다.', 'err');
-  }
-}
-
-// ── 초기화 ──
-function dartReset() {
-  if (!confirm('DART API 키를 삭제하고 초기화합니다. 계속하시겠습니까?')) return;
-  localStorage.removeItem(DART_ENC_STORAGE);
-  _dartApiKeyInMemory = null;
-  closeSettings();
-  setTimeout(() => openSettings(), 150);
-}
-
-// ══════════════════════════════════════════════════════
-//  DART API (한국 종목 전용)
-// ══════════════════════════════════════════════════════
-async function fetchDartData(ticker) {
-  const apiKey = _dartApiKeyInMemory;
-  if (!apiKey) return null;
-
-  // 6자리 종목코드 추출 (035420.KS → 035420)
-  const stockCode = ticker.replace(/\.(KS|KQ)$/i, '');
-  if (!/^\d{6}$/.test(stockCode)) return null;
-
-  const BASE = 'https://opendart.fss.or.kr/api';
-  const proxy = u => `https://corsproxy.io/?${encodeURIComponent(u)}`;
-
-  try {
-    // 1) 기업 기본정보 → corp_code 획득
-    const compResp = await fetch(proxy(`${BASE}/company.json?crtfc_key=${apiKey}&stock_code=${stockCode}`));
-    if (!compResp.ok) return null;
-    const compJson = await compResp.json();
-    if (compJson.status !== '000') return null;
-    const corp = compJson;
-    const corpCode = corp.corp_code;
-
-    // 2) 최신 분기 재무 — 보고서 순서 시도 (1Q→반기→3Q→연간)
-    const now = new Date();
-    const year = now.getFullYear();
-    const reprtCodes = ['11013','11012','11014','11011']; // 1Q, 반기, 3Q, 사업보고서
-    let qFin = null;
-    for (const reprt of reprtCodes) {
-      for (const y of [year, year-1]) {
-        try {
-          const r = await fetch(proxy(`${BASE}/fnlttSinglAcnt.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${y}&reprt_code=${reprt}`));
-          if (!r.ok) continue;
-          const j = await r.json();
-          if (j.status === '000' && j.list?.length) {
-            qFin = { list: j.list, year: y, reprt };
-            break;
-          }
-        } catch { continue; }
-      }
-      if (qFin) break;
-    }
-
-    // 3) 최대주주 현황
-    let majorShareholders = [];
-    try {
-      const msResp = await fetch(proxy(`${BASE}/hyslrSttus.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
-      if (msResp.ok) {
-        const msJson = await msResp.json();
-        if (msJson.status === '000') majorShareholders = msJson.list || [];
-      }
-    } catch {}
-
-    // 4) 임원 현황 (CEO)
-    let executives = [];
-    try {
-      const exResp = await fetch(proxy(`${BASE}/exctvSttus.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
-      if (exResp.ok) {
-        const exJson = await exResp.json();
-        if (exJson.status === '000') executives = exJson.list || [];
-      }
-    } catch {}
-
-    // 5) 배당 현황
-    let dividendInfo = null;
-    try {
-      const divResp = await fetch(proxy(`${BASE}/alotMatter.json?crtfc_key=${apiKey}&corp_code=${corpCode}&bsns_year=${year-1}&reprt_code=11011`));
-      if (divResp.ok) {
-        const divJson = await divResp.json();
-        if (divJson.status === '000' && divJson.list?.length) dividendInfo = divJson.list[0];
-      }
-    } catch {}
-
-    // 재무 데이터 파싱
-    const findAmt = (list, acntNm) => {
-      const row = list?.find(r => r.account_nm?.includes(acntNm) && r.fs_div === 'CFS') ||
-                  list?.find(r => r.account_nm?.includes(acntNm));
-      return row ? parseInt(row.thstrm_amount?.replace(/,/g,'') || '0') : null;
-    };
-    const revenue        = findAmt(qFin?.list, '매출액') ?? findAmt(qFin?.list, '수익(매출액)');
-    const operatingProfit= findAmt(qFin?.list, '영업이익');
-    const netIncome      = findAmt(qFin?.list, '당기순이익');
-
-    // 부채비율 계산 (재무상태표 모듈이 없으므로 financialData에서 대체)
-    // CEO 추출
-    const ceo = executives.find(e => e.ofcps?.includes('대표') || e.ofcps?.includes('CEO'));
-    // 최대주주 Top3
-    const top3shareholders = majorShareholders.slice(0, 3).map(s => ({
-      name: s.nm, relation: s.relate, pct: s.trmend_posesn_stock_qota_rt
-    }));
-    // 배당 정보
-    const dartDividend = dividendInfo ? {
-      perShare: dividendInfo.one_shr_alot,
-      totalAmt: dividendInfo.alot_amount,
-      yield: dividendInfo.fdpp_alot
-    } : null;
-
-    // 보고서 유형 레이블
-    const reprtLabel = { '11013':'1분기', '11012':'반기', '11014':'3분기', '11011':'연간' };
-
-    return {
-      corpCode, stockCode,
-      companyName: corp.corp_name,
-      ceo: ceo?.nm || corp.ceo_nm || null,
-      industry: corp.induty_code || null,
-      homepageUrl: corp.hm_url || null,
-      estDate: corp.est_dt || null,
-      qRevenue: revenue,
-      qOperatingIncome: operatingProfit,
-      qNetIncome: netIncome,
-      qPeriodLabel: qFin ? `${qFin.year} ${reprtLabel[qFin.reprt] || ''}` : null,
-      top3shareholders,
-      dartDividend,
-      executives: executives.slice(0, 5).map(e => ({ name: e.nm, position: e.ofcps })),
-    };
-  } catch(e) {
-    console.warn('DART fetch failed:', e);
-    return null;
-  }
 }
 
 function setTicker(t, el) {
@@ -1790,52 +1507,6 @@ async function fetchOHLCV(ticker, period) {
   };
 }
 
-// ── 투자자별 동향 조회 (KRX → 네이버 fallback) ──
-async function fetchInvestorTrend(ticker) {
-  const code = ticker.replace(/\.(KS|KQ)$/i, '');
-  // 날짜 계산 (오늘 or 전일)
-  function getDateStr(daysAgo = 0) {
-    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-    d.setDate(d.getDate() - daysAgo);
-    return d.toISOString().slice(0,10).replace(/-/g,'');
-  }
-
-  // 네이버 금융 investor API
-  try {
-    const today = getDateStr(0), weekAgo = getDateStr(7);
-    const url = `https://api.stock.naver.com/stock/${code}/investor?startDateTime=${weekAgo}&endDateTime=${today}`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error();
-    const j = await r.json();
-    const list = j?.investorList || j?.list || [];
-    if (!list.length) throw new Error();
-    // 가장 최근 거래일 데이터
-    const latest = list[0];
-    const date = latest.localTradedAt || latest.date || '';
-    const foreign = latest.foreignNetBuySell ?? latest.foreignBuySell ?? null;
-    const inst    = latest.institutionNetBuySell ?? latest.institutionBuySell ?? null;
-    const retail  = latest.individualNetBuySell ?? latest.individualBuySell ?? null;
-
-    // 추세: 최근 3일 평균으로 방향 판단
-    const trend = (vals, key) => {
-      const recent = list.slice(0,3).map(x => x[key] ?? 0);
-      const avg = recent.reduce((a,b)=>a+b,0)/recent.length;
-      return avg > 0 ? '📈 순매수 우위' : avg < 0 ? '📉 순매도 우위' : '→ 중립';
-    };
-    return {
-      date: date.slice(0,4)+'/'+date.slice(4,6)+'/'+date.slice(6,8),
-      foreign, inst, retail,
-      foreignTrend: trend(list, 'foreignNetBuySell') || trend(list, 'foreignBuySell'),
-      instTrend:    trend(list, 'institutionNetBuySell') || trend(list, 'institutionBuySell'),
-      retailTrend:  trend(list, 'individualNetBuySell') || trend(list, 'individualBuySell'),
-    };
-  } catch {}
-
-  // fallback: Yahoo Finance 보유 비율
-  return { date: null, foreign: null, inst: null, retail: null,
-           foreignTrend: null, instTrend: null, retailTrend: null };
-}
-
 // ── NXT(넥스트트레이드) 가격 조회 ──
 async function fetchNxtPrice(ticker) {
   // 종목코드 추출 (005930.KS → 005930)
@@ -1876,7 +1547,7 @@ async function fetchQuote(ticker) {
 }
 
 async function fetchFundamentals(ticker) {
-  const modules = 'defaultKeyStatistics,financialData,summaryDetail,quoteType,assetProfile,incomeStatementHistoryQuarterly';
+  const modules = 'defaultKeyStatistics,financialData,summaryDetail,quoteType,assetProfile';
   const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=${modules}`;
   try {
     const resp = await fetchWithProxy(url);
@@ -1884,14 +1555,6 @@ async function fetchFundamentals(ticker) {
     const json = await resp.json();
     const r = json.quoteSummary?.result?.[0] || {};
     const g = (obj, key) => { const v = obj?.[key]; return (v && typeof v==='object') ? v.raw : v; };
-
-    // 직전분기 재무 (incomeStatementHistoryQuarterly)
-    const qList = r.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
-    const qLatest = qList[0] || {};
-    const qRevenue        = qLatest.totalRevenue?.raw ?? null;
-    const qOperatingIncome= qLatest.operatingIncome?.raw ?? null;
-    const qNetIncome      = qLatest.netIncome?.raw ?? null;
-    const qEndDate        = qLatest.endDate?.fmt ?? null;
 
     return {
       companyName:   r.quoteType?.longName || r.quoteType?.shortName || resolveTickerName(ticker) || ticker,
@@ -1907,7 +1570,6 @@ async function fetchFundamentals(ticker) {
       dividendYield: g(r.summaryDetail,      'dividendYield'),
       institutionalPct: r.defaultKeyStatistics?.institutionsPercentHeld?.raw ?? null,
       insiderPct:       r.defaultKeyStatistics?.insidersPercentHeld?.raw ?? null,
-      qRevenue, qOperatingIncome, qNetIncome, qEndDate,
     };
   } catch(e) { return {}; }
 }
@@ -2502,23 +2164,11 @@ async function runAnalysis() {
   dash.innerHTML = `<div class="center-msg"><div class="spinner"></div><div>${tickerLabel} 데이터 수집 중…</div></div>`;
 
   try {
-    const isKrTicker = /\.(KS|KQ)$/i.test(ticker);
-    const [ohlcvData, fundInfo, quote, dartData] = await Promise.all([
+    const [ohlcvData, fundInfo, quote] = await Promise.all([
       fetchOHLCV(ticker, period),
       fetchFundamentals(ticker),
       fetchQuote(ticker),
-      isKrTicker ? fetchDartData(ticker) : Promise.resolve(null),
     ]);
-
-    // DART 데이터로 fundInfo 보강 (한국 종목이고 DART 응답 성공 시)
-    if (dartData) {
-      if (dartData.qRevenue        != null) fundInfo.qRevenue         = dartData.qRevenue;
-      if (dartData.qOperatingIncome!= null) fundInfo.qOperatingIncome = dartData.qOperatingIncome;
-      if (dartData.qNetIncome      != null) fundInfo.qNetIncome       = dartData.qNetIncome;
-      if (dartData.qPeriodLabel)            fundInfo.qEndDate         = dartData.qPeriodLabel;
-      if (dartData.companyName)             fundInfo.companyName      = dartData.companyName;
-      fundInfo.dartData = dartData; // 추가 공시 정보 전달
-    }
 
     const { bars, currency, regularMarketPrice, previousClose, marketState, dataUpdatedAt } = ohlcvData;
 
@@ -2577,27 +2227,6 @@ async function runAnalysis() {
       fundInfo, cs, ew, ichi, smc, quant, advanced,
       exchangeName: quote?.fullExchangeName || quote?.exchange || '',
     });
-
-    // 투자자별 동향 비동기 업데이트 (한국 종목만)
-    if (isKr) {
-      fetchInvestorTrend(ticker).then(data => {
-        const label = document.getElementById('investor-date-label');
-        if (label) label.textContent = data.date ? `${data.date} 기준` : '데이터 없음';
-        function setInv(id, trendId, val, trend) {
-          const el = document.getElementById(id);
-          const te = document.getElementById(trendId);
-          if (!el) return;
-          if (val == null) { el.textContent = '-'; return; }
-          const n = parseInt(val);
-          el.textContent = (n >= 0 ? '+' : '') + n.toLocaleString('ko-KR') + '주';
-          el.style.color = n > 0 ? 'var(--up)' : n < 0 ? 'var(--down)' : '';
-          if (te && trend) te.textContent = trend;
-        }
-        setInv('inv-foreign', 'inv-foreign-trend', data.foreign, data.foreignTrend);
-        setInv('inv-inst',    'inv-inst-trend',    data.inst,    data.instTrend);
-        setInv('inv-retail',  'inv-retail-trend',  data.retail,  data.retailTrend);
-      });
-    }
 
     // NXT 가격 비동기 업데이트 (한국 종목만)
     if (/\.(KS|KQ)$/i.test(ticker)) {
@@ -2918,110 +2547,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-', '', TIPS.divYield.title, TIPS.divYield.body)}
       ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--up)':'var(--down)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
     </div>
-    <div class="card" style="grid-column:1/-1">
-      <div class="card-header">
-        <span class="dot" style="background:var(--yellow)"></span>직전분기 실적
-        ${fundInfo.qEndDate ? `<span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:6px">${fundInfo.qEndDate} 기준</span>` : ''}
-        ${fundInfo.dartData ? `<span style="font-size:0.62rem;color:var(--blue);font-weight:500;margin-left:6px">📋 DART</span>` : ''}
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
-        ${(()=>{
-          const fmtKrw = v => v==null?'-': Math.abs(v)>=1e12?(v/1e12).toFixed(1)+'조':Math.round(v/1e8)+'억';
-          const fmtUsd = v => v==null?'-': Math.abs(v)>=1e9?(v/1e9).toFixed(2)+'B':(v/1e6).toFixed(0)+'M';
-          const fmtAmt = v => v==null?'-': isKr?fmtKrw(v):fmtUsd(v);
-          const opColor = v => v==null?'inherit':v>=0?'var(--up)':'var(--down)';
-          const opMgn = (op,rev) => (op!=null&&rev!=null&&rev!==0)?((op/rev)*100).toFixed(1)+'%':'-';
-          return `
-          <div class="mini-card" style="text-align:center">
-            <div class="label">매출액</div>
-            <div class="num-sm" style="font-size:1.05rem">${fmtAmt(fundInfo.qRevenue)}</div>
-          </div>
-          <div class="mini-card" style="text-align:center">
-            <div class="label">영업이익 <span style="font-size:0.68rem;color:var(--muted)">(이익률 ${opMgn(fundInfo.qOperatingIncome,fundInfo.qRevenue)})</span></div>
-            <div class="num-sm" style="font-size:1.05rem;color:${opColor(fundInfo.qOperatingIncome)}">${fmtAmt(fundInfo.qOperatingIncome)}</div>
-          </div>
-          <div class="mini-card" style="text-align:center">
-            <div class="label">순이익</div>
-            <div class="num-sm" style="font-size:1.05rem;color:${opColor(fundInfo.qNetIncome)}">${fmtAmt(fundInfo.qNetIncome)}</div>
-          </div>`;
-        })()}
-      </div>
-    </div>
   </div>
-
-  <!-- ── DART 공시 정보 (한국 종목 + DART 키 있을 때) ── -->
-  ${isKr && fundInfo.dartData ? `
-  <div class="row" style="margin-top:0">
-    <div class="card" style="grid-column:1/-1">
-      <div class="card-header">
-        <span class="dot" style="background:var(--blue)"></span>DART 공시 정보
-        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">금융감독원 전자공시</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:10px">
-        ${fundInfo.dartData.ceo ? `
-        <div class="mini-card">
-          <div class="label">대표이사 (CEO)</div>
-          <div style="font-size:0.92rem;font-weight:600;margin-top:4px">${fundInfo.dartData.ceo}</div>
-        </div>` : ''}
-        ${fundInfo.dartData.estDate ? `
-        <div class="mini-card">
-          <div class="label">설립일</div>
-          <div style="font-size:0.92rem;font-weight:600;margin-top:4px">${fundInfo.dartData.estDate.replace(/(\d{4})(\d{2})(\d{2})/,'$1.$2.$3')}</div>
-        </div>` : ''}
-        ${fundInfo.dartData.homepageUrl ? `
-        <div class="mini-card">
-          <div class="label">홈페이지</div>
-          <div style="font-size:0.82rem;margin-top:4px;word-break:break-all"><a href="${fundInfo.dartData.homepageUrl.startsWith('http')?fundInfo.dartData.homepageUrl:'http://'+fundInfo.dartData.homepageUrl}" target="_blank" style="color:var(--blue);text-decoration:none">${fundInfo.dartData.homepageUrl}</a></div>
-        </div>` : ''}
-        ${fundInfo.dartData.dartDividend ? `
-        <div class="mini-card">
-          <div class="label">주당 배당금</div>
-          <div style="font-size:0.92rem;font-weight:600;margin-top:4px;color:var(--up)">${fundInfo.dartData.dartDividend.perShare ? Number(fundInfo.dartData.dartDividend.perShare).toLocaleString()+'원' : '-'}</div>
-          ${fundInfo.dartData.dartDividend.yield ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">배당수익률 ${fundInfo.dartData.dartDividend.yield}</div>` : ''}
-        </div>` : ''}
-      </div>
-      ${fundInfo.dartData.top3shareholders?.length ? `
-      <div style="margin-top:12px">
-        <div style="font-size:0.72rem;color:var(--muted);font-weight:600;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase">최대주주 현황</div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          ${fundInfo.dartData.top3shareholders.map((s,i) => `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--card2);border-radius:6px">
-            <div>
-              <span style="font-size:0.72rem;color:var(--muted);margin-right:6px">${i+1}</span>
-              <span style="font-size:0.86rem;font-weight:600">${s.name}</span>
-              ${s.relation?`<span style="font-size:0.7rem;color:var(--muted);margin-left:6px">${s.relation}</span>`:''}
-            </div>
-            <span style="font-size:0.9rem;font-weight:700;color:var(--blue)">${s.pct?s.pct+'%':'-'}</span>
-          </div>`).join('')}
-        </div>
-      </div>` : ''}
-      ${fundInfo.dartData.executives?.length ? `
-      <div style="margin-top:12px">
-        <div style="font-size:0.72rem;color:var(--muted);font-weight:600;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase">임원 현황</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${fundInfo.dartData.executives.map(e => `
-          <div style="padding:4px 10px;background:var(--card2);border-radius:20px;font-size:0.78rem">
-            <span style="color:var(--muted);margin-right:4px">${e.position||''}</span><span style="font-weight:600">${e.name}</span>
-          </div>`).join('')}
-        </div>
-      </div>` : ''}
-    </div>
-  </div>` : ''}
-
-  <!-- ── 투자자별 동향 (한국 종목) ── -->
-  ${isKr ? `
-  <div class="row" style="margin-top:0">
-    <div class="card" style="grid-column:1/-1">
-      <div class="card-header"><span class="dot" style="background:var(--blue)"></span>투자자별 동향
-        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px" id="investor-date-label">전일 기준 조회 중…</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px" id="investor-grid">
-        <div class="mini-card" style="text-align:center"><div class="label">외국인 순매수</div><div class="num-sm" style="font-size:1.1rem" id="inv-foreign">-</div><div style="font-size:0.68rem;color:var(--muted);margin-top:2px" id="inv-foreign-trend">-</div></div>
-        <div class="mini-card" style="text-align:center"><div class="label">기관 순매수</div><div class="num-sm" style="font-size:1.1rem" id="inv-inst">-</div><div style="font-size:0.68rem;color:var(--muted);margin-top:2px" id="inv-inst-trend">-</div></div>
-        <div class="mini-card" style="text-align:center"><div class="label">개인 순매수</div><div class="num-sm" style="font-size:1.1rem" id="inv-retail">-</div><div style="font-size:0.68rem;color:var(--muted);margin-top:2px" id="inv-retail-trend">-</div></div>
-      </div>
-    </div>
-  </div>` : ''}
 
   <!-- ── Row 4: 차트 (최하단) ── -->
   <div class="card" style="padding:14px 16px;margin-top:0">
