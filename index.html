@@ -870,7 +870,7 @@
   </div>
   <div class="topbar-right">
     <span class="pill">Serverless Stock Analysis</span>
-    <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="라이트/다크 전환">🌙</button>
+    <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
   </div>
 </header>
 
@@ -943,20 +943,33 @@
 //  라이트/다크 모드
 // ══════════════════════════════════════════════════════
 const THEME_KEY = 'tsa_theme';
+// 테마 순서: dark → light → system
+const THEME_CYCLE = ['dark', 'light', 'system'];
+const THEME_ICONS = { dark: '🌙', light: '🌞', system: '🖥️' };
 
 function applyTheme(theme) {
-  const isLight = theme === 'light';
-  document.documentElement.classList.toggle('light', isLight);
+  const resolved = theme === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+    : theme;
+  document.documentElement.classList.toggle('light', resolved === 'light');
   const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = isLight ? '🌞' : '🌙';
+  if (btn) {
+    btn.textContent = THEME_ICONS[theme] || '🌙';
+    btn.title = theme === 'dark' ? '다크 모드' : theme === 'light' ? '라이트 모드' : '시스템 설정';
+  }
   localStorage.setItem(THEME_KEY, theme);
-  // 차트 색상 업데이트 (이미 렌더된 차트가 있으면 재렌더는 분석 재실행으로)
 }
 
 function toggleTheme() {
-  const isLight = document.documentElement.classList.contains('light');
-  applyTheme(isLight ? 'dark' : 'light');
+  const cur = localStorage.getItem(THEME_KEY) || 'dark';
+  const idx = THEME_CYCLE.indexOf(cur);
+  applyTheme(THEME_CYCLE[(idx + 1) % THEME_CYCLE.length]);
 }
+
+// 시스템 테마 변경 감지 (system 모드일 때 자동 반영)
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+  if ((localStorage.getItem(THEME_KEY) || 'dark') === 'system') applyTheme('system');
+});
 
 // 저장된 테마 복원
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
@@ -1500,7 +1513,7 @@ async function fetchQuote(ticker) {
 }
 
 async function fetchFundamentals(ticker) {
-  const modules = 'defaultKeyStatistics,financialData,summaryDetail,quoteType,assetProfile';
+  const modules = 'defaultKeyStatistics,financialData,summaryDetail,quoteType,assetProfile,incomeStatementHistoryQuarterly';
   const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=${modules}`;
   try {
     const resp = await fetchWithProxy(url);
@@ -1508,6 +1521,14 @@ async function fetchFundamentals(ticker) {
     const json = await resp.json();
     const r = json.quoteSummary?.result?.[0] || {};
     const g = (obj, key) => { const v = obj?.[key]; return (v && typeof v==='object') ? v.raw : v; };
+
+    // 직전분기 재무 (incomeStatementHistoryQuarterly)
+    const qList = r.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+    const qLatest = qList[0] || {};
+    const qRevenue        = qLatest.totalRevenue?.raw ?? null;
+    const qOperatingIncome= qLatest.operatingIncome?.raw ?? null;
+    const qNetIncome      = qLatest.netIncome?.raw ?? null;
+    const qEndDate        = qLatest.endDate?.fmt ?? null;
 
     return {
       companyName:   r.quoteType?.longName || r.quoteType?.shortName || resolveTickerName(ticker) || ticker,
@@ -1523,6 +1544,7 @@ async function fetchFundamentals(ticker) {
       dividendYield: g(r.summaryDetail,      'dividendYield'),
       institutionalPct: r.defaultKeyStatistics?.institutionsPercentHeld?.raw ?? null,
       insiderPct:       r.defaultKeyStatistics?.insidersPercentHeld?.raw ?? null,
+      qRevenue, qOperatingIncome, qNetIncome, qEndDate,
     };
   } catch(e) { return {}; }
 }
@@ -2521,6 +2543,23 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-', '', TIPS.divYield.title, TIPS.divYield.body)}
       ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--up)':'var(--down)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
     </div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>직전분기 실적${fundInfo.qEndDate ? `<span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:6px">${fundInfo.qEndDate} 기준</span>` : ''}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
+        <div class="mini-card" style="text-align:center">
+          <div class="label">매출액</div>
+          <div class="num-sm" style="font-size:1.05rem">${fundInfo.qRevenue!=null ? (isKr ? (Math.abs(fundInfo.qRevenue)>=1e12 ? (fundInfo.qRevenue/1e12).toFixed(1)+'조' : Math.round(fundInfo.qRevenue/1e8)+'억') : (Math.abs(fundInfo.qRevenue)>=1e9 ? (fundInfo.qRevenue/1e9).toFixed(2)+'B' : (fundInfo.qRevenue/1e6).toFixed(0)+'M')) : '-'}</div>
+        </div>
+        <div class="mini-card" style="text-align:center">
+          <div class="label">영업이익</div>
+          <div class="num-sm" style="font-size:1.05rem;color:${fundInfo.qOperatingIncome!=null?(fundInfo.qOperatingIncome>=0?'var(--up)':'var(--down)'):'inherit'}">${fundInfo.qOperatingIncome!=null ? (isKr ? (Math.abs(fundInfo.qOperatingIncome)>=1e12 ? (fundInfo.qOperatingIncome/1e12).toFixed(1)+'조' : Math.round(fundInfo.qOperatingIncome/1e8)+'억') : (Math.abs(fundInfo.qOperatingIncome)>=1e9 ? (fundInfo.qOperatingIncome/1e9).toFixed(2)+'B' : (fundInfo.qOperatingIncome/1e6).toFixed(0)+'M')) : '-'}</div>
+        </div>
+        <div class="mini-card" style="text-align:center">
+          <div class="label">순이익</div>
+          <div class="num-sm" style="font-size:1.05rem;color:${fundInfo.qNetIncome!=null?(fundInfo.qNetIncome>=0?'var(--up)':'var(--down)'):'inherit'}">${fundInfo.qNetIncome!=null ? (isKr ? (Math.abs(fundInfo.qNetIncome)>=1e12 ? (fundInfo.qNetIncome/1e12).toFixed(1)+'조' : Math.round(fundInfo.qNetIncome/1e8)+'억') : (Math.abs(fundInfo.qNetIncome)>=1e9 ? (fundInfo.qNetIncome/1e9).toFixed(2)+'B' : (fundInfo.qNetIncome/1e6).toFixed(0)+'M')) : '-'}</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ── 투자자별 동향 (한국 종목) ── -->
@@ -2698,9 +2737,9 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         `데드크로스: MACD선이 시그널선 하향 돌파. 하락 추세 전환 확인. 확인: 히스토그램 음전환 동반 시 강한 매도`));
   });
 
-  renderEntryPanel('bbEntryPanel',   bbEntries.slice(-5));
-  renderEntryPanel('rsiEntryPanel',  rsiEntries.slice(-4));
-  renderEntryPanel('macdEntryPanel', macdEntries.slice(-4));
+  renderEntryPanel('bbEntryPanel',   bbEntries.slice(-10));
+  renderEntryPanel('rsiEntryPanel',  rsiEntries.slice(-10));
+  renderEntryPanel('macdEntryPanel', macdEntries.slice(-10));
 
   // ── Knowledge Graph 렌더링 ──
   renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt, companyName });
