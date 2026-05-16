@@ -68,6 +68,16 @@
     inset: 0;
     width: 100%;
     height: 100%;
+    z-index: -2;
+    pointer-events: none;
+    display: block;
+  }
+  /* ── Particle Network Canvas ── */
+  #particle-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: -1;
     pointer-events: none;
     display: block;
@@ -390,6 +400,7 @@
 <body>
 
 <canvas id="aurora-canvas"></canvas>
+<canvas id="particle-canvas"></canvas>
 
 <div id="main-wrap">
 
@@ -490,14 +501,14 @@ async function fetchWithProxy(url) {
   throw new Error('모든 프록시 실패');
 }
 
-// ── 밸류체인 데이터 ──
+// ── 밸류체인 데이터 (index.html과 동기화) ──
 const VALUE_CHAIN_DATA_R = [
   { industry:'반도체 및 관련 장비/소재', sectors:[
-    { name:'파운드리/팹리스/디자인하우스', stocks:['삼성전자','SK하이닉스','DB하이텍','파두','에이직랜드','제주반도체','LX세미콘','어보브반도체','텔레칩스','가온칩스'] },
+    { name:'파운드리/팹리스/디자인하우스', stocks:['삼성전자','SK하이닉스','DB하이텍','파두','에이직랜드','제주반도체','LX세미콘','어보브반도체','텔레칩스','가온칩스','에이디테크놀로지','코아시아'] },
     { name:'HBM/소캠/기판', stocks:['한미반도체','이수페타시스','심텍','대덕전자','티엘비','코리아써키트','해성디에스','에이팩트'] },
-    { name:'장비(전공정/후공정/검사)', stocks:['원익IPS','유진테크','주성엔지니어링','테스','이오테크닉스','HPSP','테크윙','파크시스템스','디아이','넥스틴','브이엠','피에스케이','케이씨텍'] },
-    { name:'소재/부품/기타', stocks:['삼성전기','리노공업','ISC','티에스이','하나머티리얼즈','티씨케이','동진쎄미켐','한솔케미칼','솔브레인','덕산테코피아','코미코'] },
-    { name:'IP/OSAT(패키징)', stocks:['퀄리타스반도체','칩스앤미디어','두산테스나','네패스아크','하나마이크론','SFA반도체','네패스','LB세미콘'] },
+    { name:'장비(전공정/후공정/검사)', stocks:['원익IPS','유진테크','주성엔지니어링','테스','이오테크닉스','HPSP','테크윙','파크시스템스','디아이','넥스틴','브이엠','피에스케이','케이씨텍','에스티아이','제우스'] },
+    { name:'소재/부품/기타', stocks:['삼성전기','리노공업','ISC','티에스이','하나머티리얼즈','티씨케이','에스앤에스텍','원익QnC','동진쎄미켐','한솔케미칼','솔브레인','덕산테코피아','코미코'] },
+    { name:'IP/OSAT(패키징)', stocks:['퀄리타스반도체','칩스앤미디어','오픈엣지테크놀로지','두산테스나','네패스아크','하나마이크론','SFA반도체','네패스','LB세미콘','한양디지텍'] },
     { name:'미국 광학/통신 반도체', stocks:['LITE','COHR','AAOI','GLW','FN','MTSI','CIEN','ANET','CSCO','MRVL','AVGO'] },
   ]},
   { industry:'자율주행, 모빌리티 및 로봇', sectors:[
@@ -518,7 +529,7 @@ const VALUE_CHAIN_DATA_R = [
     { name:'전선/해저케이블', stocks:['대한전선','일진전기','가온전선','LS마린솔루션','LS','LS에코에너지','대원전선'] },
     { name:'전력 부품/배전/솔루션', stocks:['세명전기','제일일렉트릭','지엔씨에너지','보성파워텍','그리드위즈'] },
     { name:'원전 본체 및 시공', stocks:['한국전력','한전기술','두산에너빌리티','현대건설','대우건설','DL이앤씨'] },
-    { name:'원전 부품/제어/정비', stocks:['비에이치아이','태웅','우리기술','우진','에너토크','한전KPS','한전산업','우진엔텍','일진파워'] },
+    { name:'원전 부품/제어/정비', stocks:['비에이치아이','태웅','우리기술','우진','에너토크','한전KPS','한전산업','우진엔텍','일진파워','오르비텍'] },
     { name:'태양광/풍력', stocks:['한화솔루션','HD현대에너지솔루션','OCI홀딩스','신성이엔지','대명에너지','씨에스윈드','씨에스베어링','동국S&C'] },
   ]},
   { industry:'IT, 통신 및 디지털 자산', sectors:[
@@ -531,7 +542,7 @@ const VALUE_CHAIN_DATA_R = [
   { industry:'방산, 조선 및 LNG', sectors:[
     { name:'방산/항공우주', stocks:['한화에어로스페이스','현대로템','LIG넥스원','한국항공우주','한화시스템','엠앤씨솔루션','아이쓰리시스템','코츠테크놀로지','휴니드','빅텍','인텔리안테크'] },
     { name:'조선 및 해양플랜트', stocks:['한화오션','HD현대중공업','HJ중공업','HD한국조선해양','삼성중공업','대한조선'] },
-    { name:'조선 기자재/엔진/보냉재', stocks:['한화엔진','HD현대마린엔진','STX엔진','HD현대마린솔루션','한국카본','동성화인텍','성광벤드','태광','하이록코리아','디케이락'] },
+    { name:'조선 기자재/엔진/보냉재', stocks:['한화엔진','HD현대마린엔진','STX엔진','HD현대마린솔루션','한국카본','동성화인텍','성광벤드','태광','하이록코리아','디케이락','세진중공업'] },
     { name:'LNG 파이프/인프라', stocks:['넥스틸','휴스틸','세아제강','포스코인터내셔널','한국가스공사','SK가스','삼천리','지에스이'] },
   ]},
   { industry:'바이오, 제약, 미용/화장품', sectors:[
@@ -562,11 +573,14 @@ const VC_TICKER_MAP_R = {
   '030200.KS':'KT','032830.KS':'삼성생명','055550.KS':'신한지주',
   '105560.KS':'KB금융','316140.KS':'우리금융지주','086790.KS':'하나금융지주',
 };
+// index.html의 renderValueChain과 동일한 매칭 로직
 function findValueChain(ticker, companyName) {
-  const mapped = VC_TICKER_MAP_R[ticker] || companyName || '';
-  const clean  = ticker.replace(/\.(KS|KQ)$/i,'');
-  const isSelf = s => s === clean || s === mapped ||
-    (mapped.length > 1 && (s.includes(mapped) || mapped.includes(s) || (s.length>2 && mapped.startsWith(s))));
+  const searchKey   = VC_TICKER_MAP_R[ticker] || companyName || ticker;
+  const tickerUpper = ticker.replace(/\.(KS|KQ|KP)$/i,'').toUpperCase();
+  const isSelf = s =>
+    s === searchKey || s === tickerUpper ||
+    (companyName && (s === companyName || companyName.includes(s) ||
+    (s.length > 2 && companyName.startsWith(s))));
   for (const ind of VALUE_CHAIN_DATA_R) {
     for (const sec of ind.sectors) {
       if (sec.stocks.some(isSelf)) return { industry: ind, matchedSector: sec, allSectors: ind.sectors };
@@ -1355,6 +1369,148 @@ function applyThemeR(theme) {
 applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
 
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// ── Particle Network Background ──
+// ══════════════════════════════════════════════════════
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const CFG = {
+    SPEED_MAX:       0.38,
+    RADIUS:          1.5,
+    GLOW_RADIUS:     3.2,
+    LINK_DIST:       130,
+    MOUSE_DIST:      150,
+    REPEL_STRENGTH:  5.0,
+    REPEL_EASE:      0.08,
+  };
+
+  function isDark() { return !document.documentElement.classList.contains('light'); }
+
+  const DARK_P  = [160, 200, 255];
+  const DARK_L  = [100, 160, 255];
+  const DARK_ML = [140, 110, 255];
+  const LIGHT_P = [80,  120, 200];
+  const LIGHT_L = [60,  100, 180];
+  const LIGHT_ML= [110,  70, 200];
+
+  let W, H, particles;
+  const mouse = { x: -9999, y: -9999 };
+
+  class Particle {
+    constructor() {
+      this.x      = Math.random() * W;
+      this.y      = Math.random() * H;
+      const spd   = 0.08 + Math.random() * CFG.SPEED_MAX;
+      const ang   = Math.random() * Math.PI * 2;
+      this.vx     = Math.cos(ang) * spd;
+      this.vy     = Math.sin(ang) * spd;
+      this.rx     = 0; this.ry = 0;
+      this.alpha  = 0.25 + Math.random() * 0.45;
+      this.r      = CFG.RADIUS * (0.7 + Math.random() * 0.6);
+      this.phase  = Math.random() * Math.PI * 2;
+      this.wobble = (Math.random() - 0.5) * 0.005;
+    }
+    update(dt) {
+      this.phase += this.wobble * dt;
+      const cos = Math.cos(this.phase * 0.35), sin = Math.sin(this.phase * 0.35);
+      const nx = this.vx * cos - this.vy * sin, ny = this.vx * sin + this.vy * cos;
+      this.vx = nx; this.vy = ny;
+      const dx = this.x - mouse.x, dy = this.y - mouse.y;
+      const d  = Math.hypot(dx, dy);
+      if (d < CFG.MOUSE_DIST && d > 0) {
+        const f = (1 - d / CFG.MOUSE_DIST) * CFG.REPEL_STRENGTH;
+        this.rx += (dx / d) * f; this.ry += (dy / d) * f;
+      }
+      this.vx += this.rx * CFG.REPEL_EASE; this.vy += this.ry * CFG.REPEL_EASE;
+      this.rx *= 0.82; this.ry *= 0.82;
+      const spd = Math.hypot(this.vx, this.vy), max = CFG.SPEED_MAX * 2.4;
+      if (spd > max) { this.vx = (this.vx / spd) * max; this.vy = (this.vy / spd) * max; }
+      this.x += this.vx * (dt / 16); this.y += this.vy * (dt / 16);
+      if (this.x < -20) this.x = W + 20; if (this.x > W + 20) this.x = -20;
+      if (this.y < -20) this.y = H + 20; if (this.y > H + 20) this.y = -20;
+    }
+    draw(cp) {
+      const [r, g, b] = cp;
+      const grd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, CFG.GLOW_RADIUS * this.r);
+      grd.addColorStop(0,   `rgba(${r},${g},${b},${this.alpha * 0.85})`);
+      grd.addColorStop(0.4, `rgba(${r},${g},${b},${this.alpha * 0.25})`);
+      grd.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+      ctx.beginPath(); ctx.arc(this.x, this.y, CFG.GLOW_RADIUS * this.r, 0, Math.PI * 2);
+      ctx.fillStyle = grd; ctx.fill();
+      ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${this.alpha})`; ctx.fill();
+    }
+  }
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    const count = Math.min(Math.floor((W * H) / 10000), 180);
+    if (!particles || Math.abs(particles.length - count) > 15)
+      particles = Array.from({ length: count }, () => new Particle());
+  }
+
+  let last = 0;
+  function frame(ts) {
+    const dt = Math.min(ts - last, 50); last = ts;
+    const dark = isDark();
+    const cp = dark ? DARK_P : LIGHT_P;
+    const cl = dark ? DARK_L : LIGHT_L;
+    const cm = dark ? DARK_ML: LIGHT_ML;
+    const maxLA = dark ? 0.18 : 0.10, maxMA = dark ? 0.50 : 0.28;
+
+    ctx.clearRect(0, 0, W, H);
+    for (const p of particles) p.update(dt);
+
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const a = particles[i], b = particles[j];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < CFG.LINK_DIST) {
+          const op = (1 - d / CFG.LINK_DIST) * maxLA;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},${op})`;
+          ctx.lineWidth = op * 1.2; ctx.stroke();
+        }
+      }
+    }
+    const mx = mouse.x, my = mouse.y;
+    for (const p of particles) {
+      const d = Math.hypot(p.x - mx, p.y - my);
+      if (d < CFG.MOUSE_DIST) {
+        const op = (1 - d / CFG.MOUSE_DIST) * maxMA;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(mx, my);
+        ctx.strokeStyle = `rgba(${cm[0]},${cm[1]},${cm[2]},${op * 0.55})`;
+        ctx.lineWidth = op * 1.1; ctx.stroke();
+      }
+    }
+    for (const p of particles) p.draw(cp);
+
+    if (mouse.x > 0) {
+      const mg = ctx.createRadialGradient(mx, my, 0, mx, my, CFG.MOUSE_DIST * 0.55);
+      mg.addColorStop(0, dark ? 'rgba(110,80,220,0.05)' : 'rgba(80,100,200,0.04)');
+      mg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.arc(mx, my, CFG.MOUSE_DIST * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = mg; ctx.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+  window.addEventListener('touchmove', e => {
+    mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+  }, { passive: true });
+  window.addEventListener('touchend', () => { mouse.x = -9999; mouse.y = -9999; });
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 120); });
+  resize();
+  requestAnimationFrame(frame);
+})();
+
 // ── Aurora Blob Background ──
 // ══════════════════════════════════════════════════════
 (function initAurora() {
@@ -1403,8 +1559,8 @@ applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
     const x1 = cx + Math.cos(angle) * L / 2, y1 = cy + Math.sin(angle) * L / 2;
     const bg = ctx.createLinearGradient(x0, y0, x1, y1);
     if (dark) {
-      bg.addColorStop(0, '#141821');
-      bg.addColorStop(1, '#1F1762');
+      bg.addColorStop(0, '#050810');
+      bg.addColorStop(1, '#080520');
     } else {
       bg.addColorStop(0,   '#F8F1EE');
       bg.addColorStop(0.5, '#ECF8F8');
@@ -1414,8 +1570,8 @@ applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
     ctx.fillRect(0, 0, W, H);
 
     const blobs = dark ? darkBlobs : lightBlobs;
-    const coreAlpha = dark ? 0.30 : 0.50;
-    const midAlpha  = dark ? 0.13 : 0.22;
+    const coreAlpha = dark ? 0.14 : 0.50;
+    const midAlpha  = dark ? 0.06 : 0.22;
 
     for (const b of blobs) {
       const pulse = 1 + 0.06 * Math.sin(t * 0.0008 + b.phase);
@@ -1432,7 +1588,7 @@ applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
       ctx.fill();
     }
 
-    ctx.fillStyle = dark ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.28)';
+    ctx.fillStyle = dark ? 'rgba(0,0,0,0.38)' : 'rgba(255,255,255,0.28)';
     ctx.fillRect(0, 0, W, H);
 
     t++;
