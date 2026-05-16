@@ -483,6 +483,47 @@ const KR_NAME_MAP = {
   '357780.KQ':'솔브레인','432720.KQ':'퀄리타스반도체','094360.KQ':'칩스앤미디어',
 };
 
+// 미국 티커 → 회사명 (index.html EN_TICKER_NAME과 동기화)
+const EN_TICKER_NAME_R = {
+  'AAPL':'Apple','MSFT':'Microsoft','NVDA':'NVIDIA','GOOGL':'Alphabet',
+  'AMZN':'Amazon','META':'Meta','TSLA':'Tesla','NFLX':'Netflix',
+  'ADBE':'Adobe','CRM':'Salesforce','INTC':'Intel','AMD':'AMD',
+  'QCOM':'Qualcomm','AVGO':'Broadcom','TSM':'TSMC','GS':'Goldman Sachs',
+  'JPM':'JPMorgan','BAC':'Bank of America','V':'Visa','MA':'Mastercard',
+  'JNJ':'Johnson & Johnson','PFE':'Pfizer','UNH':'UnitedHealth',
+  'XOM':'Exxon','CVX':'Chevron','WMT':'Walmart','COST':'Costco',
+  'DIS':'Disney','NKE':'Nike','SBUX':'Starbucks','MCD':"McDonald's",
+  'SPY':'S&P 500 ETF','QQQ':'NASDAQ 100 ETF','DIA':'Dow Jones ETF',
+  'SMCI':'Super Micro','MRVL':'Marvell','ANET':'Arista Networks',
+  'CSCO':'Cisco','PLTR':'Palantir','SNOW':'Snowflake','MDB':'MongoDB',
+  'DDOG':'Datadog','CRWD':'CrowdStrike','PANW':'Palo Alto','FTNT':'Fortinet',
+  'NOW':'ServiceNow','SNPS':'Synopsys','CDNS':'Cadence','KLAC':'KLA Corp',
+  'LRCX':'Lam Research','AMAT':'Applied Materials','ASML':'ASML',
+  'MU':'Micron','ON':'ON Semi','NXPI':'NXP Semi','TXN':'Texas Instruments',
+  'ADI':'Analog Devices','MPWR':'Monolithic Power','SWKS':'Skyworks',
+  'LLY':'Eli Lilly','ABBV':'AbbVie','BMY':'Bristol-Myers','AMGN':'Amgen',
+  'GILD':'Gilead','REGN':'Regeneron','VRTX':'Vertex','ISRG':'Intuitive Surgical',
+  'MDT':'Medtronic','ABT':'Abbott','SYK':'Stryker','DXCM':'Dexcom',
+  'BLK':'BlackRock','SCHW':'Charles Schwab','COF':'Capital One','BX':'Blackstone',
+  'KKR':'KKR','AXP':'American Express',
+  'COP':'ConocoPhillips','SLB':'Schlumberger','LNG':'Cheniere Energy',
+  'SHOP':'Shopify','MELI':'MercadoLibre','SPOT':'Spotify','RBLX':'Roblox',
+  'SNAP':'Snap','PINS':'Pinterest',
+  'GE':'GE Aerospace','BA':'Boeing','CAT':'Caterpillar','HON':'Honeywell',
+  'RTX':'RTX Corp','LMT':'Lockheed Martin','NOC':'Northrop Grumman',
+  'AXON':'Axon Enterprise','KTOS':'Kratos Defense','RKLB':'Rocket Lab',
+  'INOD':'Innodata','ABAT':'Am. Battery Tech','AUR':'Aurora Innovation',
+  'POET':'POET Technologies','ASTS':'AST SpaceMobile','JOBY':'Joby Aviation',
+  'ACHR':'Archer Aviation','HIMS':'Hims & Hers','TDOC':'Teladoc',
+  'MSTR':'MicroStrategy','CRCL':'Circle','SMMT':'Summit Therapeutics',
+  'SOUN':'SoundHound AI','BBAI':'BigBear.ai','IONQ':'IonQ',
+  'QUBT':'Quantum Computing','RGTI':'Rigetti Computing','ARQQ':'Arqit Quantum',
+  'NVTS':'Navitas Semi','AEHR':'Aehr Test Systems','WOLF':'Wolfspeed',
+  'AMBA':'Ambarella','MTSI':'MACOM Technology','AAOI':'Applied Optoelectronics',
+  'LITE':'Lumentum','COHR':'Coherent','GLW':'Corning','FN':'Fabrinet',
+  'CIEN':'Ciena',
+};
+
 // ══════════════════════════════════════════════════════
 //  유틸
 // ══════════════════════════════════════════════════════
@@ -1304,13 +1345,14 @@ function renderReport(data) {
     const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant);
     const d        = makeDecision(tech, fund, style, price, advanced);
 
-    // 종목명 우선순위: fundInfo → quote longName/shortName → KR_NAME_MAP → ticker
+    // 종목명 우선순위: fundInfo → quote longName/shortName → KR_NAME_MAP → EN_TICKER_NAME_R → ticker
     const _rawName = (fundInfo.companyName && fundInfo.companyName !== ticker)
       ? fundInfo.companyName
       : (quote?.longName || quote?.shortName || fundInfo.companyName || '');
-    const companyName = (_rawName && _rawName !== ticker)
+    const cleanTicker = ticker.replace(/\.(KS|KQ|KP|T|L|HK)$/i, '');
+    const companyName = (_rawName && _rawName !== ticker && _rawName !== cleanTicker)
       ? _rawName
-      : (KR_NAME_MAP[ticker] || ticker);
+      : (KR_NAME_MAP[ticker] || EN_TICKER_NAME_R[cleanTicker] || ticker);
 
     document.title = `${companyName} (${ticker}) 리포트 — SIGNNITH`;
 
