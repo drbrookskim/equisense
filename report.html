@@ -502,6 +502,91 @@ async function fetchWithProxy(url) {
   throw new Error('모든 프록시 실패');
 }
 
+// ── 밸류체인 데이터 ──
+const VALUE_CHAIN_DATA_R = [
+  { industry:'반도체 및 관련 장비/소재', sectors:[
+    { name:'파운드리/팹리스/디자인하우스', stocks:['삼성전자','SK하이닉스','DB하이텍','파두','에이직랜드','제주반도체','LX세미콘','어보브반도체','텔레칩스','가온칩스'] },
+    { name:'HBM/소캠/기판', stocks:['한미반도체','이수페타시스','심텍','대덕전자','티엘비','코리아써키트','해성디에스','에이팩트'] },
+    { name:'장비(전공정/후공정/검사)', stocks:['원익IPS','유진테크','주성엔지니어링','테스','이오테크닉스','HPSP','테크윙','파크시스템스','디아이','넥스틴','브이엠','피에스케이','케이씨텍'] },
+    { name:'소재/부품/기타', stocks:['삼성전기','리노공업','ISC','티에스이','하나머티리얼즈','티씨케이','동진쎄미켐','한솔케미칼','솔브레인','덕산테코피아','코미코'] },
+    { name:'IP/OSAT(패키징)', stocks:['퀄리타스반도체','칩스앤미디어','두산테스나','네패스아크','하나마이크론','SFA반도체','네패스','LB세미콘'] },
+    { name:'미국 광학/통신 반도체', stocks:['LITE','COHR','AAOI','GLW','FN','MTSI','CIEN','ANET','CSCO','MRVL','AVGO'] },
+  ]},
+  { industry:'자율주행, 모빌리티 및 로봇', sectors:[
+    { name:'자율주행 소프트웨어', stocks:['현대오토에버','슈어소프트테크','아우토크립트','모트렉스','오비고','인포뱅크','라닉스','넥스트칩'] },
+    { name:'카메라/센서/라이다', stocks:['퓨런티어','엠씨넥스','LG이노텍','세코닉스','에스오에스랩','스마트레이더시스템','하이비젼시스템'] },
+    { name:'차량 제어/테슬라 부품', stocks:['현대모비스','HL만도','에이테크솔루션','화신','에스엘','명신산업','성우하이텍','TSLA'] },
+    { name:'로봇', stocks:['레인보우로보틱스','로보티즈','에스피지','씨메스','한국피아이엠'] },
+  ]},
+  { industry:'배터리, ESS 및 수소연료전지', sectors:[
+    { name:'배터리 셀', stocks:['LG에너지솔루션','삼성SDI','SK온'] },
+    { name:'전고체 소재/장비', stocks:['이수스페셜티케미컬','한농화성','엔켐','롯데에너지머티리얼즈','씨아이에스','피엔티','원준','필에너지','유일에너테크'] },
+    { name:'양극재/음극재/기타 소재', stocks:['에코프로비엠','에코프로','엘앤에프','포스코퓨처엠','대주전자재료','나노신소재','더블유씨피'] },
+    { name:'ESS/슈퍼커패시터', stocks:['한중엔시에스','서진시스템','아모그린텍','신성에스티','율촌화학','와이엠텍','성일하이텍','비나텍','LS머트리얼즈','삼화전기'] },
+    { name:'수소(SOFC)', stocks:['두산퓨얼셀','범한퓨얼셀','한선엔지니어링','엘티씨','일진하이솔루스'] },
+  ]},
+  { industry:'전력 인프라, 전선 및 대체에너지', sectors:[
+    { name:'전력기기/변압기', stocks:['HD현대일렉트릭','효성중공업','LS ELECTRIC','산일전기','제룡전기'] },
+    { name:'전선/해저케이블', stocks:['대한전선','일진전기','가온전선','LS마린솔루션','LS','LS에코에너지','대원전선'] },
+    { name:'전력 부품/배전/솔루션', stocks:['세명전기','제일일렉트릭','지엔씨에너지','보성파워텍','그리드위즈'] },
+    { name:'원전 본체 및 시공', stocks:['한국전력','한전기술','두산에너빌리티','현대건설','대우건설','DL이앤씨'] },
+    { name:'원전 부품/제어/정비', stocks:['비에이치아이','태웅','우리기술','우진','에너토크','한전KPS','한전산업','우진엔텍','일진파워'] },
+    { name:'태양광/풍력', stocks:['한화솔루션','HD현대에너지솔루션','OCI홀딩스','신성이엔지','대명에너지','씨에스윈드','씨에스베어링','동국S&C'] },
+  ]},
+  { industry:'IT, 통신 및 디지털 자산', sectors:[
+    { name:'통신장비/광통신(5G/6G)', stocks:['케이엠더블유','쏠리드','RFHIC','이노와이어리스','에이스테크','와이솔','기가레인','대한광통신','오이솔루션','다산네트웍스','유비쿼스'] },
+    { name:'AI 데이터센터 구축/운영', stocks:['삼성SDS','LG씨엔에스','NAVER','NHN','KT','LG유플러스'] },
+    { name:'디지털자산/결제/핀테크', stocks:['핑거','갤럭시아머니트리','카카오페이','다날','헥토파이낸셜','더존비즈온','코나아이','웹케시','CRCL'] },
+    { name:'코인 거래소/투자/관련주', stocks:['우리기술투자','티사이언티픽','위지트','위메이드','비트맥스','넥서스'] },
+    { name:'애플 폴더블/IT 부품', stocks:['비에이치','인터플렉스','디케이티','파인엠텍','KH바텍','덕산네오룩스','이녹스첨단소재','세경하이테크','삼화콘덴서','아모텍','AAPL'] },
+  ]},
+  { industry:'방산, 조선 및 LNG', sectors:[
+    { name:'방산/항공우주', stocks:['한화에어로스페이스','현대로템','LIG넥스원','한국항공우주','한화시스템','엠앤씨솔루션','아이쓰리시스템','코츠테크놀로지','휴니드','빅텍','인텔리안테크'] },
+    { name:'조선 및 해양플랜트', stocks:['한화오션','HD현대중공업','HJ중공업','HD한국조선해양','삼성중공업','대한조선'] },
+    { name:'조선 기자재/엔진/보냉재', stocks:['한화엔진','HD현대마린엔진','STX엔진','HD현대마린솔루션','한국카본','동성화인텍','성광벤드','태광','하이록코리아','디케이락'] },
+    { name:'LNG 파이프/인프라', stocks:['넥스틸','휴스틸','세아제강','포스코인터내셔널','한국가스공사','SK가스','삼천리','지에스이'] },
+  ]},
+  { industry:'바이오, 제약, 미용/화장품', sectors:[
+    { name:'바이오/의료기기', stocks:['알테오젠','에이비엘바이오','삼천당제약','HLB','리가켐바이오','펩트론','디앤디파마텍','보로노이','에이프릴바이오','셀트리온제약','시지메디텍','제이브이엠','바디텍메드'] },
+    { name:'RNA 치료제', stocks:['에스티팜','삼성바이오로직스','올릭스','알지노믹스','한미약품','부광약품','삼양바이오팜'] },
+    { name:'미용의료/에스테틱', stocks:['파마리서치','휴젤','클래시스','엘앤씨바이오','원텍','휴메딕스'] },
+    { name:'화장품', stocks:['한국화장품','마녀공장','토니모리','코스맥스','한국콜마','코스메카코리아','에이피알','실리콘투','브이티'] },
+  ]},
+  { industry:'소비재, 원자재 및 지주사', sectors:[
+    { name:'관광/카지노/호텔', stocks:['강원랜드','GKL','파라다이스','호텔신라','롯데관광개발','하나투어','모두투어','노랑풍선'] },
+    { name:'유통/의류', stocks:['현대백화점','신세계','롯데쇼핑','이마트','F&F','휠라홀딩스','한섬','에이유브랜즈','영원무역','한세실업','화승엔터프라이즈'] },
+    { name:'비료/사료 및 식품', stocks:['남해화학','경농','조비','롯데정밀화학','농우바이오','한일사료','팜스토리','대한제당','CJ프레시웨이'] },
+    { name:'구리/은(원자재)', stocks:['이구산업','대창','풍산','KBI메탈','서원','고려아연','영풍','엘컴텍'] },
+    { name:'종합상사 및 정유', stocks:['포스코인터내셔널','LX인터내셔널','GS글로벌','SK이노베이션','S-Oil'] },
+    { name:'주요 지주사', stocks:['롯데지주','SK','두산','KCC','LS','HD현대','한화','CJ','POSCO홀딩스','효성','삼성물산','LG'] },
+  ]},
+];
+const VC_TICKER_MAP_R = {
+  'LITE':'LITE','COHR':'COHR','AAOI':'AAOI','GLW':'GLW','FN':'FN','MTSI':'MTSI',
+  'CIEN':'CIEN','ANET':'ANET','CSCO':'CSCO','MRVL':'MRVL','AVGO':'AVGO',
+  'AAPL':'AAPL','TSLA':'TSLA','CRCL':'CRCL',
+  '005930.KS':'삼성전자','000660.KS':'SK하이닉스','035420.KS':'NAVER',
+  '086520.KQ':'에코프로','373220.KS':'LG에너지솔루션','005380.KS':'현대차',
+  '003670.KS':'포스코퓨처엠','247540.KQ':'에코프로비엠','066570.KS':'LG전자',
+  '012450.KS':'한화에어로스페이스','009540.KS':'HD현대중공업','042660.KS':'한화오션',
+  '000270.KS':'기아','207940.KS':'삼성바이오로직스','068270.KS':'셀트리온',
+  '036570.KS':'엔씨소프트','035720.KS':'카카오','017670.KS':'SK텔레콤',
+  '030200.KS':'KT','032830.KS':'삼성생명','055550.KS':'신한지주',
+  '105560.KS':'KB금융','316140.KS':'우리금융지주','086790.KS':'하나금융지주',
+};
+function findValueChain(ticker, companyName) {
+  const mapped = VC_TICKER_MAP_R[ticker] || companyName || '';
+  const clean  = ticker.replace(/\.(KS|KQ)$/i,'');
+  const isSelf = s => s === clean || s === mapped ||
+    (mapped.length > 1 && (s.includes(mapped) || mapped.includes(s) || (s.length>2 && mapped.startsWith(s))));
+  for (const ind of VALUE_CHAIN_DATA_R) {
+    for (const sec of ind.sectors) {
+      if (sec.stocks.some(isSelf)) return { industry: ind, matchedSector: sec, allSectors: ind.sectors };
+    }
+  }
+  return null;
+}
+
 // ── WACC 계산 (index.html과 동일한 로직) ──
 const SECTOR_ADJ_R = {
   'Technology':           { erpAdj: 0.010, sizeAdj: 0.005 },
@@ -1068,6 +1153,56 @@ function renderReport(data) {
     }) : ''}
   </div>`;
 
+  // ── 섹션 6: 밸류체인 분석 ──
+  const vcMatch = findValueChain(ticker, companyName);
+  const sec6 = vcMatch ? (() => {
+    const { industry, matchedSector, allSectors } = vcMatch;
+    const otherSectors = allSectors.filter(s => s.name !== matchedSector.name);
+    const selfStocks = matchedSector.stocks;
+    const sectorRows = allSectors.map(sec => {
+      const isCurrent = sec.name === matchedSector.name;
+      const pills = sec.stocks.map(s => {
+        const isTarget = selfStocks.includes(s) && isCurrent && (s === companyName || s === ticker.replace(/\.(KS|KQ)$/i,'') || companyName?.includes(s) || s.includes(companyName||''));
+        return `<span style="display:inline-block;padding:2px 8px;margin:2px 3px;border-radius:12px;font-size:0.72rem;
+          ${isTarget
+            ? 'background:rgba(0,212,170,.2);color:var(--green);border:1px solid rgba(0,212,170,.4);font-weight:700'
+            : isCurrent
+              ? 'background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2)'
+              : 'background:var(--card2);color:var(--muted);border:1px solid var(--border)'}">${s}</span>`;
+      }).join('');
+      return `
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.72rem;font-weight:700;color:${isCurrent?'var(--blue)':'var(--muted)'};margin-bottom:4px;display:flex;align-items:center;gap:6px">
+            ${isCurrent?'<span style="color:var(--green)">●</span>':'<span style="color:var(--border)">○</span>'}
+            ${sec.name}
+            ${isCurrent?'<span style="font-size:0.62rem;background:rgba(0,212,170,.15);color:var(--green);padding:1px 6px;border-radius:8px;font-weight:600">현재 종목</span>':''}
+          </div>
+          <div style="line-height:1.8">${pills}</div>
+        </div>`;
+    }).join('');
+    return `
+  <div class="section-card">
+    <div class="section-title">🔗 밸류체인 분석</div>
+    <div style="margin-bottom:14px;padding:10px 14px;background:var(--card2);border-radius:10px;border:1px solid var(--border)">
+      <div style="font-size:0.7rem;color:var(--muted);margin-bottom:2px">산업군</div>
+      <div style="font-size:0.9rem;font-weight:700;color:var(--text)">${industry.industry}</div>
+      <div style="font-size:0.72rem;color:var(--blue);margin-top:4px">현재 섹터: <b>${matchedSector.name}</b> &nbsp;·&nbsp; 동일 섹터 ${matchedSector.stocks.length}개 종목</div>
+    </div>
+    <div style="font-size:0.7rem;font-weight:700;color:var(--muted2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">공급망 전체 구조</div>
+    ${sectorRows}
+    <div style="margin-top:8px;font-size:0.68rem;color:var(--muted);padding:6px 10px;background:rgba(59,130,246,.06);border-radius:6px;line-height:1.6">
+      💡 동일 산업군 내 섹터별 포지셔닝을 확인하세요. <span style="color:var(--green)">● 현재 섹터</span>의 상·하류 업체 동향이 주가에 영향을 줄 수 있습니다.
+    </div>
+  </div>`;
+  })() : `
+  <div class="section-card">
+    <div class="section-title">🔗 밸류체인 분석</div>
+    <div style="color:var(--muted);font-size:0.85rem;padding:16px 0;text-align:center">
+      해당 종목의 밸류체인 데이터가 등록되어 있지 않습니다.<br>
+      <span style="font-size:0.75rem;color:var(--muted2)">(현재 한국 주요 산업군 및 일부 미국 종목 지원)</span>
+    </div>
+  </div>`;
+
   // ── 섹션 5: WACC 할인율 분석 ──
   const W = waccResult;
   const sec5 = `
@@ -1128,6 +1263,7 @@ function renderReport(data) {
   ${sec3}
   ${sec4}
   ${sec5}
+  ${sec6}
   `;
 }
 
