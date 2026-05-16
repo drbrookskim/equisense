@@ -3133,10 +3133,18 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   // ══════════════════════════════════════════════════════
   // ── 공통 차트 옵션 ──
   // ══════════════════════════════════════════════════════
-  const TICK_SIZE = 11;  // metric-row 0.78rem ≈ 12.5px 에 맞춤
+  const TICK_SIZE = 11;
   const LEG_SIZE  = 10;
+  const _chartDark  = !document.documentElement.classList.contains('light');
+  const _tickColor  = _chartDark ? '#cbd5e1' : '#475569';
+  const _gridColor  = _chartDark ? '#1e2a3a' : '#e2e8f0';
+  const _legColor   = _chartDark ? '#cbd5e1' : '#475569';
+  const _tooltipBg  = _chartDark ? '#1e2a40' : '#ffffff';
+  const _tooltipTtl = _chartDark ? '#94a3b8' : '#64748b';
+  const _tooltipBdy = _chartDark ? '#e2e8f0' : '#1e293b';
+
   const sigTooltip = {
-    backgroundColor:'#1e2a40', titleColor:'#94a3b8', bodyColor:'#e2e8f0',
+    backgroundColor:_tooltipBg, titleColor:_tooltipTtl, bodyColor:_tooltipBdy,
     padding:10, titleFont:{size:11}, bodyFont:{size:11},
     callbacks:{
       label: ctx => {
@@ -3152,8 +3160,8 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false}, tooltip: sigTooltip},
     scales:{
-      x:{ticks:{color:'#64748b',maxTicksLimit:8,font:{size:TICK_SIZE}},grid:{color:'#1a2235'}},
-      y:{ticks:{color:'#64748b',font:{size:TICK_SIZE}},grid:{color:'#1a2235'}}
+      x:{ticks:{color:_tickColor,maxTicksLimit:8,font:{size:TICK_SIZE}},grid:{color:_gridColor}},
+      y:{ticks:{color:_tickColor,font:{size:TICK_SIZE}},grid:{color:_gridColor}}
     }
   };
 
@@ -3174,7 +3182,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
              showLine:false, _signalMeta: meta };
   }
   function mkLegend(items) {
-    return { display:true, labels:{ color:'#64748b', font:{size:LEG_SIZE}, padding:10,
+    return { display:true, labels:{ color:_legColor, font:{size:LEG_SIZE}, padding:10,
       generateLabels:()=>items.map(([text,color,bold])=>({
         text, fillStyle:color, strokeStyle:color, lineWidth:0,
         fontStyle: bold?'bold':'normal'
