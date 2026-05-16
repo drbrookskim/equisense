@@ -151,17 +151,6 @@
     transition:all .15s;
   }
   .back-btn:hover{ color: var(--green); border-color: var(--green); }
-  .btn-theme-r {
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border2);
-    background: var(--card2);
-    color: var(--text2);
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .btn-theme-r:hover { border-color: var(--green); }
 
   /* ── Page wrapper ── */
   .page{
@@ -422,8 +411,7 @@
     <button class="btn-icon" onclick="window.print()" title="인쇄 / PDF">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
     </button>
-    <button class="btn-theme-r" id="theme-btn-r" onclick="toggleThemeR()" title="테마 전환">🌙</button>
-    <a class="back-btn" href="index.html">← 분석 화면으로</a>
+    <button class="back-btn" onclick="window.close()" style="cursor:pointer;border:none;text-decoration:none">✕ Close</button>
   </div>
 </header>
 
@@ -1355,20 +1343,11 @@ function shareToThreads() {
 // ══════════════════════════════════════════════════════
 const THEME_KEY = 'tsa_theme';
 
+// index.html에서 저장한 테마를 그대로 불러옴 (읽기 전용)
 function applyThemeR(theme) {
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
   document.documentElement.classList.toggle('light', isLight);
-  const btn = document.getElementById('theme-btn-r');
-  if (btn) btn.textContent = isLight ? '🌞' : '🌙';
-  localStorage.setItem(THEME_KEY, theme);
 }
-
-function toggleThemeR() {
-  const isLight = document.documentElement.classList.contains('light');
-  applyThemeR(isLight ? 'dark' : 'light');
-}
-
-// index.html에서 저장한 테마를 그대로 불러옴
 applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
 
 // ══════════════════════════════════════════════════════

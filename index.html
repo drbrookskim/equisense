@@ -302,7 +302,8 @@
     gap: 10px;
   }
   .search-input {
-    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -976,7 +977,7 @@
     <option value="short_term">단기</option>
     <option value="long_term">장기</option>
   </select>
-  <button class="btn-run" id="run-btn" onclick="runAnalysis()">분석 시작</button>
+  <button class="btn-run" id="run-btn" onclick="runAnalysis()">🔍 분석 시작</button>
   <button class="btn-report" id="report-btn" onclick="openReport()" title="상세 리포트 보기">📄 리포트</button>
 </div>
 
@@ -2534,7 +2535,6 @@ async function runAnalysis() {
 
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
-          <span style="font-size:1.1rem">${sent.icon}</span>
           <span style="font-size:0.88rem;font-weight:700;color:${sent.color}">커뮤니티 심리: ${sent.label}</span>
           <span style="font-size:0.70rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg} · ${xPosts?xPosts.length:0}건</span>
         </div>
