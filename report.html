@@ -681,6 +681,7 @@ async function fetchFundamentals(ticker) {
       marketCap:     g(d.summaryDetail,'marketCap'),
       totalDebt:     g(d.financialData,'totalDebt'),
       ebitda:        g(d.financialData,'ebitda'),
+      exchange:      d.quoteType?.exchange || '',
     };
   } catch{return {};}
 }
@@ -902,7 +903,7 @@ function metricBlock({ subTitle, barPct, barScore, valueText, descLabel, descHtm
 // ══════════════════════════════════════════════════════
 function renderReport(data) {
   const { ticker, companyName, sector, price, prevClose, isKr, currency,
-          ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced, waccResult } = data;
+          ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced, waccResult, exchangeName } = data;
 
   const changeAmt = prevClose ? price - prevClose : null;
   const changePct = prevClose ? (price / prevClose - 1) * 100 : null;
@@ -1231,7 +1232,7 @@ function renderReport(data) {
       <span class="badge ${actionMap[d.action]}">${actionLabel[d.action]}</span>
       <span style="font-size:0.82rem;color:var(--muted2)">${sector}</span>
     </div>
-    <h1>${companyName} <span style="font-size:1.2rem;color:var(--muted2);font-weight:500">${ticker}</span></h1>
+    <h1>${companyName} <span style="font-size:1.2rem;color:var(--muted2);font-weight:500">${isKr ? ticker : `(${ticker}${exchangeName ? ', '+exchangeName : ''})`}</span></h1>
     <div style="margin-top:14px">
       <span class="price-display">${fmt(price,isKr)}</span>
       <span style="font-size:0.9rem;color:var(--muted2);margin-left:6px">${currency}</span>
@@ -1300,11 +1301,14 @@ function renderReport(data) {
     document.title = `${companyName} (${ticker}) 리포트 — SIGNNITH`;
 
     const waccResult = computeWACCR(fundInfo, isKr);
+    // Exchange name for US stocks
+    const exchangeName = isKr ? '' : (fundInfo.exchange || quote?.exchange || (ticker.includes('.') ? '' : (ticker.length <= 4 ? 'NYSE' : 'NASDAQ')));
     renderReport({
       ticker, price, prevClose, isKr, currency, ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced,
       companyName,
       sector: fundInfo.sector || '-',
       waccResult,
+      exchangeName,
     });
 
   } catch(e) {
