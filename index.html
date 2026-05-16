@@ -403,25 +403,41 @@
     50%      { box-shadow: 0 6px 28px rgba(124,58,237,.5), 0 2px 8px rgba(0,0,0,.3); }
   }
   .btn-run:not(:disabled) { animation: btn-pulse 3s ease-in-out infinite; }
-  /* ── 리포트 버튼 ── */
-  .btn-report {
-    padding: 0 20px;
-    height: 44px;
-    border-radius: 10px;
-    border: 1.5px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.10);
-    color: #e2e8f0;
+  /* ── 원형 버튼 (기간·스타일·분석시작·리포트) ── */
+  .circle-btn {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px; flex-shrink: 0;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    color: var(--text);
     font-family: inherit;
-    font-size: 0.88rem;
-    font-weight: 600;
     cursor: pointer;
-    white-space: nowrap;
-    backdrop-filter: blur(8px);
-    transition: background .2s, border-color .2s, transform .15s;
+    transition: border-color .2s, transform .15s, box-shadow .2s;
+    position: relative; overflow: visible;
   }
-  .btn-report:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); transform: translateY(-1px); }
-  html.light .btn-report { color: #1e293b; border-color: rgba(0,0,0,0.15); background: rgba(255,255,255,0.55); }
-  html.light .btn-report:hover { background: rgba(255,255,255,0.8); }
+  .circle-icon { font-size: 1.35rem; line-height: 1; }
+  .circle-label { font-size: 0.58rem; color: var(--muted); font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; }
+  .circle-btn:hover { border-color: var(--green); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,212,170,.2); }
+  .circle-run {
+    background: linear-gradient(135deg,#00d4aa 0%,#0099ff 50%,#7c3aed 100%);
+    background-size: 200% 200%; background-position: 0% 50%;
+    border: none;
+    box-shadow: 0 4px 18px rgba(0,212,170,.35), 0 1px 4px rgba(0,0,0,.25);
+    animation: btn-pulse 3s ease-in-out infinite;
+  }
+  .circle-run .circle-icon { color: #fff; }
+  .circle-run .circle-label { color: rgba(255,255,255,.9); }
+  .circle-run:hover { background-position: 100% 50%; box-shadow: 0 6px 28px rgba(0,153,255,.45); }
+  .circle-run:disabled { opacity:.45; cursor:not-allowed; filter:saturate(0.4); animation:none; transform:none; }
+  .circle-report { border-color: rgba(139,92,246,.35); background: rgba(139,92,246,.08); }
+  .circle-report .circle-icon { color: var(--purple,#8b5cf6); }
+  .circle-report .circle-label { color: var(--purple,#8b5cf6); opacity:.8; }
+  .circle-report:hover { border-color: var(--purple,#8b5cf6); box-shadow: 0 4px 14px rgba(139,92,246,.25); }
+  /* 숨김 선택박스 (JS 호환용) */
+  .select-hidden { display: none !important; }
   /* ── 즐겨찾기 ── */
   .fav-section {
     max-width: 1300px;
@@ -892,20 +908,10 @@
     .mini-row   { grid-template-columns: 1fr 1fr; }
   }
   @media (max-width: 700px) {
-    .search-wrap {
-      flex-direction: column;
-      gap: 8px;
-    }
-    .search-outer,
-    .select-box,
-    .btn-run,
-    .btn-report {
-      width: 100%;
-      box-sizing: border-box;
-      justify-content: center;
-    }
-    .btn-run { padding: 13px 26px; }
-    .btn-report { height: auto; padding: 13px 20px; }
+    .search-wrap { flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .search-outer { width: 100%; }
+    .circle-btn { width: 62px; height: 62px; }
+    .circle-icon { font-size: 1.15rem; }
   }
 </style>
 </head>
@@ -952,27 +958,43 @@
   </div>
 </div>
 
-<div class="search-wrap">
+<div class="search-wrap" style="align-items:center">
   <div class="search-outer">
     <input id="ticker-input" class="search-input" type="text"
            placeholder="종목명 또는 티커  예) Apple · 삼성전자 · NVDA · 005930.KS"
            value="AAPL" autocomplete="off"/>
     <div id="ac-list" class="autocomplete-list" style="display:none"></div>
   </div>
-  <select id="period-select" class="select-box">
+  <!-- 숨김 select (JS 호환 유지) -->
+  <select id="period-select" class="select-hidden">
     <option value="1mo">1개월</option>
     <option value="3mo">3개월</option>
     <option value="6mo" selected>6개월</option>
     <option value="1y">1년</option>
     <option value="2y">2년</option>
   </select>
-  <select id="style-select" class="select-box">
+  <select id="style-select" class="select-hidden">
     <option value="balanced" selected>균형</option>
     <option value="short_term">단기</option>
     <option value="long_term">장기</option>
   </select>
-  <button class="btn-run" id="run-btn" onclick="runAnalysis()">분석 시작</button>
-  <button class="btn-report" id="report-btn" onclick="openReport()" title="상세 리포트 보기">📄 리포트</button>
+  <!-- 원형 버튼 4개 -->
+  <button class="circle-btn" id="period-btn" onclick="cyclePeriod()" title="분석 기간 (클릭으로 변경)">
+    <span class="circle-icon">📅</span>
+    <span class="circle-label" id="period-label">6개월</span>
+  </button>
+  <button class="circle-btn" id="style-btn" onclick="cycleStyle()" title="분석 스타일 (클릭으로 변경)">
+    <span class="circle-icon">⚖️</span>
+    <span class="circle-label" id="style-label">균형</span>
+  </button>
+  <button class="circle-btn circle-run" id="run-btn" onclick="runAnalysis()" title="분석 시작">
+    <span class="circle-icon" style="font-size:1.6rem;color:#fff">▷</span>
+    <span class="circle-label" style="color:rgba(255,255,255,.9)">분석시작</span>
+  </button>
+  <button class="circle-btn circle-report" id="report-btn" onclick="openReport()" title="상세 리포트 보기">
+    <span class="circle-icon">📊</span>
+    <span class="circle-label" style="color:var(--purple,#8b5cf6);opacity:.85">리포트</span>
+  </button>
 </div>
 
 <!-- 검색 기록 -->
@@ -1069,6 +1091,34 @@ function openSettings() {
 function closeSettings(e) {
   if (e && !e.target.classList.contains('settings-overlay')) return;
   document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+// ── 기간/스타일 원형 버튼 사이클 ──
+const _PERIODS = [{v:'1mo',l:'1개월'},{v:'3mo',l:'3개월'},{v:'6mo',l:'6개월'},{v:'1y',l:'1년'},{v:'2y',l:'2년'}];
+const _STYLES  = [{v:'balanced',l:'균형'},{v:'short_term',l:'단기'},{v:'long_term',l:'장기'}];
+function cyclePeriod() {
+  const sel = document.getElementById('period-select');
+  const idx = _PERIODS.findIndex(p=>p.v===sel.value);
+  const next = _PERIODS[(idx+1)%_PERIODS.length];
+  sel.value = next.v;
+  const lbl = document.getElementById('period-label');
+  if (lbl) lbl.textContent = next.l;
+}
+function cycleStyle() {
+  const sel = document.getElementById('style-select');
+  const idx = _STYLES.findIndex(s=>s.v===sel.value);
+  const next = _STYLES[(idx+1)%_STYLES.length];
+  sel.value = next.v;
+  const lbl = document.getElementById('style-label');
+  if (lbl) lbl.textContent = next.l;
+}
+function syncCircleLabels() {
+  const pv = document.getElementById('period-select')?.value || '6mo';
+  const sv = document.getElementById('style-select')?.value || 'balanced';
+  const pl = document.getElementById('period-label');
+  const sl = document.getElementById('style-label');
+  if (pl) pl.textContent = _PERIODS.find(p=>p.v===pv)?.l || '6개월';
+  if (sl) sl.textContent = _STYLES.find(s=>s.v===sv)?.l || '균형';
 }
 
 function switchSentimentTab(tab) {
@@ -2870,6 +2920,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--purple)"></span>관련 뉴스
         <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">StockTwits 커뮤니티 심리</span>
+        <span style="font-size:0.58rem;color:var(--muted2);font-weight:400;margin-left:6px;padding:1px 6px;border:1px solid var(--border);border-radius:10px;letter-spacing:0.02em">Translated by MyMemory</span>
       </div>
       <div id="news-sentiment-panel" style="margin-top:6px">
         <div style="color:var(--muted);font-size:0.8rem;padding:12px 0;text-align:center">뉴스 조회 중…</div>
@@ -4366,6 +4417,7 @@ renderHistory();
     if (input)  input.value  = t;
     if (period && p) period.value = p;
     if (style  && s) style.value  = s;
+    syncCircleLabels();
     runAnalysis();
   } catch(e) {}
 })();

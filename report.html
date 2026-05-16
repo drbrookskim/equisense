@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>리포트 — signnith</title>
+<title>리포트 — SIGNNITH</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Geist:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ── CSS 변수: 다크 모드 (기본) ── */
   :root {
@@ -55,7 +55,7 @@
 
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{
-    font-family:'DM Sans','Noto Sans KR',-apple-system,sans-serif;
+    font-family:'Space Grotesk','Noto Sans KR',-apple-system,sans-serif;
     background: var(--bg);
     min-height:100vh;
     color: var(--text);
@@ -502,6 +502,49 @@ async function fetchWithProxy(url) {
   throw new Error('모든 프록시 실패');
 }
 
+// ── WACC 계산 (index.html과 동일한 로직) ──
+const SECTOR_ADJ_R = {
+  'Technology':           { erpAdj: 0.010, sizeAdj: 0.005 },
+  'Consumer Cyclical':    { erpAdj: 0.005, sizeAdj: 0.000 },
+  'Healthcare':           { erpAdj: 0.005, sizeAdj: 0.000 },
+  'Financial Services':   { erpAdj:-0.005, sizeAdj: 0.000 },
+  'Industrials':          { erpAdj: 0.000, sizeAdj: 0.000 },
+  'Consumer Defensive':   { erpAdj:-0.005, sizeAdj:-0.003 },
+  'Energy':               { erpAdj: 0.010, sizeAdj: 0.005 },
+  'Basic Materials':      { erpAdj: 0.005, sizeAdj: 0.000 },
+  'Real Estate':          { erpAdj:-0.005, sizeAdj: 0.000 },
+  'Utilities':            { erpAdj:-0.010, sizeAdj: 0.000 },
+  'Communication Services':{ erpAdj: 0.005, sizeAdj: 0.000 },
+};
+function computeWACCR(fundInfo, isKr) {
+  const rfRate = isKr ? 0.035 : 0.043;
+  const erp    = isKr ? 0.065 : 0.055;
+  const sector = fundInfo.sector || '';
+  const adj    = SECTOR_ADJ_R[sector] || { erpAdj:0, sizeAdj:0 };
+  const adjErp = erp + adj.erpAdj;
+  const beta   = fundInfo.beta || 1.0;
+  const re     = rfRate + beta * adjErp + adj.sizeAdj;
+  const mktCap = fundInfo.marketCap || 0;
+  const totDebt= fundInfo.totalDebt || 0;
+  const totalV = mktCap + totDebt;
+  const eRatio = totalV > 0 ? mktCap / totalV : 0.8;
+  const deRatio= 1 - eRatio;
+  const tc     = isKr ? 0.25 : 0.21;
+  const ebit   = fundInfo.ebitda != null ? fundInfo.ebitda * 0.85 : null;
+  const intExp = (totDebt > 0 && ebit != null) ? ebit / Math.max(1, totDebt * 0.05) : null;
+  const icov   = (ebit != null && intExp != null && intExp > 0) ? ebit / intExp : null;
+  let rdPre;
+  if (icov == null)       rdPre = rfRate + 0.04;
+  else if (icov >= 8.5)   rdPre = rfRate + 0.010;
+  else if (icov >= 4.25)  rdPre = rfRate + 0.020;
+  else if (icov >= 2.5)   rdPre = rfRate + 0.035;
+  else if (icov >= 1.5)   rdPre = rfRate + 0.060;
+  else                    rdPre = rfRate + 0.100;
+  const rd   = rdPre * (1 - tc);
+  const wacc = eRatio * re + deRatio * rd;
+  return { wacc, re, rd, rfRate, beta, adjErp, erpAdj: adj.erpAdj, tc, eRatio, deRatio, interestCoverage: icov, sectorLabel: sector || '기타' };
+}
+
 function last(arr) {
   for (let i=arr.length-1;i>=0;i--) if(arr[i]!=null) return arr[i];
   return null;
@@ -561,6 +604,10 @@ async function fetchFundamentals(ticker) {
       debtToEquity:  g(d.financialData,'debtToEquity'),
       currentRatio:  g(d.financialData,'currentRatio'),
       dividendYield: g(d.summaryDetail,'dividendYield'),
+      beta:          g(d.defaultKeyStatistics,'beta'),
+      marketCap:     g(d.summaryDetail,'marketCap'),
+      totalDebt:     g(d.financialData,'totalDebt'),
+      ebitda:        g(d.financialData,'ebitda'),
     };
   } catch{return {};}
 }
@@ -782,7 +829,7 @@ function metricBlock({ subTitle, barPct, barScore, valueText, descLabel, descHtm
 // ══════════════════════════════════════════════════════
 function renderReport(data) {
   const { ticker, companyName, sector, price, prevClose, isKr, currency,
-          ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced } = data;
+          ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced, waccResult } = data;
 
   const changeAmt = prevClose ? price - prevClose : null;
   const changePct = prevClose ? (price / prevClose - 1) * 100 : null;
@@ -1021,6 +1068,40 @@ function renderReport(data) {
     }) : ''}
   </div>`;
 
+  // ── 섹션 5: WACC 할인율 분석 ──
+  const W = waccResult;
+  const sec5 = `
+  <div class="section-card">
+    <div class="section-title">📐 WACC 할인율 분석 (가중평균자본비용)</div>
+
+    ${metricBlock({
+      subTitle: 'WACC — 최종 할인율',
+      barPct: Math.round(Math.min(100, W.wacc * 500)),
+      barScore: W.wacc < 0.08 ? 0.6 : W.wacc < 0.12 ? 0 : -0.6,
+      valueText: (W.wacc*100).toFixed(2)+'%',
+      descLabel: 'WACC 해석',
+      descHtml: `가중평균자본비용 <b>${(W.wacc*100).toFixed(2)}%</b> — DCF 밸류에이션에서 미래 현금흐름을 현재가치로 환산할 때 사용하는 할인율입니다.<br>${W.wacc<0.08?'<span class="tag-buy">낮은 할인율: 자본조달 비용 우수, 기업가치 유리</span>':W.wacc>0.12?'<span class="tag-sell">높은 할인율: 자본비용 부담, 기업가치 할인 확대</span>':'<span class="tag-warn">중립적 할인율 (8~12%)</span>'}<br>WACC = Re×E/V + Rd×(1−Tc)×D/V · ${isKr?'한국(Rf 3.5%)':'미국(Rf 4.3%)'} 시장 기준`
+    })}
+
+    ${metricBlock({
+      subTitle: '자기자본비용 (Re) — CAPM',
+      barPct: Math.round(Math.min(100, W.re * 500)),
+      barScore: W.re < 0.10 ? 0.5 : W.re < 0.15 ? 0 : -0.5,
+      valueText: (W.re*100).toFixed(2)+'% (비중 '+Math.round(W.eRatio*100)+'%)',
+      descLabel: 'CAPM 구성요소',
+      descHtml: `Re = Rf(${(W.rfRate*100).toFixed(1)}%) + β(${W.beta.toFixed(2)}) × ERP(${(W.adjErp*100).toFixed(1)}%)<br>베타 ${W.beta.toFixed(2)} — ${W.beta>1.2?'<span class="tag-sell">고위험 고변동성 종목 (β>1.2)</span>':W.beta<0.8?'<span class="tag-buy">저위험 방어주 (β<0.8)</span>':'<span class="tag-warn">시장 평균 수준 (β≈1.0)</span>'}<br>섹터 ERP 조정: ${W.erpAdj>=0?'+':''}${(W.erpAdj*100).toFixed(1)}% (${W.sectorLabel})`
+    })}
+
+    ${metricBlock({
+      subTitle: '타인자본비용 (Rd) — 세후',
+      barPct: Math.round(Math.min(100, W.rd * 500)),
+      barScore: W.rd < 0.04 ? 0.5 : W.rd < 0.07 ? 0 : -0.5,
+      valueText: (W.rd*100).toFixed(2)+'% (비중 '+Math.round(W.deRatio*100)+'%)',
+      descLabel: '신용도 및 이자보상배율',
+      descHtml: `세후 타인자본비용 <b>${(W.rd*100).toFixed(2)}%</b> = 세전 Rd × (1−Tc ${(W.tc*100).toFixed(0)}%)<br>${W.interestCoverage!=null?`이자보상배율 <b>${W.interestCoverage.toFixed(1)}x</b> — ${W.interestCoverage>=8.5?'<span class="tag-buy">우량 (AA급, ≥8.5x)</span>':W.interestCoverage>=4.25?'<span class="tag-warn">투자적격 (BBB, 4.25~8.5x)</span>':W.interestCoverage>=1.5?'<span class="tag-sell">투기등급 (BB, 1.5~4.25x)</span>':'<span class="tag-sell">고위험 (≤1.5x)</span>'}`:''}<br>부채비율(D/V): ${Math.round(W.deRatio*100)}% — 낮을수록 재무 안전성 우수`
+    })}
+  </div>`;
+
   document.getElementById('report-content').innerHTML = `
   <div class="main-title-card">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
@@ -1046,6 +1127,7 @@ function renderReport(data) {
   ${sec2}
   ${sec3}
   ${sec4}
+  ${sec5}
   `;
 }
 
@@ -1058,7 +1140,7 @@ function renderReport(data) {
   const period = params.get('period') || '6mo';
   const style  = params.get('style')  || 'balanced';
 
-  document.title = `${ticker} 리포트 — signnith`;
+  document.title = `${ticker} 리포트 — SIGNNITH`;
 
   try {
     const [ohlcvData, fundInfo, quote] = await Promise.all([
@@ -1091,12 +1173,14 @@ function renderReport(data) {
       ? _rawName
       : (KR_NAME_MAP[ticker] || ticker);
 
-    document.title = `${companyName} (${ticker}) 리포트 — signnith`;
+    document.title = `${companyName} (${ticker}) 리포트 — SIGNNITH`;
 
+    const waccResult = computeWACCR(fundInfo, isKr);
     renderReport({
       ticker, price, prevClose, isKr, currency, ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced,
       companyName,
       sector: fundInfo.sector || '-',
+      waccResult,
     });
 
   } catch(e) {
