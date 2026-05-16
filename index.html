@@ -4665,8 +4665,8 @@ function openReport() {
     const y1 = cy + Math.sin(angle) * L / 2;
     const bg = ctx.createLinearGradient(x0, y0, x1, y1);
     if (dark) {
-      bg.addColorStop(0, '#141821');
-      bg.addColorStop(1, '#1F1762');
+      bg.addColorStop(0, '#050810');
+      bg.addColorStop(1, '#080520');
     } else {
       bg.addColorStop(0,   '#F8F1EE');  // Pale Glow — Bone Peach
       bg.addColorStop(0.5, '#ECF8F8');  // Ghostly Sky — Glacial White
@@ -4677,9 +4677,9 @@ function openReport() {
 
     // ── 블롭 렌더링 ──
     const blobs = dark ? darkBlobs : lightBlobs;
-    // 다크: 중심 0.30 투명도 / 라이트: 중심 0.45 투명도 (밝은 배경에서 잘 보이도록)
-    const coreAlpha = dark ? 0.30 : 0.50;
-    const midAlpha  = dark ? 0.13 : 0.22;
+    // 다크: 중심 0.14 투명도 / 라이트: 중심 0.45 투명도 (밝은 배경에서 잘 보이도록)
+    const coreAlpha = dark ? 0.14 : 0.50;
+    const midAlpha  = dark ? 0.06 : 0.22;
 
     for (const b of blobs) {
       const pulse = 1 + 0.06 * Math.sin(t * 0.0008 + b.phase);
@@ -4700,7 +4700,7 @@ function openReport() {
 
     // ── 오버레이 ──
     // 다크: 어두운 필름으로 가독성 확보 / 라이트: 밝은 화이트 베일로 부드럽게
-    ctx.fillStyle = dark ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.28)';
+    ctx.fillStyle = dark ? 'rgba(0,0,0,0.38)' : 'rgba(255,255,255,0.28)';
     ctx.fillRect(0, 0, W, H);
 
     t++;
