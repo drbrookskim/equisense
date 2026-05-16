@@ -65,8 +65,18 @@
     min-height: 100vh;
     transition: background .25s, color .25s;
   }
-  /* ── Aurora Blob (다크 모드 전용) ── */
+  /* ── Aurora Blob Background ── */
   #aurora-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+    pointer-events: none;
+    display: block;
+  }
+  /* ── Particle Network Overlay ── */
+  #particle-canvas {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -924,6 +934,7 @@
 </head>
 <body>
 <canvas id="aurora-canvas"></canvas>
+<canvas id="particle-canvas"></canvas>
 
 <!-- 설명 모달 -->
 <div class="tip-modal-overlay" id="tipModalOverlay" onclick="closeTipModal(event)">
@@ -4433,6 +4444,170 @@ function openReport() {
 }
 
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// ── Particle Network Background ──
+// ══════════════════════════════════════════════════════
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const CFG = {
+    SPEED_MAX:       0.38,
+    RADIUS:          1.5,
+    GLOW_RADIUS:     3.2,
+    LINK_DIST:       130,
+    MOUSE_DIST:      150,
+    REPEL_STRENGTH:  5.0,
+    REPEL_EASE:      0.08,
+  };
+
+  function isDark() { return !document.documentElement.classList.contains('light'); }
+
+  // dark / light 팔레트
+  const DARK_P  = [160, 200, 255];
+  const DARK_L  = [100, 160, 255];
+  const DARK_ML = [140, 110, 255];
+  const LIGHT_P = [80,  120, 200];
+  const LIGHT_L = [60,  100, 180];
+  const LIGHT_ML= [110,  70, 200];
+
+  let W, H, particles;
+  const mouse = { x: -9999, y: -9999 };
+
+  class Particle {
+    constructor() {
+      this.x      = Math.random() * W;
+      this.y      = Math.random() * H;
+      const spd   = 0.08 + Math.random() * CFG.SPEED_MAX;
+      const ang   = Math.random() * Math.PI * 2;
+      this.vx     = Math.cos(ang) * spd;
+      this.vy     = Math.sin(ang) * spd;
+      this.rx     = 0; this.ry = 0;
+      this.alpha  = 0.25 + Math.random() * 0.45;
+      this.r      = CFG.RADIUS * (0.7 + Math.random() * 0.6);
+      this.phase  = Math.random() * Math.PI * 2;
+      this.wobble = (Math.random() - 0.5) * 0.005;
+    }
+    update(dt) {
+      this.phase += this.wobble * dt;
+      const cos = Math.cos(this.phase * 0.35), sin = Math.sin(this.phase * 0.35);
+      const nx = this.vx * cos - this.vy * sin;
+      const ny = this.vx * sin + this.vy * cos;
+      this.vx = nx; this.vy = ny;
+
+      const dx = this.x - mouse.x, dy = this.y - mouse.y;
+      const d  = Math.hypot(dx, dy);
+      if (d < CFG.MOUSE_DIST && d > 0) {
+        const f = (1 - d / CFG.MOUSE_DIST) * CFG.REPEL_STRENGTH;
+        this.rx += (dx / d) * f;
+        this.ry += (dy / d) * f;
+      }
+      this.vx += this.rx * CFG.REPEL_EASE;
+      this.vy += this.ry * CFG.REPEL_EASE;
+      this.rx *= 0.82; this.ry *= 0.82;
+
+      const spd = Math.hypot(this.vx, this.vy), max = CFG.SPEED_MAX * 2.4;
+      if (spd > max) { this.vx = (this.vx / spd) * max; this.vy = (this.vy / spd) * max; }
+
+      this.x += this.vx * (dt / 16);
+      this.y += this.vy * (dt / 16);
+      if (this.x < -20) this.x = W + 20;
+      if (this.x > W + 20) this.x = -20;
+      if (this.y < -20) this.y = H + 20;
+      if (this.y > H + 20) this.y = -20;
+    }
+    draw(cp) {
+      const [r, g, b] = cp;
+      const grd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, CFG.GLOW_RADIUS * this.r);
+      grd.addColorStop(0,   `rgba(${r},${g},${b},${this.alpha * 0.85})`);
+      grd.addColorStop(0.4, `rgba(${r},${g},${b},${this.alpha * 0.25})`);
+      grd.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, CFG.GLOW_RADIUS * this.r, 0, Math.PI * 2);
+      ctx.fillStyle = grd; ctx.fill();
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${this.alpha})`; ctx.fill();
+    }
+  }
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    const count = Math.min(Math.floor((W * H) / 10000), 180);
+    if (!particles || Math.abs(particles.length - count) > 15) {
+      particles = Array.from({ length: count }, () => new Particle());
+    }
+  }
+
+  let last = 0;
+  function frame(ts) {
+    const dt = Math.min(ts - last, 50); last = ts;
+    const dark = isDark();
+    const cp = dark ? DARK_P : LIGHT_P;
+    const cl = dark ? DARK_L : LIGHT_L;
+    const cm = dark ? DARK_ML: LIGHT_ML;
+    const maxLinkAlpha = dark ? 0.18 : 0.10;
+    const maxMouseAlpha= dark ? 0.50 : 0.28;
+
+    ctx.clearRect(0, 0, W, H);
+    for (const p of particles) p.update(dt);
+
+    // particle–particle links
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const a = particles[i], b = particles[j];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < CFG.LINK_DIST) {
+          const op = (1 - d / CFG.LINK_DIST) * maxLinkAlpha;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},${op})`;
+          ctx.lineWidth = op * 1.2; ctx.stroke();
+        }
+      }
+    }
+
+    // mouse links
+    const mx = mouse.x, my = mouse.y;
+    for (const p of particles) {
+      const d = Math.hypot(p.x - mx, p.y - my);
+      if (d < CFG.MOUSE_DIST) {
+        const op = (1 - d / CFG.MOUSE_DIST) * maxMouseAlpha;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(mx, my);
+        ctx.strokeStyle = `rgba(${cm[0]},${cm[1]},${cm[2]},${op * 0.55})`;
+        ctx.lineWidth = op * 1.1; ctx.stroke();
+      }
+    }
+
+    // particles
+    for (const p of particles) p.draw(cp);
+
+    // cursor glow
+    if (mouse.x > 0) {
+      const mg = ctx.createRadialGradient(mx, my, 0, mx, my, CFG.MOUSE_DIST * 0.55);
+      mg.addColorStop(0, dark ? 'rgba(110,80,220,0.05)' : 'rgba(80,100,200,0.04)');
+      mg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.arc(mx, my, CFG.MOUSE_DIST * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = mg; ctx.fill();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+  window.addEventListener('touchmove', e => {
+    mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+  }, { passive: true });
+  window.addEventListener('touchend', () => { mouse.x = -9999; mouse.y = -9999; });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 120); });
+  resize();
+  requestAnimationFrame(frame);
+})();
+
 // ── Aurora Blob Background (다크 모드 전용) ──
 // ══════════════════════════════════════════════════════
 (function initAurora() {
