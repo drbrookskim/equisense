@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>signnith</title>
+<title>SIGNNITH</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1721,6 +1721,22 @@ async function fetchNewsSentiment(ticker, isKr) {
   return results;
 }
 
+// ── MyMemory 번역 (무료 · 인증 불필요, en→ko) ──
+const _transCache = {};
+async function translateToKo(text) {
+  if (!text) return text;
+  const key = text.slice(0, 80);
+  if (_transCache[key]) return _transCache[key];
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0,500))}&langpair=en|ko`;
+    const r = await fetch(url);
+    const j = await r.json();
+    const translated = j?.responseData?.translatedText || text;
+    _transCache[key] = translated;
+    return translated;
+  } catch { return text; }
+}
+
 // ── StockTwits 심리 조회 (무료 · 인증 불필요) ──
 async function fetchXSentiment(ticker) {
   try {
@@ -2427,44 +2443,72 @@ async function runAnalysis() {
       waccResult,
     });
 
-    // StockTwits 심리 비동기
+    // StockTwits 심리 비동기 (번역 포함)
     const _cName = fundInfo.companyName || resolveTickerName(ticker) || ticker;
-    fetchXSentiment(ticker, _cName, isKr).then(xPosts => {
+    fetchXSentiment(ticker, _cName, isKr).then(async xPosts => {
       const el = document.getElementById('news-sentiment-panel');
       if (!el) return;
 
       const sent = scoreSentiment(xPosts || []);
 
-      const postsHtml = (xPosts && xPosts.length) ? `
-        <div style="display:flex;flex-direction:column;gap:6px">
-          ${xPosts.map(p=>{
-            const engColor = p.likes>50?'var(--up)':p.likes>10?'var(--yellow)':'var(--muted)';
-            const sentBadge = p.sentiment==='Bullish'
-              ? `<span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:rgba(34,197,94,.15);color:var(--up);font-weight:600">▲ Bullish</span>`
-              : p.sentiment==='Bearish'
-              ? `<span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:rgba(239,68,68,.12);color:var(--down);font-weight:600">▼ Bearish</span>`
-              : '';
-            return `
-            <a href="${p.url}" target="_blank" rel="noopener"
-               style="display:block;padding:8px 10px;background:var(--card2);border-radius:8px;text-decoration:none;border:1px solid var(--border)">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-                <span style="font-size:0.72rem;font-weight:700;color:var(--blue)">@${p.author}</span>
-                ${sentBadge}
-                <span style="margin-left:auto;font-size:0.68rem;color:${engColor}">♥${p.likes}</span>
-              </div>
-              <div style="font-size:0.78rem;color:var(--text);line-height:1.5;word-break:break-word">${p.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-            </a>`;
-          }).join('')}
-        </div>`
-        : `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">📊 StockTwits 데이터 없음 (미국 종목만 지원)</div>`;
+      // 번역: 최대 10건까지 한글로
+      if (xPosts && xPosts.length) {
+        const toTranslate = xPosts.slice(0, 10);
+        const translated = await Promise.all(toTranslate.map(p => translateToKo(p.text)));
+        toTranslate.forEach((p, i) => { p.textKo = translated[i]; });
+      }
+
+      function renderPost(p) {
+        const engColor = p.likes>50?'var(--up)':p.likes>10?'var(--yellow)':'var(--muted)';
+        const sentBadge = p.sentiment==='Bullish'
+          ? `<span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:rgba(34,197,94,.15);color:var(--up);font-weight:600">▲ 강세</span>`
+          : p.sentiment==='Bearish'
+          ? `<span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:rgba(239,68,68,.12);color:var(--down);font-weight:600">▼ 약세</span>`
+          : '';
+        const bodyText = (p.textKo || p.text).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `
+          <a href="${p.url}" target="_blank" rel="noopener"
+             style="display:block;padding:8px 10px;background:var(--card2);border-radius:8px;text-decoration:none;border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+              <span style="font-size:0.72rem;font-weight:700;color:var(--blue)">@${p.author}</span>
+              ${sentBadge}
+              <span style="margin-left:auto;font-size:0.68rem;color:${engColor}">♥${p.likes}</span>
+            </div>
+            <div style="font-size:0.78rem;color:var(--text);line-height:1.5;word-break:break-word">${bodyText}</div>
+          </a>`;
+      }
+
+      let postsHtml;
+      if (xPosts && xPosts.length) {
+        const visible = xPosts.slice(0, 5);
+        const hidden  = xPosts.slice(5);
+        const hiddenHtml = hidden.length ? `
+          <div id="st-more" style="display:none;display:flex;flex-direction:column;gap:6px;margin-top:0">
+            ${hidden.map(renderPost).join('')}
+          </div>
+          <button onclick="const m=document.getElementById('st-more');const b=this;if(m.style.display==='none'||m.style.display===''){m.style.display='flex';b.textContent='▲ 접기';}else{m.style.display='none';b.textContent='▼ 더보기 (${hidden.length}건 더)'}"
+            style="margin-top:8px;width:100%;padding:7px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--muted);cursor:pointer;font-size:0.78rem">
+            ▼ 더보기 (${hidden.length}건 더)
+          </button>` : '';
+        postsHtml = `
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${visible.map(renderPost).join('')}
+          </div>
+          ${hiddenHtml}`;
+      } else {
+        postsHtml = `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">📊 StockTwits 데이터 없음 (미국 종목만 지원)</div>`;
+      }
 
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
           <span style="font-size:1.1rem">${sent.icon}</span>
           <span style="font-size:0.88rem;font-weight:700;color:${sent.color}">커뮤니티 심리: ${sent.label}</span>
-          <span style="font-size:0.70rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg} · StockTwits ${xPosts?xPosts.length:0}건</span>
+          <span style="font-size:0.70rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg} · ${xPosts?xPosts.length:0}건</span>
         </div>
         ${postsHtml}`;
+      // 숨겨진 더보기 div 초기화 (inline display 충돌 방지)
+      const moreDiv = el.querySelector('#st-more');
+      if (moreDiv) moreDiv.style.display = 'none';
     });
 
     // NXT 가격 비동기 업데이트 (한국 종목만)
@@ -2789,7 +2833,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
     <!-- WACC 카드 (3번째 컬럼) -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>WACC 할인율 분석
+      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>WACC 할인율 분석${tip('WACC — 가중평균자본비용','<b>WACC (Weighted Average Cost of Capital)</b>란 기업이 자금을 조달할 때 드는 평균 비용으로, DCF 밸류에이션의 핵심 할인율입니다.\n\n<b>공식</b>\nWACC = Re × E/V + Rd × (1−Tc) × D/V\n\n<b>구성요소</b>\n· Re: 자기자본비용 (CAPM 기반)\n· Rd: 타인자본비용 (세전 이자율 × (1−법인세))\n· E/V: 자기자본 비중\n· D/V: 부채 비중\n\n<b>해석 기준</b>\n<span class="tag-buy">▲ 낮을수록</span> — 자본 조달 비용이 낮아 DCF 할인 시 기업가치가 높게 산출됩니다.\n<span class="tag-sell">▼ 높을수록</span> — 미래 현금흐름을 더 크게 할인해 기업가치가 낮게 평가됩니다.\n\n<b>활용</b>\nWACC보다 높은 ROE/ROIC를 달성하는 기업은 주주가치를 창출 중입니다.')}
         <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">${waccResult.sectorLabel} 섹터 조정</span>
       </div>
       <div style="text-align:center;padding:10px 0 6px">
@@ -2798,22 +2842,22 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
         <div class="mini-card" style="padding:8px 10px">
-          <div class="label">자기자본비용 (Re)</div>
+          <div class="label">자기자본비용 (Re)${tip('자기자본비용 (Re)','<b>CAPM 공식</b>\nRe = Rf + β × (ERP + 섹터조정)\n\n<b>구성요소</b>\n· Rf: 무위험수익률 (국채 10년물)\n· β(베타): 시장 대비 주가 민감도\n· ERP: 시장위험프리미엄 (주식투자의 초과수익 기대치)\n\n<b>해석</b>\n투자자가 이 기업 주식에 요구하는 최소 기대수익률입니다. 베타가 높을수록(변동성↑) Re도 높아져 기업가치 할인이 커집니다.')}</div>
           <div style="font-weight:700;font-size:0.95rem;color:var(--up)">${(waccResult.re*100).toFixed(2)}%</div>
           <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">비중 ${(waccResult.eRatio*100).toFixed(0)}%</div>
         </div>
         <div class="mini-card" style="padding:8px 10px">
-          <div class="label">타인자본비용 (Rd)</div>
+          <div class="label">타인자본비용 (Rd)${tip('타인자본비용 (Rd)','<b>계산 방법</b>\nEBIT / 이자비용 = 이자보상배율\n→ 이자보상배율에 따른 신용등급 스프레드 + Rf = 세전 Rd\n→ Rd(세후) = 세전 Rd × (1 − 법인세율)\n\n<b>이자보상배율 등급</b>\n8.5x 이상 → AA (우량)\n4.25x 이상 → BBB (투자적격)\n1.5x 이상 → BB (투기등급)\n1.5x 미만 → CCC 이하\n\n<b>해석</b>\n부채에 대한 이자 비용입니다. 법인세 절감 효과(이자비용 손금산입)를 반영하므로 세후 기준으로 계산합니다.')}</div>
           <div style="font-weight:700;font-size:0.95rem;color:var(--down)">${(waccResult.rd*100).toFixed(2)}%</div>
           <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">비중 ${(waccResult.deRatio*100).toFixed(0)}% · 세후</div>
         </div>
       </div>
       <div style="margin-top:10px;font-size:0.73rem;color:var(--muted);line-height:1.8;border-top:1px solid var(--border);padding-top:8px">
-        <div style="display:flex;justify-content:space-between"><span>무위험수익률 (Rf)</span><span style="color:var(--text2)">${(waccResult.rfRate*100).toFixed(1)}%</span></div>
-        <div style="display:flex;justify-content:space-between"><span>베타 (β)</span><span style="color:var(--text2)">${waccResult.beta.toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between"><span>시장위험프리미엄 (ERP)</span><span style="color:var(--text2)">${(waccResult.adjErp*100).toFixed(1)}% <span style="color:var(--muted)">(섹터조정 ${waccResult.erpAdj>=0?'+':''}${(waccResult.erpAdj*100).toFixed(1)}%)</span></span></div>
-        <div style="display:flex;justify-content:space-between"><span>법인세율 (Tc)</span><span style="color:var(--text2)">${(waccResult.tc*100).toFixed(0)}%</span></div>
-        ${waccResult.interestCoverage!=null?`<div style="display:flex;justify-content:space-between"><span>이자보상배율</span><span style="color:var(--text2)">${waccResult.interestCoverage.toFixed(1)}x</span></div>`:''}
+        <div style="display:flex;justify-content:space-between"><span>무위험수익률 (Rf)${tip('무위험수익률 (Rf)','국채 10년물 수익률을 기준으로 합니다.\n\n<b>적용 기준</b>\n· 한국 종목: 3.5% (한국 국고채 10년)\n· 미국 종목: 4.3% (미국 국채 10년)\n\n무위험수익률은 CAPM의 기준선으로, 모든 투자의 최소 기대수익률 기준이 됩니다.')}</span><span style="color:var(--text2)">${(waccResult.rfRate*100).toFixed(1)}%</span></div>
+        <div style="display:flex;justify-content:space-between"><span>베타 (β)${tip('베타 (β) — 시장 민감도','<b>계산 기준</b>\n야후파이낸스에서 제공하는 52주 기준 베타값입니다.\n\n<b>해석</b>\n<span class="tag-sell">β > 1.0</span> — 시장보다 변동성이 크고 위험이 높음\n<span class="tag-buy">β < 1.0</span> — 시장보다 방어적, 변동성 낮음\nβ = 1.0 — 시장과 동일한 움직임\nβ < 0 — 시장과 반대로 움직임 (역상관)\n\n<b>예시</b>\nβ = 1.5이면 시장이 10% 하락할 때 이 주식은 약 15% 하락하는 경향이 있습니다.')}</span><span style="color:var(--text2)">${waccResult.beta.toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>시장위험프리미엄 (ERP)${tip('시장위험프리미엄 (ERP)','<b>정의</b>\n주식 투자자가 무위험자산(국채) 대비 요구하는 추가 수익률입니다.\n\n<b>적용 기준</b>\n· 한국 기본 ERP: 6.5%\n· 미국 기본 ERP: 5.5%\n\n<b>섹터 조정</b>\n산업 특성에 따라 ±1.5%p 내에서 조정됩니다.\n· Technology: +1.0% (고성장·고위험)\n· Utilities: −1.0% (안정적 현금흐름)\n· Healthcare: +0.5%\n· Financial: −0.5%')}</span><span style="color:var(--text2)">${(waccResult.adjErp*100).toFixed(1)}% <span style="color:var(--muted)">(섹터조정 ${waccResult.erpAdj>=0?'+':''}${(waccResult.erpAdj*100).toFixed(1)}%)</span></span></div>
+        <div style="display:flex;justify-content:space-between"><span>법인세율 (Tc)${tip('법인세율 (Tc)','타인자본비용(Rd) 계산 시 세금 절감 효과를 반영하기 위해 사용합니다.\n\nRd(세후) = Rd(세전) × (1 − Tc)\n\n<b>적용 기준</b>\n· 한국: 25%\n· 미국: 21%\n\n이자비용은 세전 비용이므로 법인세를 절감해주는 효과가 있습니다. 이를 "이자의 감세 효과(Tax Shield)"라고 합니다.')}</span><span style="color:var(--text2)">${(waccResult.tc*100).toFixed(0)}%</span></div>
+        ${waccResult.interestCoverage!=null?`<div style="display:flex;justify-content:space-between"><span>이자보상배율${tip('이자보상배율 (Interest Coverage Ratio)','<b>계산 방법</b>\nEBIT(영업이익) / 이자비용\n\n<b>해석 기준</b>\n<span class="tag-buy">▲ 8.5x 이상</span> — AA급 우량. 부채 상환 능력 매우 우수\n4.25x ~ 8.5x — BBB급 투자적격\n1.5x ~ 4.25x — BB급 (투기등급 진입 전)\n<span class="tag-sell">▼ 1.5x 미만</span> — CCC 이하. 이자 지급 능력 취약\n\n이 비율을 통해 기업의 신용등급을 추정하고, 타인자본비용(Rd)을 산정합니다.')}</span><span style="color:var(--text2)">${waccResult.interestCoverage.toFixed(1)}x</span></div>`:''}
       </div>
       <div style="margin-top:8px;font-size:0.68rem;color:var(--muted);padding:6px 8px;background:rgba(255,200,0,.06);border-radius:6px">
         💡 WACC = Re×E/V + Rd×D/V×(1−Tc) · CAPM 기반 · ${isKr?'한국':'미국'} 시장 기준
