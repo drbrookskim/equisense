@@ -591,7 +591,7 @@
   .row-top    { grid-template-columns: 260px 1fr 240px; }
   /* current-state 카드는 기존 크기 유지 (html font-size 확대 보정) */
   #dashboard .row-top .card:first-child { font-size: 0.908em; }
-  .row-bottom { grid-template-columns: repeat(2, 1fr); }
+  .row-bottom { grid-template-columns: repeat(3, 1fr); }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -662,7 +662,7 @@
   .sector-pill { background: var(--border); border-radius: 20px; padding: 2px 10px; font-size: 0.68rem; color: var(--text2); }
 
   /* ── 검색 자동완성 ── */
-  .search-outer { flex: 6; position: relative; min-width: 0; }
+  .search-outer { flex: 9; position: relative; min-width: 0; }
   .autocomplete-list {
     position: absolute;
     top: calc(100% + 6px);
@@ -888,7 +888,7 @@
   .footer a { color: var(--green); text-decoration: none; }
   @media (max-width: 900px) {
     .row-top    { grid-template-columns: 1fr; }
-    .row-bottom { grid-template-columns: 1fr; }
+    .row-bottom { grid-template-columns: 1fr; grid-template-rows: auto; }
     .mini-row   { grid-template-columns: 1fr 1fr; }
   }
   @media (max-width: 700px) {
@@ -993,11 +993,11 @@
 
 <div class="grid" id="dashboard">
   <div class="center-msg" id="welcome-msg">
-    <div style="line-height:1.9">
+    <div style="line-height:1.9;font-size:16px">
       <div>KOSPI · KOSDAQ은 <b style="color:var(--green)">종목명</b> 또는 <b style="color:var(--green)">종목번호</b>를 입력하세요.</div>
       <div>NYSE · NASDAQ은 <b style="color:var(--green)">종목명</b> 또는 <b style="color:var(--green)">티커</b>를 입력 후 <b style="color:var(--green)">분석 시작</b>을 누르세요.</div>
     </div>
-    <div style="margin-top:16px;font-size:0.8rem;color:var(--muted)">서버 없이 브라우저에서 실시간 분석</div>
+    <div style="margin-top:16px;font-size:14px;color:var(--muted)">서버 없이 브라우저에서 실시간 분석</div>
   </div>
 </div>
 
@@ -2427,34 +2427,15 @@ async function runAnalysis() {
       waccResult,
     });
 
-    // 뉴스 + X 심리 병렬 비동기
+    // StockTwits 심리 비동기
     const _cName = fundInfo.companyName || resolveTickerName(ticker) || ticker;
-    Promise.all([
-      fetchNewsSentiment(ticker, isKr),
-      fetchXSentiment(ticker, _cName, isKr),
-    ]).then(([news, xPosts]) => {
+    fetchXSentiment(ticker, _cName, isKr).then(xPosts => {
       const el = document.getElementById('news-sentiment-panel');
       if (!el) return;
-      const hasNews = news?.length > 0;
-      const hasX    = xPosts?.length > 0;
-      if (!hasNews && !hasX) { el.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">뉴스 데이터를 불러올 수 없습니다.</div>'; return; }
 
-      const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}); } catch { return ''; } };
-      const allItems = [...(news||[]), ...(xPosts||[])];
-      const sent = scoreSentiment(allItems);
+      const sent = scoreSentiment(xPosts || []);
 
-      // 탭 구조
-      const newsTab = hasNews ? `
-        <div style="display:flex;flex-direction:column;gap:5px">
-          ${news.map(n=>`
-          <a href="${n.link||'#'}" target="_blank" rel="noopener"
-             style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:7px 9px;background:var(--card2);border-radius:7px;text-decoration:none;border:1px solid var(--border)">
-            <span style="font-size:0.80rem;color:var(--text);line-height:1.45;flex:1">${n.title}</span>
-            <span style="font-size:0.68rem;color:var(--muted);white-space:nowrap;margin-top:2px">${fmt(n.pubDate)}</span>
-          </a>`).join('')}
-        </div>` : '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">뉴스 데이터 없음</div>';
-
-      const xTab = (xPosts && xPosts.length) ? `
+      const postsHtml = (xPosts && xPosts.length) ? `
         <div style="display:flex;flex-direction:column;gap:6px">
           ${xPosts.map(p=>{
             const engColor = p.likes>50?'var(--up)':p.likes>10?'var(--yellow)':'var(--muted)';
@@ -2474,26 +2455,16 @@ async function runAnalysis() {
               <div style="font-size:0.78rem;color:var(--text);line-height:1.5;word-break:break-word">${p.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
             </a>`;
           }).join('')}
-        </div>` : `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">📊 StockTwits 데이터 없음 (미국 종목만 지원)</div>`;
+        </div>`
+        : `<div style="color:var(--muted);font-size:0.8rem;padding:8px 0">📊 StockTwits 데이터 없음 (미국 종목만 지원)</div>`;
 
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
           <span style="font-size:1.1rem">${sent.icon}</span>
-          <span style="font-size:0.88rem;font-weight:700;color:${sent.color}">종합 심리: ${sent.label}</span>
-          <span style="font-size:0.70rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg}</span>
+          <span style="font-size:0.88rem;font-weight:700;color:${sent.color}">커뮤니티 심리: ${sent.label}</span>
+          <span style="font-size:0.70rem;color:var(--muted)">긍정 ${sent.pos} · 부정 ${sent.neg} · StockTwits ${xPosts?xPosts.length:0}건</span>
         </div>
-        <div style="display:flex;gap:0;margin-bottom:10px" id="sentiment-tabs">
-          <button onclick="switchSentimentTab('news')" id="stab-news"
-            style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px 0 0 6px;background:var(--blue);color:#fff;cursor:pointer;font-size:0.80rem;font-weight:600">
-            📰 뉴스 ${hasNews?`(${news.length}건)`:''}
-          </button>
-          <button onclick="switchSentimentTab('x')" id="stab-x"
-            style="flex:1;padding:6px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:var(--card2);color:var(--muted);cursor:pointer;font-size:0.80rem">
-            📊 StockTwits ${xPosts&&xPosts.length?`(${xPosts.length}건)`:''}
-          </button>
-        </div>
-        <div id="stab-news-content">${newsTab}</div>
-        <div id="stab-x-content" style="display:none">${xTab}</div>`;
+        ${postsHtml}`;
     });
 
     // NXT 가격 비동기 업데이트 (한국 종목만)
@@ -2815,12 +2786,8 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('배당수익률', M.divYield!=null?M.divYield.toFixed(2)+'%':'-', '', TIPS.divYield.title, TIPS.divYield.body)}
       ${mrow('내재가치', fmt(fund.intrinsic,isKr)+' '+currency, fund.intrinsic>price?'var(--up)':'var(--down)', TIPS.intrinsic.title, TIPS.intrinsic.body)}
     </div>
-  </div>
 
-  <!-- ── WACC + 뉴스 심리 행 ── -->
-  <div class="row row-bottom" style="margin-top:0">
-
-    <!-- WACC 카드 -->
+    <!-- WACC 카드 (3번째 컬럼) -->
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--orange)"></span>WACC 할인율 분석
         <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">${waccResult.sectorLabel} 섹터 조정</span>
@@ -2852,17 +2819,18 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         💡 WACC = Re×E/V + Rd×D/V×(1−Tc) · CAPM 기반 · ${isKr?'한국':'미국'} 시장 기준
       </div>
     </div>
+  </div>
 
-    <!-- 뉴스 & 시장 심리 카드 -->
+  <!-- ── 관련 뉴스 행 ── -->
+  <div class="row" style="margin-top:0;grid-template-columns:1fr">
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--purple)"></span>뉴스 & 시장 심리
-        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">Yahoo Finance 최신 헤드라인</span>
+      <div class="card-header"><span class="dot" style="background:var(--purple)"></span>관련 뉴스
+        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">StockTwits 커뮤니티 심리</span>
       </div>
       <div id="news-sentiment-panel" style="margin-top:6px">
         <div style="color:var(--muted);font-size:0.8rem;padding:12px 0;text-align:center">뉴스 조회 중…</div>
       </div>
     </div>
-
   </div>
 
   <!-- ── Row 4: 차트 (최하단) ── -->
