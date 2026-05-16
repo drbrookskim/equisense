@@ -4584,7 +4584,7 @@ function openReport() {
     const cp = dark ? DARK_P : LIGHT_P;
     const cl = dark ? DARK_L : LIGHT_L;
     const cm = dark ? DARK_ML: LIGHT_ML;
-    const maxLinkAlpha = dark ? 0.28 : 0.14;
+    const maxLinkAlpha = dark ? 0.52 : 0.22;
     const maxMouseAlpha= dark ? 0.50 : 0.28;
 
     ctx.clearRect(0, 0, W, H);
@@ -4599,7 +4599,7 @@ function openReport() {
           const op = (1 - d / CFG.LINK_DIST) * maxLinkAlpha;
           ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
           ctx.strokeStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},${op})`;
-          ctx.lineWidth = op * 1.2; ctx.stroke();
+          ctx.lineWidth = op * 1.8; ctx.stroke();
         }
       }
     }

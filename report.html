@@ -1246,7 +1246,7 @@ function renderReport(data) {
       <span class="badge ${actionMap[d.action]}">${actionLabel[d.action]}</span>
       <span style="font-size:0.82rem;color:var(--muted2)">${sector}</span>
     </div>
-    <h1>${companyName} <span style="font-size:1.2rem;color:var(--muted2);font-weight:500">${isKr ? ticker : `(${ticker}${exchangeName ? ', '+exchangeName : ''})`}</span></h1>
+    <h1>${companyName} <span style="font-size:1.2rem;color:var(--muted2);font-weight:500">(${ticker.replace(/\.(KS|KQ|KP|T|L|HK)$/i,'')})</span></h1>
     <div style="margin-top:14px">
       <span class="price-display">${fmt(price,isKr)}</span>
       <span style="font-size:0.9rem;color:var(--muted2);margin-left:6px">${currency}</span>
@@ -1460,7 +1460,7 @@ applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
     const cp = dark ? DARK_P : LIGHT_P;
     const cl = dark ? DARK_L : LIGHT_L;
     const cm = dark ? DARK_ML: LIGHT_ML;
-    const maxLA = dark ? 0.28 : 0.14, maxMA = dark ? 0.50 : 0.28;
+    const maxLA = dark ? 0.52 : 0.22, maxMA = dark ? 0.50 : 0.28;
 
     ctx.clearRect(0, 0, W, H);
     for (const p of particles) p.update(dt);
@@ -1473,7 +1473,7 @@ applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
           const op = (1 - d / CFG.LINK_DIST) * maxLA;
           ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
           ctx.strokeStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},${op})`;
-          ctx.lineWidth = op * 1.2; ctx.stroke();
+          ctx.lineWidth = op * 1.8; ctx.stroke();
         }
       }
     }
