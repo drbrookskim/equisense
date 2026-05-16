@@ -4210,6 +4210,7 @@ const TICKER_NAME = {};
 KR_STOCKS.forEach(([name, sym]) => { if (sym && sym.includes('.') && !TICKER_NAME[sym]) TICKER_NAME[sym] = name; });
 // 영어 회사명도 추가
 const EN_TICKER_NAME = {
+  // 메가캡
   'AAPL':'Apple','MSFT':'Microsoft','NVDA':'NVIDIA','GOOGL':'Alphabet',
   'AMZN':'Amazon','META':'Meta','TSLA':'Tesla','NFLX':'Netflix',
   'ADBE':'Adobe','CRM':'Salesforce','INTC':'Intel','AMD':'AMD',
@@ -4219,6 +4220,41 @@ const EN_TICKER_NAME = {
   'XOM':'Exxon','CVX':'Chevron','WMT':'Walmart','COST':'Costco',
   'DIS':'Disney','NKE':'Nike','SBUX':'Starbucks','MCD':'McDonald\'s',
   'SPY':'S&P 500 ETF','QQQ':'NASDAQ 100 ETF','DIA':'Dow Jones ETF',
+  // 반도체/AI
+  'SMCI':'Super Micro','MRVL':'Marvell','ANET':'Arista Networks',
+  'CSCO':'Cisco','PLTR':'Palantir','SNOW':'Snowflake','MDB':'MongoDB',
+  'DDOG':'Datadog','CRWD':'CrowdStrike','PANW':'Palo Alto','FTNT':'Fortinet',
+  'NOW':'ServiceNow','SNPS':'Synopsys','CDNS':'Cadence','KLAC':'KLA Corp',
+  'LRCX':'Lam Research','AMAT':'Applied Materials','ASML':'ASML',
+  'MU':'Micron','ON':'ON Semiconductor','NXPI':'NXP Semi','TXN':'Texas Instruments',
+  'ADI':'Analog Devices','MPWR':'Monolithic Power','SWKS':'Skyworks',
+  // 헬스케어
+  'LLY':'Eli Lilly','ABBV':'AbbVie','BMY':'Bristol-Myers','AMGN':'Amgen',
+  'GILD':'Gilead','REGN':'Regeneron','VRTX':'Vertex','ISRG':'Intuitive Surgical',
+  'MDT':'Medtronic','ABT':'Abbott','SYK':'Stryker','DXCM':'Dexcom',
+  // 금융
+  'BLK':'BlackRock','SCHW':'Charles Schwab','COF':'Capital One','BX':'Blackstone',
+  'KKR':'KKR','AXP':'American Express',
+  // 에너지
+  'COP':'ConocoPhillips','SLB':'Schlumberger','LNG':'Cheniere Energy',
+  // 소비/통신
+  'SHOP':'Shopify','MELI':'MercadoLibre','SPOT':'Spotify','RBLX':'Roblox',
+  'SNAP':'Snap','PINS':'Pinterest',
+  // 산업/방산
+  'GE':'GE Aerospace','BA':'Boeing','CAT':'Caterpillar','HON':'Honeywell',
+  'RTX':'RTX Corp','LMT':'Lockheed Martin','NOC':'Northrop Grumman',
+  'AXON':'Axon Enterprise','KTOS':'Kratos Defense','RKLB':'Rocket Lab',
+  // 소형 성장주 (즐겨찾기 자주 등장)
+  'INOD':'Innodata','ABAT':'Am. Battery Tech','AUR':'Aurora Innovation',
+  'POET':'POET Technologies','ASTS':'AST SpaceMobile','JOBY':'Joby Aviation',
+  'ACHR':'Archer Aviation','HIMS':'Hims & Hers','TDOC':'Teladoc',
+  'MSTR':'MicroStrategy','CRCL':'Circle','SMMT':'Summit Therapeutics',
+  'SOUN':'SoundHound AI','BBAI':'BigBear.ai','IONQ':'IonQ',
+  'QUBT':'Quantum Computing','RGTI':'Rigetti Computing','ARQQ':'Arqit Quantum',
+  'NVTS':'Navitas Semi','AEHR':'Aehr Test Systems','WOLF':'Wolfspeed',
+  'AMBA':'Ambarella','MTSI':'MACOM Technology','AAOI':'Applied Optoelectronics',
+  'LITE':'Lumentum','COHR':'Coherent','GLW':'Corning','FN':'Fabrinet',
+  'CIEN':'Ciena','AGIO':'Agios Pharma',
 };
 
 function resolveTickerName(ticker) {
@@ -4456,7 +4492,7 @@ function openReport() {
     SPEED_MAX:       0.38,
     RADIUS:          1.5,
     GLOW_RADIUS:     3.2,
-    LINK_DIST:       130,
+    LINK_DIST:       150,
     MOUSE_DIST:      150,
     REPEL_STRENGTH:  5.0,
     REPEL_EASE:      0.08,
@@ -4548,7 +4584,7 @@ function openReport() {
     const cp = dark ? DARK_P : LIGHT_P;
     const cl = dark ? DARK_L : LIGHT_L;
     const cm = dark ? DARK_ML: LIGHT_ML;
-    const maxLinkAlpha = dark ? 0.18 : 0.10;
+    const maxLinkAlpha = dark ? 0.28 : 0.14;
     const maxMouseAlpha= dark ? 0.50 : 0.28;
 
     ctx.clearRect(0, 0, W, H);

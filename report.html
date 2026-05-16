@@ -1381,7 +1381,7 @@ applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
     SPEED_MAX:       0.38,
     RADIUS:          1.5,
     GLOW_RADIUS:     3.2,
-    LINK_DIST:       130,
+    LINK_DIST:       150,
     MOUSE_DIST:      150,
     REPEL_STRENGTH:  5.0,
     REPEL_EASE:      0.08,
@@ -1460,7 +1460,7 @@ applyThemeR(localStorage.getItem(THEME_KEY) || 'dark');
     const cp = dark ? DARK_P : LIGHT_P;
     const cl = dark ? DARK_L : LIGHT_L;
     const cm = dark ? DARK_ML: LIGHT_ML;
-    const maxLA = dark ? 0.18 : 0.10, maxMA = dark ? 0.50 : 0.28;
+    const maxLA = dark ? 0.28 : 0.14, maxMA = dark ? 0.50 : 0.28;
 
     ctx.clearRect(0, 0, W, H);
     for (const p of particles) p.update(dt);
