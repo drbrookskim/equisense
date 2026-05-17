@@ -2754,15 +2754,75 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       </div>
       <div class="card" style="padding:14px 16px">
         <div class="card-header"><span class="dot" style="background:var(--purple)"></span>판단 근거</div>
-        ${d.reasoning.map(r=>{
-          const good=/상승|저평가|초과|일치/.test(r);
-          return `<div class="reason-row"><span>${good?'✅':'⚠️'}</span><span>${r}</span></div>`;
-        }).join('')}
-        <div style="margin-top:8px;font-size:0.8rem;color:var(--muted)">
-          기술점수 <b style="color:${gc}">${d.techScore.toFixed(2)}</b> ·
-          기본점수 <b style="color:${gc}">${d.fundScore.toFixed(2)}</b> ·
-          통합 <b style="color:${gc}">${d.combined.toFixed(2)}</b>
-        </div>
+
+        ${(()=>{
+          const W = waccResult;
+          const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'이치모쿠',smc:'SMC',quant:'퀀트'};
+
+          // ① 통합 신호
+          const sigTag = d.action==='BUY'?`<span class="tag-buy">매수</span>`:d.action==='SELL'?`<span class="tag-sell">매도</span>`:`<span class="tag-warn">관망</span>`;
+          const rows = [
+            `<b>① 통합 신호</b> ${sigTag} &nbsp; 기술 <b style="color:${gc}">${(d.techScore>=0?'+':'')+d.techScore.toFixed(2)}</b> · 기본 <b style="color:${gc}">${(d.fundScore>=0?'+':'')+d.fundScore.toFixed(2)}</b> · 합산 <b style="color:${gc}">${(d.combined>=0?'+':'')+d.combined.toFixed(3)}</b>`,
+          ];
+
+          // ② 기술 지표
+          const rsiTag = I.rsi<30?'<span class="tag-buy">과매도</span>':I.rsi>70?'<span class="tag-sell">과매수</span>':'<span class="tag-warn">중립</span>';
+          const macdTag = (I.macdHist??0)>0?'<span class="tag-buy">상승모멘텀</span>':'<span class="tag-sell">하락모멘텀</span>';
+          const bbTag = (I.bbPct??0.5)<0.2?'<span class="tag-buy">하단근접</span>':(I.bbPct??0.5)>0.8?'<span class="tag-sell">상단근접</span>':'<span class="tag-warn">중간</span>';
+          const volTag = (I.volRatio??1)>1.5?'<span class="tag-buy">고거래량</span>':(I.volRatio??1)<0.5?'<span class="tag-warn">저거래량</span>':'평균';
+          rows.push(`<b>② 기술 지표</b> &nbsp; RSI ${I.rsi?.toFixed(0)??'-'} ${rsiTag} · MACD ${macdTag} · BB ${bbTag} · 거래량 ${(I.volRatio??1).toFixed(2)}x ${volTag}`);
+
+          // ③ 고급 5-Layer
+          const advLine = Object.entries(advanced.details).map(([k,v])=>{
+            const c=v.score>0?'tag-buy':v.score<0?'tag-sell':'';
+            return `${nm[k]||k}<span class="${c}" style="margin-left:3px">${v.label}</span>`;
+          }).join(' · ');
+          rows.push(`<b>③ 고급 분석</b> (${(d.advancedComposite>=0?'+':'')+d.advancedComposite.toFixed(3)}) &nbsp; ${advLine}`);
+
+          // ④ 기본 분석
+          const perTag=(M.per??25)<15?'<span class="tag-buy">저평가</span>':(M.per??25)>35?'<span class="tag-sell">고평가</span>':'<span class="tag-warn">적정</span>';
+          const roeTag=(fund.roe??0)>0.15?'<span class="tag-buy">우량</span>':(fund.roe??0)>0.05?'<span class="tag-warn">보통</span>':'<span class="tag-sell">부진</span>';
+          rows.push(`<b>④ 기본 분석</b> &nbsp; PER ${M.per?.toFixed(1)??'N/A'}배 ${perTag} · ROE ${((fund.roe??0)*100).toFixed(1)}% ${roeTag} · 내재가치 ${fmt(fund.intrinsic,isKr)} ${currency}`);
+
+          // ⑤ WACC
+          const wTag=W.wacc<0.08?'<span class="tag-buy">낮음</span>':W.wacc>0.12?'<span class="tag-sell">높음</span>':'<span class="tag-warn">중립</span>';
+          rows.push(`<b>⑤ WACC</b> ${(W.wacc*100).toFixed(2)}% ${wTag} &nbsp; Re ${(W.re*100).toFixed(2)}% · Rd ${(W.rd*100).toFixed(2)}% · β ${W.beta.toFixed(2)}`);
+
+          // ⑥ R:R
+          const rrTag=d.rr>=2?'<span class="tag-buy">진입 적합</span>':d.rr>=1?'<span class="tag-warn">재검토</span>':'<span class="tag-sell">부적합</span>';
+          rows.push(`<b>⑥ R:R ${d.rr.toFixed(1)}:1</b> ${rrTag} &nbsp; 목표 ${fmt(d.targetPrice,isKr)} · 손절 ${fmt(d.stopLoss,isKr)}`);
+
+          return rows.map(r=>`<div style="font-size:0.76rem;line-height:1.8;padding:4px 0;border-bottom:1px solid var(--border)">${r}</div>`).join('');
+        })()}
+
+        <!-- Action Item -->
+        ${(()=>{
+          const isBuy=d.action==='BUY', isSell=d.action==='SELL';
+          const highConf=d.confidence>=0.8, midConf=d.confidence>=0.5, goodRR=d.rr>=2;
+          const steps=[];
+          if(isBuy && highConf && goodRR){
+            steps.push(`✅ <b>진입</b>: 현재가 ${fmt(price,isKr)} 부근 매수`);
+            steps.push(`🎯 <b>목표</b>: ${fmt(d.targetPrice,isKr)} 분할 차익실현`);
+            steps.push(`🛡️ <b>손절</b>: ${fmt(d.stopLoss,isKr)} 이탈 시 즉시 손절`);
+            steps.push(`📐 <b>비중</b>: 신뢰도 ${Math.round(d.confidence*100)}% → 최대 포지션 가능`);
+          } else if(isBuy){
+            steps.push(`⚠️ <b>분할 진입</b>: 신뢰도 ${Math.round(d.confidence*100)}% — 3분할 이상 나눠서 진입`);
+            steps.push(`🎯 <b>목표</b>: ${fmt(d.targetPrice,isKr)} &nbsp; 🛡️ <b>손절</b>: ${fmt(d.stopLoss,isKr)}`);
+          } else if(isSell){
+            steps.push(`📤 <b>차익실현</b>: 보유 중이라면 ${fmt(d.targetPrice,isKr)} 근처 분할 매도`);
+            steps.push(`🚫 <b>신규 매수 금지</b> — RSI 30↓ + MACD 골든크로스 시 재검토`);
+          } else {
+            steps.push(`⏸️ <b>현금 대기</b>: 통합 신호 ±0.25 돌파 + 신뢰도 50%↑ 시 재분석`);
+            steps.push(`👀 <b>지지 모니터링</b>: BB 하단 ${fmt(I.bbLower,isKr)} 지지 여부 주시`);
+          }
+          const acBg=isBuy?'rgba(0,212,170,.08)':isSell?'rgba(255,75,110,.08)':'rgba(251,191,36,.08)';
+          const acBdr=isBuy?'rgba(0,212,170,.3)':isSell?'rgba(255,75,110,.3)':'rgba(251,191,36,.3)';
+          const acCol=isBuy?'var(--green)':isSell?'var(--red)':'var(--yellow)';
+          return `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:${acBg};border:1px solid ${acBdr}">
+            <div style="font-size:0.7rem;font-weight:700;color:${acCol};letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">🎯 Action Item</div>
+            ${steps.map(s=>`<div style="font-size:0.75rem;color:var(--text2);line-height:1.7">${s}</div>`).join('')}
+          </div>`;
+        })()}
       </div>
     </div>
 
