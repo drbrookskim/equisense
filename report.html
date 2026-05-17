@@ -1086,8 +1086,45 @@ function renderReport(data) {
       barPct: combinedPct,
       barScore: d.combined,
       valueText: (d.combined>=0?'+':'')+d.combined.toFixed(3),
-      descLabel: '판단 근거 및 해석',
-      descHtml: `기술적 분석 <b>(${(d.techScore>=0?'+':'')+d.techScore.toFixed(2)})</b>과 기본적 분석 <b>(${(d.fundScore>=0?'+':'')+d.fundScore.toFixed(2)})</b>을 가중 평균한 값입니다.<br>+0.25 초과 → <span class="tag-buy">매수</span>, −0.25 미만 → <span class="tag-sell">매도</span>, 그 외 → 관망.`
+      descLabel: '판단 근거 및 해석 — 전체 분석 레이어 요약',
+      descHtml: (() => {
+        const I = tech.indicators;
+        const W = waccResult;
+        const lines = [];
+
+        // ① 기술적/기본적 통합 점수
+        lines.push(`<b>① 통합 신호</b>: 기술 <b>${(d.techScore>=0?'+':'')+d.techScore.toFixed(2)}</b> × 기본 <b>${(d.fundScore>=0?'+':'')+d.fundScore.toFixed(2)}</b> → 가중 합산 <b>${(d.combined>=0?'+':'')+d.combined.toFixed(3)}</b>. (+0.25↑ 매수 / −0.25↓ 매도 / 그외 관망)`);
+
+        // ② 주요 기술 지표
+        const rsiTag = I.rsi<30?'<span class="tag-buy">과매도</span>':I.rsi>70?'<span class="tag-sell">과매수</span>':'<span class="tag-warn">중립</span>';
+        const macdTag = (I.macdHist??0)>0?'<span class="tag-buy">상승모멘텀</span>':'<span class="tag-sell">하락모멘텀</span>';
+        const bbTag = (I.bbPct??0.5)<0.2?'<span class="tag-buy">하단근접</span>':(I.bbPct??0.5)>0.8?'<span class="tag-sell">상단근접</span>':'<span class="tag-warn">중간</span>';
+        const volTag = (I.volRatio??1)>1.5?'<span class="tag-buy">고거래량</span>':(I.volRatio??1)<0.5?'<span class="tag-warn">저거래량</span>':'평균';
+        lines.push(`<b>② 기술 지표</b>: RSI ${I.rsi?.toFixed(0)??'-'} ${rsiTag} &nbsp;·&nbsp; MACD ${macdTag} &nbsp;·&nbsp; BB %B ${((I.bbPct??0.5)*100).toFixed(0)}% ${bbTag} &nbsp;·&nbsp; 거래량 ${(I.volRatio??1).toFixed(2)}x ${volTag}`);
+
+        // ③ 고급 분석 5개 레이어
+        const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'이치모쿠',smc:'SMC',quant:'퀀트'};
+        const advLine = Object.entries(advanced.details).map(([k,v])=>{
+          const c = v.score>0?'tag-buy':v.score<0?'tag-sell':'';
+          return `${nm[k]||k}: <span class="${c}">${v.label}</span>`;
+        }).join(' &nbsp;·&nbsp; ');
+        lines.push(`<b>③ 고급 분석</b> (복합 ${(d.advancedComposite>=0?'+':'')+d.advancedComposite.toFixed(3)}): ${advLine}`);
+
+        // ④ 기본적 분석
+        const perTag = (fund.per??25)<15?'<span class="tag-buy">저평가</span>':(fund.per??25)>35?'<span class="tag-sell">고평가</span>':'<span class="tag-warn">적정</span>';
+        const roeTag = (fund.roe??0)>0.15?'<span class="tag-buy">우량</span>':(fund.roe??0)>0.05?'<span class="tag-warn">보통</span>':'<span class="tag-sell">부진</span>';
+        lines.push(`<b>④ 기본 분석</b>: PER ${fund.per?.toFixed(1)??'N/A'}배 ${perTag} &nbsp;·&nbsp; ROE ${((fund.roe??0)*100).toFixed(1)}% ${roeTag} &nbsp;·&nbsp; 내재가치 ${fmt(fund.intrinsic,isKr)} ${currency}`);
+
+        // ⑤ WACC
+        const waccTag = W.wacc<0.08?'<span class="tag-buy">낮음(우호적)</span>':W.wacc>0.12?'<span class="tag-sell">높음(부담)</span>':'<span class="tag-warn">중립</span>';
+        lines.push(`<b>⑤ WACC 할인율</b>: ${(W.wacc*100).toFixed(2)}% ${waccTag} &nbsp;·&nbsp; Re ${(W.re*100).toFixed(2)}% &nbsp;·&nbsp; Rd ${(W.rd*100).toFixed(2)}% &nbsp;·&nbsp; β ${W.beta.toFixed(2)}`);
+
+        // ⑥ R:R
+        const rrTag = d.rr>=2?'<span class="tag-buy">진입 적합</span>':d.rr>=1?'<span class="tag-warn">재검토 권장</span>':'<span class="tag-sell">진입 부적합</span>';
+        lines.push(`<b>⑥ 목표가/손절</b>: 목표 ${fmt(d.targetPrice,isKr)} / 손절 ${fmt(d.stopLoss,isKr)} &nbsp;·&nbsp; R:R ${d.rr.toFixed(1)}:1 ${rrTag}`);
+
+        return lines.join('<br>');
+      })()
     })}
 
     ${metricBlock({
@@ -1461,6 +1498,90 @@ function renderReport(data) {
   ${sec4}
   ${sec5}
   ${sec6}
+  ${(() => {
+    const I = tech.indicators;
+    const W = waccResult;
+    const isBuy  = d.action === 'BUY';
+    const isSell = d.action === 'SELL';
+    const highConf = d.confidence >= 0.8;
+    const midConf  = d.confidence >= 0.5;
+    const goodRR   = d.rr >= 2;
+
+    // 핵심 조건들
+    const conditions = [
+      { ok: isBuy,                   text: `통합 신호 <b>매수(${(d.combined>=0?'+':'')+d.combined.toFixed(3)})</b> 진입 근거 확인됨` },
+      { ok: isSell,                  text: `통합 신호 <b>매도(${d.combined.toFixed(3)})</b> 차익실현/손절 근거 확인됨` },
+      { ok: !isBuy && !isSell,       text: `통합 신호 <b>관망</b> — 명확한 방향성 출현 시까지 대기` },
+      { ok: highConf,                text: `신뢰도 <b>${Math.round(d.confidence*100)}%</b> — 기술/기본 신호 일치, 포지션 집중 가능` },
+      { ok: midConf && !highConf,    text: `신뢰도 <b>${Math.round(d.confidence*100)}%</b> — 분할 매수(3분할 이상) 권장` },
+      { ok: !midConf,                text: `신뢰도 <b>${Math.round(d.confidence*100)}%</b> — 신호 혼재, 소규모 또는 관망` },
+      { ok: goodRR,                  text: `R:R <b>${d.rr.toFixed(1)}:1</b> — 리스크 대비 기대수익 양호, 진입 적합` },
+      { ok: !goodRR,                 text: `R:R <b>${d.rr.toFixed(1)}:1</b> — 목표가/손절 재설정 후 재검토` },
+      { ok: I.rsi < 30,              text: `RSI <b>${I.rsi?.toFixed(0)}</b> 과매도 — 저점 반등 포착 가능 구간` },
+      { ok: I.rsi > 70,              text: `RSI <b>${I.rsi?.toFixed(0)}</b> 과매수 — 고점 부근, 추격 매수 자제` },
+      { ok: (I.macdHist??0) > 0,    text: `MACD 히스토그램 양전환 — 상승 모멘텀 유효` },
+      { ok: (I.macdHist??0) <= 0,   text: `MACD 히스토그램 음수 — 하락 모멘텀 우위, 반등 확인 후 진입` },
+      { ok: (I.bbPct??0.5) < 0.2,   text: `볼린저밴드 하단 근접 — 기술적 반등 대기 구간` },
+      { ok: (I.bbPct??0.5) > 0.8,   text: `볼린저밴드 상단 근접 — 차익실현 고려` },
+      { ok: W.wacc > 0.12,           text: `WACC <b>${(W.wacc*100).toFixed(2)}%</b> — 높은 자본비용, DCF 기반 내재가치 할인 확대에 주의` },
+      { ok: W.wacc < 0.08,           text: `WACC <b>${(W.wacc*100).toFixed(2)}%</b> — 낮은 자본비용, 기업가치 산출 시 유리` },
+      { ok: (I.volRatio??1) > 1.5,   text: `고거래량(${(I.volRatio??1).toFixed(2)}x) — 세력 참여 가능성, 추세 신뢰도 상승` },
+    ].filter(c => c.ok);
+
+    // Action Steps
+    const steps = [];
+    if (isBuy && highConf && goodRR) {
+      steps.push(`<li>✅ <b>진입 실행</b>: 현재가 <b>${fmt(price,isKr)} ${currency}</b> 부근에서 매수 진입 검토</li>`);
+      steps.push(`<li>🎯 <b>목표가</b>: <b>${fmt(d.targetPrice,isKr)} ${currency}</b> 도달 시 분할 차익실현</li>`);
+      steps.push(`<li>🛡️ <b>손절가</b>: <b>${fmt(d.stopLoss,isKr)} ${currency}</b> 이탈 시 즉시 손절 (R:R ${d.rr.toFixed(1)}:1)</li>`);
+      steps.push(`<li>📐 <b>포지션 크기</b>: 신뢰도 ${Math.round(d.confidence*100)}% → ${highConf?'최대 포지션 가능':'분할 진입 권장'}</li>`);
+    } else if (isBuy && !highConf) {
+      steps.push(`<li>⚠️ <b>분할 진입</b>: 신뢰도 ${Math.round(d.confidence*100)}% — 3분할 이상 나눠서 진입 (1/3씩)</li>`);
+      steps.push(`<li>🎯 <b>목표가</b>: <b>${fmt(d.targetPrice,isKr)} ${currency}</b></li>`);
+      steps.push(`<li>🛡️ <b>손절가</b>: <b>${fmt(d.stopLoss,isKr)} ${currency}</b> 이탈 시 전량 손절</li>`);
+    } else if (isSell) {
+      steps.push(`<li>📤 <b>매도/차익실현</b>: 보유 중이라면 목표가 <b>${fmt(d.targetPrice,isKr)} ${currency}</b> 근처에서 분할 매도 검토</li>`);
+      steps.push(`<li>🛡️ <b>신규 매수 금지</b>: 하락 모멘텀 확인, 반전 신호 출현 전까지 진입 자제</li>`);
+      steps.push(`<li>👀 <b>모니터링</b>: RSI 30 이하 + MACD 골든크로스 동시 출현 시 재진입 검토</li>`);
+    } else {
+      steps.push(`<li>⏸️ <b>현금 대기</b>: 명확한 추세 방향 확인 전까지 신규 진입 보류</li>`);
+      steps.push(`<li>👀 <b>모니터링 조건</b>: 통합 신호 ±0.25 돌파 + 신뢰도 50% 이상 시 재분석</li>`);
+      steps.push(`<li>📉 <b>지지/저항 확인</b>: 볼린저밴드 하단(${fmt(I.bbLower,isKr)}) 지지 여부 주시</li>`);
+    }
+    // 공통 체크리스트
+    steps.push(`<li>📊 <b>ETF 흐름 확인</b>: ${isKr?'동일 산업군 종목 동향 및 섹터 ETF 방향 체크':'관련 ETF 섹션의 핵심 ETF 방향성 먼저 확인'}</li>`);
+    steps.push(`<li>💰 <b>WACC 점검</b>: 할인율 ${(W.wacc*100).toFixed(2)}% — ${W.wacc>0.12?'내재가치 보수적 산정 필요':W.wacc<0.08?'기업가치 계산 시 유리한 조건':'적정 수준, 내재가치 참고 가능'}</li>`);
+    steps.push(`<li>⏰ <b>분석 유효기간</b>: 본 리포트는 <b>단기(1~4주)</b> 기준 분석입니다. 시장 상황 변화 시 재실행 권장</li>`);
+
+    const condHtml = conditions.map(c=>`<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.78rem;color:var(--text2)">· ${c.text}</div>`).join('');
+
+    return `
+  <div class="section-card" style="border:1px solid rgba(0,212,170,.25);background:linear-gradient(135deg,rgba(0,212,170,.04),rgba(59,130,246,.04))">
+    <div class="section-title">🎯 Action Item — 투자자 행동 가이드</div>
+
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;background:${isBuy?'rgba(0,212,170,.1)':isSell?'rgba(255,75,110,.1)':'rgba(251,191,36,.1)'};margin-bottom:16px;border:1px solid ${isBuy?'rgba(0,212,170,.3)':isSell?'rgba(255,75,110,.3)':'rgba(251,191,36,.3)'}">
+      <div style="font-size:2rem">${isBuy?'📈':isSell?'📉':'⏸️'}</div>
+      <div>
+        <div style="font-size:1.05rem;font-weight:800;color:${isBuy?'var(--green)':isSell?'var(--red)':'var(--yellow)'}">${isBuy?'매수 진입 검토':isSell?'매도 / 차익실현':'관망 유지'}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">신뢰도 ${Math.round(d.confidence*100)}% &nbsp;·&nbsp; R:R ${d.rr.toFixed(1)}:1 &nbsp;·&nbsp; 목표 ${fmt(d.targetPrice,isKr)} / 손절 ${fmt(d.stopLoss,isKr)}</div>
+      </div>
+    </div>
+
+    <div style="font-size:0.7rem;font-weight:700;color:var(--muted2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">📋 근거 체크리스트</div>
+    <div style="margin-bottom:16px;padding:10px 12px;background:var(--card2);border-radius:8px;border:1px solid var(--border)">
+      ${condHtml}
+    </div>
+
+    <div style="font-size:0.7rem;font-weight:700;color:var(--muted2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">✅ 실행 단계</div>
+    <ol style="padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px">
+      ${steps.join('')}
+    </ol>
+
+    <div style="margin-top:14px;font-size:0.68rem;color:var(--muted);padding:8px 12px;background:rgba(251,191,36,.06);border-radius:6px;border-left:3px solid var(--yellow);line-height:1.7">
+      ⚠️ 본 리포트는 <b>참고용 정보</b>로, 투자 결정의 최종 책임은 본인에게 있습니다. 과거 신호가 미래 수익을 보장하지 않으며, 항상 분산투자 및 리스크 관리를 병행하세요.
+    </div>
+  </div>`;
+  })()}
   `;
 }
 
