@@ -614,7 +614,7 @@
   .history-clear:hover { color: var(--red); border-color: rgba(255,75,110,.3); }
   .grid { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
   .row { display: grid; gap: 14px; margin-bottom: 14px; }
-  .row-top    { grid-template-columns: 260px 1fr 240px; }
+  .row-top    { grid-template-columns: 260px 1fr 240px; align-items: stretch; }
   /* current-state 카드는 기존 크기 유지 (html font-size 확대 보정) */
   #dashboard .row-top .card:first-child { font-size: 0.908em; }
   .row-bottom { grid-template-columns: repeat(3, 1fr); }
@@ -2827,11 +2827,11 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     </div>
 
     <!-- 게이지 -->
-    <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;flex-direction:column;gap:10px;align-self:stretch">
       ${[['기술적 점수',d.techScore],['기본적 점수',d.fundScore],['통합 점수',d.combined],['고급분석 점수',d.advancedComposite]].map(([t,v])=>{
         const p=((v+1)/2*100).toFixed(0);
         const c=v>0.2?'var(--up)':v<-0.2?'var(--down)':'var(--yellow)';
-        return `<div class="card gauge-wrap" style="padding:14px;text-align:center">
+        return `<div class="card gauge-wrap" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:14px;text-align:center">
           <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">${t}</div>
           <div style="background:var(--border);border-radius:4px;height:8px;margin:8px 0">
             <div style="width:${p}%;height:8px;border-radius:4px;background:${c};transition:width .6s"></div>
