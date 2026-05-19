@@ -24,6 +24,8 @@ function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
 }
 
+type MetricFormat = 'percent' | 'ratio' | 'large'
+
 export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis }) {
   const incomeData = data.metrics_by_year.map((m) => ({
     year: String(m.fiscal_year),
@@ -40,6 +42,8 @@ export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis
     ROA: m.roa,
     영업이익률: m.operating_margin,
   }))
+
+  const latestMetrics = data.metrics_by_year.at(-1) ?? null
 
   return (
     <div className="space-y-10">
@@ -79,30 +83,37 @@ export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis
         </ResponsiveContainer>
       </section>
 
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">핵심 지표</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {data.metrics_by_year.slice(-1).map((m) => (
-            <div key="latest">
-              <MetricCard label="ROE" value={m.roe} unit="%" />
-              <MetricCard label="ROA" value={m.roa} unit="%" />
-              <MetricCard label="부채비율" value={m.debt_ratio} unit="%" />
-              <MetricCard label="영업이익률" value={m.operating_margin} unit="%" />
-            </div>
-          ))}
-        </div>
-      </section>
+      {latestMetrics && (
+        <section>
+          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            핵심 지표 (최근 연도)
+          </h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <MetricCard label="ROE" value={latestMetrics.roe} format="percent" />
+            <MetricCard label="ROA" value={latestMetrics.roa} format="percent" />
+            <MetricCard label="부채비율" value={latestMetrics.debt_ratio} format="percent" />
+            <MetricCard label="영업이익률" value={latestMetrics.operating_margin} format="percent" />
+            <MetricCard label="PER" value={latestMetrics.per} format="ratio" />
+            <MetricCard label="PBR" value={latestMetrics.pbr} format="ratio" />
+            <MetricCard label="FCF" value={latestMetrics.fcf} format="large" />
+          </div>
+        </section>
+      )}
     </div>
   )
 }
 
-function MetricCard({ label, value, unit }: { label: string; value: number | null; unit: string }) {
+function MetricCard({ label, value, format }: { label: string; value: number | null; format: MetricFormat }) {
+  let display = '—'
+  if (value != null) {
+    if (format === 'percent') display = `${value.toFixed(1)}%`
+    else if (format === 'ratio') display = `${value.toFixed(1)}x`
+    else display = formatLargeNumber(value)
+  }
   return (
     <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 text-lg font-semibold">
-        {value != null ? `${value.toFixed(1)}${unit}` : '—'}
-      </div>
+      <div className="mt-1 text-lg font-semibold">{display}</div>
     </div>
   )
 }

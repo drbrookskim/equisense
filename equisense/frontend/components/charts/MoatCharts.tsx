@@ -31,23 +31,25 @@ export default function MoatCharts({ data }: { data: MoatAnalysis }) {
           해자 차원별 점수 (0~10점)
         </h3>
         <div className="flex flex-col gap-8 md:flex-row md:items-start">
-          <ResponsiveContainer width="100%" height={300}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="#3f3f46" strokeOpacity={0.4} />
-              <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12 }} />
-              <Radar
-                name={data.ticker}
-                dataKey="점수"
-                stroke="#6366f1"
-                fill="#6366f1"
-                fillOpacity={0.35}
-              />
-              <Tooltip formatter={(v) => (typeof v === 'number' ? `${v.toFixed(1)}점` : v)} />
-              <Legend />
-            </RadarChart>
-          </ResponsiveContainer>
+          <div className="min-w-0 flex-1">
+            <ResponsiveContainer width="100%" height={300}>
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="#3f3f46" strokeOpacity={0.4} />
+                <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12 }} />
+                <Radar
+                  name={data.ticker}
+                  dataKey="점수"
+                  stroke="#6366f1"
+                  fill="#6366f1"
+                  fillOpacity={0.35}
+                />
+                <Tooltip formatter={(v) => (typeof v === 'number' ? `${v.toFixed(1)}점` : v)} />
+                <Legend />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
 
-          <div className="min-w-56 space-y-2">
+          <div className="w-full shrink-0 space-y-2 md:w-64">
             {data.dimension_scores.map((d) => (
               <div key={d.dimension} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
                 <div className="flex items-center justify-between">
