@@ -131,6 +131,27 @@ functions:
           method: GET
           cors: true
 
+  # ── Module 4: 기술적 분석 ──────────────────────────────────────────────
+  GetTechnicalData:
+    handler: lambdas/get_technical_data/handler.lambda_handler
+    description: "일별 주가 이력 및 기술적 지표 조회 (Module 4)"
+    memorySize: 256
+    timeout: 10
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - http:
+          path: /companies/{ticker}/technical
+          method: GET
+          cors: true
+          request:
+            parameters:
+              paths:
+                ticker: true
+              querystrings:
+                market: true
+                period: false   # 기본값 '1y'
+
 # ---------------------------------------------------------------------------
 # 추후 추가 예정 함수 (주석 참조)
 # ---------------------------------------------------------------------------

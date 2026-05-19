@@ -1,4 +1,10 @@
-import type { FundamentalAnalysis, Market, MoatAnalysis } from '@/types'
+import type {
+  FundamentalAnalysis,
+  Market,
+  MoatAnalysis,
+  TechnicalAnalysis,
+  TechnicalPeriod,
+} from '@/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? ''
 
@@ -29,4 +35,12 @@ export async function getFundamentals(
 
 export async function getMoatScore(ticker: string, market: Market): Promise<MoatAnalysis> {
   return apiFetch(`/companies/${ticker}/moat?market=${market}`)
+}
+
+export async function getTechnicalData(
+  ticker: string,
+  market: Market,
+  period: TechnicalPeriod = '1y',
+): Promise<TechnicalAnalysis> {
+  return apiFetch(`/companies/${ticker}/technical?market=${market}&period=${period}`)
 }

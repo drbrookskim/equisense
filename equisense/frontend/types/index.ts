@@ -62,6 +62,39 @@ export interface MoatAnalysis {
 }
 
 // ──────────────────────────────────────────────
+// Module 4: 기술적 분석
+// ──────────────────────────────────────────────
+
+export type TechnicalPeriod = '1m' | '3m' | '6m' | '1y' | '3y'
+
+export interface TechnicalDataPoint {
+  date: string
+  open: number | null
+  high: number | null
+  low: number | null
+  close: number | null
+  volume: number | null
+  change_pct: number | null
+}
+
+export interface TechnicalSummary {
+  start_price: number | null
+  end_price: number | null
+  period_return_pct: number | null
+  high_period: number | null
+  low_period: number | null
+  avg_volume: number | null
+}
+
+export interface TechnicalAnalysis {
+  ticker: string
+  market: Market
+  period: TechnicalPeriod
+  data_points: TechnicalDataPoint[]
+  summary: TechnicalSummary
+}
+
+// ──────────────────────────────────────────────
 // 공통 에러
 // ──────────────────────────────────────────────
 

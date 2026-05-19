@@ -81,3 +81,32 @@ def fetch_cash_flow_statements(ticker: str, market: str, limit: int = 5) -> list
         f"?period=annual&limit={limit}&apikey={api_key}"
     )
     return _fetch_json(url)
+
+
+def fetch_historical_prices(
+    ticker: str,
+    market: str,
+    from_date: str,
+    to_date: str,
+) -> list[dict]:
+    """FMP에서 일별 주가 이력을 조회합니다.
+
+    Args:
+        ticker: 종목코드
+        market: 'KR' | 'US'
+        from_date: 조회 시작일 (YYYY-MM-DD)
+        to_date: 조회 종료일 (YYYY-MM-DD)
+
+    Returns:
+        FMP ``historical`` 배열 (최신 날짜 순)
+    """
+    fmp_ticker = _to_fmp_ticker(ticker, market)
+    api_key = os.environ["FMP_API_KEY"]
+    url = (
+        f"{FMP_BASE_URL}/historical-price-full/{fmp_ticker}"
+        f"?from={from_date}&to={to_date}&apikey={api_key}"
+    )
+    result = _fetch_json(url)
+    if isinstance(result, dict):
+        return result.get("historical", [])
+    return []
