@@ -21,8 +21,17 @@ provider:
     UPSTASH_REDIS_URL: ${ssm:/equisense/${sls:stage}/upstash-redis-url}
     FMP_API_KEY: ${ssm:/equisense/${sls:stage}/fmp-api-key}
     NEON_DATABASE_URL: ${ssm:/equisense/${sls:stage}/neon-database-url}
+    # Module 3 환경변수
+    DART_API_KEY: ${ssm:/equisense/${sls:stage}/dart-api-key}
+    OPENAI_API_KEY: ${ssm:/equisense/${sls:stage}/openai-api-key}
+    PINECONE_API_KEY: ${ssm:/equisense/${sls:stage}/pinecone-api-key}
+    PINECONE_INDEX_NAME: ${ssm:/equisense/${sls:stage}/pinecone-index-name}
+    ANTHROPIC_API_KEY: ${ssm:/equisense/${sls:stage}/anthropic-api-key}
+    RAG_JOBS_QUEUE_URL: !Ref RagJobsQueue
+    RAG_DOCS_BUCKET: equisense-rag-docs-${sls:stage}
+    STATE_MACHINE_ARN: !Ref RagPipelineStateMachine
 
-  # 최소 권한 IAM: SSM 읽기 전용 (해당 스테이지 경로만)
+  # 최소 권한 IAM
   iam:
     role:
       statements:
@@ -32,6 +41,26 @@ provider:
             - ssm:GetParameters
           Resource:
             - arn:aws:ssm:ap-northeast-2:*:parameter/equisense/${sls:stage}/*
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !GetAtt RagJobsQueue.Arn
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource:
+            - arn:aws:s3:::equisense-rag-docs-${sls:stage}/*
+        - Effect: Allow
+          Action:
+            - states:StartExecution
+          Resource:
+            - !Ref RagPipelineStateMachine
 
 # ---------------------------------------------------------------------------
 # 플러그인
@@ -152,11 +181,199 @@ functions:
                 market: true
                 period: false   # 기본값 '1y'
 
+  # ── Module 3: AI 정성적 분석기 ─────────────────────────────────────────
+  AnalysisOrchestrator:
+    handler: lambdas/analysis_orchestrator/handler.lambda_handler
+    description: "RAG 분석 작업 시작 — DB 등록 + SQS 큐잉 (Module 3)"
+    memorySize: 256
+    timeout: 10
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - http:
+          path: /companies/{ticker}/qualitative
+          method: POST
+          cors: true
+          request:
+            parameters:
+              paths:
+                ticker: true
+
+  GetJobStatus:
+    handler: lambdas/get_job_status/handler.lambda_handler
+    description: "비동기 분석 작업 상태 및 결과 조회"
+    memorySize: 128
+    timeout: 10
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - http:
+          path: /jobs/{job_id}
+          method: GET
+          cors: true
+          request:
+            parameters:
+              paths:
+                job_id: true
+
+  RAGTrigger:
+    handler: lambdas/rag_trigger/handler.lambda_handler
+    description: "SQS → Step Functions StartExecution (Module 3)"
+    memorySize: 256
+    timeout: 30
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - sqs:
+          arn: !GetAtt RagJobsQueue.Arn
+          batchSize: 1                 # 작업 하나씩 처리하여 실패 격리
+
+  FetchDoc:
+    handler: lambdas/fetch_doc/handler.lambda_handler
+    description: "Step Functions State 1: DART/SEC 문서 다운로드 → S3 (Module 3)"
+    memorySize: 512
+    timeout: 840                       # 14분 (비동기 Worker 최대)
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+
+  ChunkDoc:
+    handler: lambdas/chunk_doc/handler.lambda_handler
+    description: "Step Functions State 2: S3 PDF 청킹 → S3 (Module 3)"
+    memorySize: 512
+    timeout: 840
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+
+  EmbedChunks:
+    handler: lambdas/embed_chunks/handler.lambda_handler
+    description: "Step Functions State 3: OpenAI 임베딩 → Pinecone (Module 3)"
+    memorySize: 512
+    timeout: 840
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+
+  LLMAnalyze:
+    handler: lambdas/llm_analyze/handler.lambda_handler
+    description: "Step Functions State 4: Claude RAG 분석 → DB 저장 (Module 3)"
+    memorySize: 512
+    timeout: 840
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+
+  HandlePipelineFailure:
+    handler: lambdas/handle_pipeline_failure/handler.lambda_handler
+    description: "Step Functions 파이프라인 실패 처리 — DB FAILED 업데이트"
+    memorySize: 128
+    timeout: 10
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+
 # ---------------------------------------------------------------------------
-# 추후 추가 예정 함수 (주석 참조)
+# AWS 리소스 정의
 # ---------------------------------------------------------------------------
-# AnalysisOrchestrator   → POST /companies/{ticker}/qualitative  (Module 3)
-# GetJobStatus           → GET  /jobs/{job_id}                   (비동기 작업)
-# RAGAnalysisWorker      → SQS Event Source Mapping              (Step Functions 트리거)
-# MacroUpdateWorker      → EventBridge cron(0 15 * * ? *)        (매일 00:00 KST)
-# PriceUpdateWorker      → EventBridge cron(0/15 1-7 * * ? *)    (장중 15분 간격)
+resources:
+  Resources:
+    # ── SQS — RAG 작업 큐 ──────────────────────────────────────────────────
+    RagJobsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: equisense-rag-jobs-${sls:stage}
+        VisibilityTimeout: 900        # FetchDoc 최대 실행 시간(840s) + 여유
+        MessageRetentionPeriod: 86400 # 24시간
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt RagDLQ.Arn
+          maxReceiveCount: 3          # 3회 실패 시 DLQ로 이동
+
+    RagDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: equisense-rag-dlq-${sls:stage}
+        MessageRetentionPeriod: 1209600  # 14일
+
+    # ── S3 — RAG 문서 중간 저장소 ───────────────────────────────────────────
+    RagDocsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: equisense-rag-docs-${sls:stage}
+        LifecycleConfiguration:
+          Rules:
+            - Id: DeleteRawAndChunks
+              Status: Enabled
+              ExpirationInDays: 7     # 처리 완료 후 7일 자동 삭제
+
+    # ── Step Functions — RAG 파이프라인 Express Workflow ────────────────────
+    RagPipelineStateMachine:
+      Type: AWS::StepFunctions::StateMachine
+      Properties:
+        StateMachineName: equisense-rag-${sls:stage}
+        StateMachineType: EXPRESS     # 최대 5분, 비용 효율적
+        RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+        DefinitionString: !Sub |
+          {
+            "Comment": "EquiSense RAG Pipeline: FetchDoc → ChunkDoc → EmbedChunks → LLMAnalyze",
+            "StartAt": "FetchDoc",
+            "States": {
+              "FetchDoc": {
+                "Type": "Task",
+                "Resource": "${FetchDocLambdaFunction.Arn}",
+                "Next": "ChunkDoc",
+                "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "HandleFailure"}]
+              },
+              "ChunkDoc": {
+                "Type": "Task",
+                "Resource": "${ChunkDocLambdaFunction.Arn}",
+                "Next": "EmbedChunks",
+                "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "HandleFailure"}]
+              },
+              "EmbedChunks": {
+                "Type": "Task",
+                "Resource": "${EmbedChunksLambdaFunction.Arn}",
+                "Next": "LLMAnalyze",
+                "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "HandleFailure"}]
+              },
+              "LLMAnalyze": {
+                "Type": "Task",
+                "Resource": "${LLMAnalyzeLambdaFunction.Arn}",
+                "End": true,
+                "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "HandleFailure"}]
+              },
+              "HandleFailure": {
+                "Type": "Task",
+                "Resource": "${HandlePipelineFailureLambdaFunction.Arn}",
+                "End": true
+              }
+            }
+          }
+
+    StepFunctionsExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: equisense-stepfunctions-${sls:stage}
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: states.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: InvokeLambda
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: lambda:InvokeFunction
+                  Resource:
+                    - !GetAtt FetchDocLambdaFunction.Arn
+                    - !GetAtt ChunkDocLambdaFunction.Arn
+                    - !GetAtt EmbedChunksLambdaFunction.Arn
+                    - !GetAtt LLMAnalyzeLambdaFunction.Arn
+                    - !GetAtt HandlePipelineFailureLambdaFunction.Arn
+
+# ---------------------------------------------------------------------------
+# 추후 추가 예정 함수
+# ---------------------------------------------------------------------------
+# MacroUpdateWorker  → EventBridge cron(0 15 * * ? *)  (매일 00:00 KST)
+# PriceUpdateWorker  → EventBridge cron(0/15 1-7 * * ? *) (장중 15분 간격)
+# WsConnectHandler   → WebSocket $connect   (Phase 4)
+# WsDisconnectHandler→ WebSocket $disconnect (Phase 4)
