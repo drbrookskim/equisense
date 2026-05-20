@@ -95,6 +95,62 @@ export interface TechnicalAnalysis {
 }
 
 // ──────────────────────────────────────────────
+// Module 3: 정성적 분석
+// ──────────────────────────────────────────────
+
+export type DocType = 'annual_report' | 'earnings_call'
+export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+
+export interface RiskFactor {
+  title: string
+  description: string
+  severity: 'high' | 'medium' | 'low'
+}
+
+export interface GrowthDriver {
+  title: string
+  description: string
+}
+
+export interface NoiseFilterItem {
+  claim: string
+  is_substantiated: boolean
+  evidence: string
+}
+
+export interface QualitativeResult {
+  id: string
+  job_id: string
+  ticker: string
+  fiscal_period: string
+  integrity_score: number | null
+  summary_ko: string | null
+  risk_factors: RiskFactor[] | null
+  growth_drivers: GrowthDriver[] | null
+  noise_filter: NoiseFilterItem[] | null
+  created_at: string
+}
+
+export interface AnalysisJob {
+  job_id: string
+  status: JobStatus
+  result: QualitativeResult | null
+  error: string | null
+}
+
+export interface TriggerQualitativeRequest {
+  market: Market
+  fiscal_year: number
+  doc_type: DocType
+}
+
+export interface TriggerQualitativeResponse {
+  job_id: string
+  status: 'PENDING'
+  estimated_seconds: number
+}
+
+// ──────────────────────────────────────────────
 // 공통 에러
 // ──────────────────────────────────────────────
 
