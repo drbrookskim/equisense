@@ -306,7 +306,7 @@ resources:
       Type: AWS::StepFunctions::StateMachine
       Properties:
         StateMachineName: equisense-rag-${sls:stage}
-        StateMachineType: EXPRESS     # 최대 5분, 비용 효율적
+        StateMachineType: STANDARD    # RAG 파이프라인은 5분을 초과할 수 있으므로 STANDARD 사용
         RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
         DefinitionString: !Sub |
           {

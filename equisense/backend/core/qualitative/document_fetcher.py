@@ -13,9 +13,12 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+# 모듈 레벨 S3 클라이언트 캐싱 — 웜 컨테이너 재사용 시 재생성 방지
+_s3_client: Optional[Any] = None
 
 DART_BASE = "https://opendart.fss.or.kr/api"
 SEC_BASE = "https://data.sec.gov"
@@ -170,13 +173,20 @@ def _get_sec_filing_url(cik: str, fiscal_year: int, doc_type: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _get_s3():
+    global _s3_client
+    if _s3_client is None:
+        import boto3
+
+        _s3_client = boto3.client("s3")
+    return _s3_client
+
+
 def _upload_to_s3(pdf_bytes: bytes, ticker: str, fiscal_year: int, job_id: str) -> str:
     """PDF 바이트를 S3에 업로드하고 S3 키를 반환합니다."""
-    import boto3
-
     bucket = os.environ["RAG_DOCS_BUCKET"]
     s3_key = f"raw/{job_id}/{ticker}_{fiscal_year}.pdf"
-    boto3.client("s3").put_object(
+    _get_s3().put_object(
         Bucket=bucket,
         Key=s3_key,
         Body=pdf_bytes,

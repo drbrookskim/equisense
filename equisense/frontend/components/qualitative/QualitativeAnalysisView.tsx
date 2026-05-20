@@ -226,7 +226,7 @@ export default function QualitativeAnalysisView({ ticker, market }: Props) {
       startPolling(res.job_id)
     } catch (err: unknown) {
       const e = err as { message?: string; code?: string }
-      if (e?.code === 'DAILY_LIMIT_EXCEEDED') {
+      if (e?.code === 'RATE_LIMIT_EXCEEDED') {
         setError('일일 분석 한도(5회)에 도달했습니다. 내일 다시 시도해 주세요.')
       } else {
         setError(e?.message ?? '분석 요청에 실패했습니다.')

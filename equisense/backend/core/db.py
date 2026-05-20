@@ -18,5 +18,12 @@ def get_connection():
     if _conn is None or _conn.closed:
         import psycopg2  # Lambda 환경에서만 실제 연결. 테스트 시 모킹 대상.
 
-        _conn = psycopg2.connect(os.environ["NEON_DATABASE_URL"])
+        # keepalives: Lambda 컨테이너 유휴 후 재사용 시 stale connection 방지
+        _conn = psycopg2.connect(
+            os.environ["NEON_DATABASE_URL"],
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=5,
+        )
     return _conn

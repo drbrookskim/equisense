@@ -9,21 +9,32 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, Optional
+
+import boto3
 
 from core.qualitative.repository import update_job_status
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# 모듈 레벨 boto3 클라이언트 캐싱 — 웜 컨테이너 재사용 시 재생성 방지
+_sfn_client: Optional[Any] = None
+
+
+def _get_sfn():
+    global _sfn_client
+    if _sfn_client is None:
+        _sfn_client = boto3.client(
+            "stepfunctions", region_name=os.environ.get("AWS_REGION", "ap-northeast-2")
+        )
+    return _sfn_client
+
 
 def _start_step_functions(payload: dict) -> str:
-    """Step Functions Express Workflow를 시작하고 실행 ARN을 반환합니다."""
-    import boto3
-
-    sfn = boto3.client("stepfunctions", region_name=os.environ.get("AWS_REGION", "ap-northeast-2"))
+    """Step Functions Workflow를 시작하고 실행 ARN을 반환합니다."""
     job_id = payload["job_id"]
-    response = sfn.start_execution(
+    response = _get_sfn().start_execution(
         stateMachineArn=os.environ["STATE_MACHINE_ARN"],
         name=f"rag-{job_id}",
         input=json.dumps(payload),
@@ -43,14 +54,12 @@ def lambda_handler(event: dict, context: Any) -> None:
 
         logger.info("Processing SQS message: job_id=%s", job_id)
 
-        # PENDING → PROCESSING
         try:
             update_job_status(job_id, "PROCESSING")
         except Exception as e:
             logger.error("DB update failed for job %s: %s", job_id, e)
             raise  # SQS 재처리 유도
 
-        # Step Functions 실행
         try:
             arn = _start_step_functions(body)
             logger.info("Started Step Functions: job_id=%s arn=%s", job_id, arn)
