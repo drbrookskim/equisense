@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ── 백엔드 (Python) ────────────────────────────────────────────────────
   backend:
@@ -28,19 +32,16 @@ jobs:
       - name: Install dev dependencies
         run: pip install -e ".[dev]"
 
-      # ── 코드 품질 ──────────────────────────────────────────────────────
       - name: Lint (ruff)
         run: ruff check .
 
       - name: Format check (black)
         run: black --check .
 
-      # ── 보안 스캔 ──────────────────────────────────────────────────────
-      # -ll: MEDIUM 이상 심각도만 보고  -ii: MEDIUM 이상 신뢰도만 보고
+      # -ll: MEDIUM 이상 심각도, -ii: MEDIUM 이상 신뢰도만 보고
       - name: Security scan (bandit)
         run: bandit -r core/ lambdas/ -ll -ii -q
 
-      # ── 테스트 ────────────────────────────────────────────────────────
       - name: Run tests with coverage
         run: |
           pytest tests/ \
@@ -57,20 +58,36 @@ jobs:
           name: coverage-report
           path: backend/coverage.xml
 
-  # ── 프론트엔드 (TypeScript/Next.js) — Phase 2에서 구현 ─────────────────
-  # frontend:
-  #   name: Frontend — Lint / Test
-  #   runs-on: ubuntu-latest
-  #   defaults:
-  #     run:
-  #       working-directory: frontend
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: "20"
-  #         cache: npm
-  #     - run: npm ci
-  #     - run: npx eslint .
-  #     - run: npm run test
-  #     - run: npm run build
+  # ── 프론트엔드 (TypeScript/Next.js) ────────────────────────────────────
+  frontend:
+    name: Frontend — Lint / Type / Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Next.js build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: "https://api.equisense.io"
+          UPSTASH_REDIS_REST_URL: "https://placeholder.upstash.io"
+          UPSTASH_REDIS_REST_TOKEN: "placeholder_token"

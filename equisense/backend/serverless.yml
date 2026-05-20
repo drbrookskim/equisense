@@ -21,6 +21,7 @@ provider:
     UPSTASH_REDIS_URL: ${ssm:/equisense/${sls:stage}/upstash-redis-url}
     FMP_API_KEY: ${ssm:/equisense/${sls:stage}/fmp-api-key}
     NEON_DATABASE_URL: ${ssm:/equisense/${sls:stage}/neon-database-url}
+    ALPHA_VANTAGE_API_KEY: ${ssm:/equisense/${sls:stage}/alpha-vantage-api-key}
     # Module 3 환경변수
     DART_API_KEY: ${ssm:/equisense/${sls:stage}/dart-api-key}
     OPENAI_API_KEY: ${ssm:/equisense/${sls:stage}/openai-api-key}
@@ -30,6 +31,9 @@ provider:
     RAG_JOBS_QUEUE_URL: !Ref RagJobsQueue
     RAG_DOCS_BUCKET: equisense-rag-docs-${sls:stage}
     STATE_MACHINE_ARN: !Ref RagPipelineStateMachine
+    # Phase 4 환경변수
+    WS_ENDPOINT_URL: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
+    PRICE_WATCHLIST: ${ssm:/equisense/${sls:stage}/price-watchlist, "AAPL,MSFT,AMZN,005930,035720"}
 
   # 최소 권한 IAM
   iam:
@@ -61,6 +65,11 @@ provider:
             - states:StartExecution
           Resource:
             - !Ref RagPipelineStateMachine
+        - Effect: Allow
+          Action:
+            - execute-api:ManageConnections
+          Resource:
+            - !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/${sls:stage}/POST/@connections/*"
 
 # ---------------------------------------------------------------------------
 # 플러그인
@@ -268,6 +277,77 @@ functions:
     layers:
       - !Ref PythonRequirementsLambdaLayer
 
+  # ── Phase 4: EventBridge Workers ──────────────────────────────────────────
+  MacroUpdateWorker:
+    handler: lambdas/macro_update_worker/handler.lambda_handler
+    description: "거시 지표 일별 수집 — Alpha Vantage → DB + Redis (Phase 4)"
+    memorySize: 256
+    timeout: 840
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - schedule:
+          rate: cron(0 15 * * ? *)       # 매일 KST 00:00 (UTC 15:00)
+          description: "Daily macro indicator update"
+
+  PriceUpdateWorker:
+    handler: lambdas/price_update_worker/handler.lambda_handler
+    description: "장중 주가 수집 — Alpha Vantage → Redis (Phase 4)"
+    memorySize: 256
+    timeout: 840
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - schedule:
+          rate: rate(5 minutes)          # 장중 5분 간격 갱신
+          description: "Intraday price cache refresh"
+
+  TechnicalScreener:
+    handler: lambdas/technical_screener/handler.lambda_handler
+    description: "저평가·과열 스크리닝 — 장 마감 후 일별 실행 (Phase 4)"
+    memorySize: 256
+    timeout: 840
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - schedule:
+          rate: cron(0 16 * * ? *)       # 장 마감 직후 UTC 16:00
+          description: "Daily technical screener"
+
+  # ── Phase 4: WebSocket Lambda 트리오 ───────────────────────────────────────
+  WsConnect:
+    handler: lambdas/ws_connect/handler.lambda_handler
+    description: "WebSocket $connect — 연결 ID DB 저장 (Phase 4)"
+    memorySize: 128
+    timeout: 10
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - websocket:
+          route: $connect
+          authorizer:
+            name: CognitoWsAuthorizer
+            identitySource: route.request.querystring.token
+
+  WsDisconnect:
+    handler: lambdas/ws_disconnect/handler.lambda_handler
+    description: "WebSocket $disconnect — 연결 ID DB 삭제 (Phase 4)"
+    memorySize: 128
+    timeout: 10
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - websocket:
+          route: $disconnect
+
+  WsNotify:
+    handler: lambdas/ws_notify/handler.lambda_handler
+    description: "RAG 완료 이벤트 → WebSocket 결과 푸시 (Phase 4)"
+    memorySize: 256
+    timeout: 30
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+
 # ---------------------------------------------------------------------------
 # AWS 리소스 정의
 # ---------------------------------------------------------------------------
@@ -370,10 +450,55 @@ resources:
                     - !GetAtt LLMAnalyzeLambdaFunction.Arn
                     - !GetAtt HandlePipelineFailureLambdaFunction.Arn
 
-# ---------------------------------------------------------------------------
-# 추후 추가 예정 함수
-# ---------------------------------------------------------------------------
-# MacroUpdateWorker  → EventBridge cron(0 15 * * ? *)  (매일 00:00 KST)
-# PriceUpdateWorker  → EventBridge cron(0/15 1-7 * * ? *) (장중 15분 간격)
-# WsConnectHandler   → WebSocket $connect   (Phase 4)
-# WsDisconnectHandler→ WebSocket $disconnect (Phase 4)
+    # ── Cognito User Pool (Phase 4) ───────────────────────────────────────────
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: equisense-users-${sls:stage}
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireUppercase: true
+            RequireNumbers: true
+            RequireSymbols: false
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: equisense-app-${sls:stage}
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_SRP_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        GenerateSecret: false
+
+    # ── REST API Cognito Authorizer (Phase 4) ─────────────────────────────────
+    CognitoRestAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: CognitoRestAuthorizer-${sls:stage}
+        Type: COGNITO_USER_POOLS
+        RestApiId: !Ref ApiGatewayRestApi
+        IdentitySource: method.request.header.Authorization
+        ProviderARNs:
+          - !GetAtt CognitoUserPool.Arn
+
+    # ── WebSocket API (Phase 4) ───────────────────────────────────────────────
+    WebSocketApi:
+      Type: AWS::ApiGatewayV2::Api
+      Properties:
+        Name: equisense-ws-${sls:stage}
+        ProtocolType: WEBSOCKET
+        RouteSelectionExpression: "$request.body.action"
+
+    WebSocketStage:
+      Type: AWS::ApiGatewayV2::Stage
+      Properties:
+        ApiId: !Ref WebSocketApi
+        StageName: ${sls:stage}
+        AutoDeploy: true
