@@ -127,6 +127,62 @@ CREATE TABLE qualitative_results (
 
 ---
 
+---
+
+## 3-1. Phase 4 추가 테이블
+
+### macro_indicators
+
+```sql
+CREATE TABLE macro_indicators (
+    id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    indicator   VARCHAR(50)   NOT NULL,
+    value       NUMERIC(12,4) NOT NULL,
+    date        DATE          NOT NULL,
+    unit        VARCHAR(20),
+    updated_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    UNIQUE (indicator, date)
+);
+```
+
+수집 지표: `federal_funds_rate`, `cpi`, `unemployment`, `real_gdp`
+
+### screener_results
+
+```sql
+CREATE TABLE screener_results (
+    id             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticker         VARCHAR(10)   NOT NULL,
+    market         VARCHAR(5)    NOT NULL CHECK (market IN ('KR', 'US')),
+    price          NUMERIC(12,4),
+    week_52_high   NUMERIC(12,4),
+    week_52_low    NUMERIC(12,4),
+    signal         VARCHAR(20)   NOT NULL CHECK (signal IN ('undervalued', 'overbought', 'neutral')),
+    is_undervalued BOOLEAN       NOT NULL DEFAULT FALSE,
+    is_overbought  BOOLEAN       NOT NULL DEFAULT FALSE,
+    screened_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    UNIQUE (ticker, market)
+);
+```
+
+스크리닝 기준:
+- `undervalued`: 현재가 < 52주 저가 × 1.2
+- `overbought`: 현재가 > 52주 고가 × 0.9
+
+### ws_connections
+
+```sql
+CREATE TABLE ws_connections (
+    connection_id VARCHAR(128) PRIMARY KEY,
+    user_id       VARCHAR(255) NOT NULL,
+    connected_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+```
+
+WebSocket 활성 연결 관리. 2시간 이상 비활성 연결은 `WsNotifyHandler`가 자동 정리합니다.
+
+---
+
 ## 4. 재무 데이터 저장 정책
 
 펀더멘털 지표(Module 1)는 Neon DB에 **영구 저장하지 않습니다.**
