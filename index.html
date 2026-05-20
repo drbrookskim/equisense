@@ -3245,6 +3245,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     return { display:true, labels:{ color:_legColor, font:{size:LEG_SIZE}, padding:10,
       generateLabels:()=>items.map(([text,color,bold])=>({
         text, fillStyle:color, strokeStyle:color, lineWidth:0,
+        color: _legColor,
         fontStyle: bold?'bold':'normal'
       }))
     }};
