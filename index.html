@@ -3199,6 +3199,8 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   const _tickColor  = _chartDark ? '#cbd5e1' : '#475569';
   const _gridColor  = _chartDark ? '#0f1825' : '#e2e8f0';
   const _legColor   = _chartDark ? '#f1f5f9' : '#334155';
+  // Chart.js v4 전역 기본 색 — generateLabels 텍스트에 실제 적용됨
+  Chart.defaults.color = _legColor;
   const _tooltipBg  = _chartDark ? '#1e2a40' : '#ffffff';
   const _tooltipTtl = _chartDark ? '#94a3b8' : '#64748b';
   const _tooltipBdy = _chartDark ? '#e2e8f0' : '#1e293b';
