@@ -3096,17 +3096,17 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
   <!-- ── Row 4: 차트 (최하단) ── -->
   <div class="card" style="padding:14px 16px;margin-top:0">
-    <div class="card-header"><span class="dot" style="background:var(--green)"></span>종가 · Bollinger Band</div>
+    <div class="card-header"><span class="dot" style="background:var(--green)"></span>종가 · Bollinger Band<span style="font-size:0.6rem;color:var(--muted2);font-weight:400;margin-left:6px">"변동성 및 가격의 상대적 위치 분석"</span></div>
     <div class="chart-scroll"><div class="chart-container"><canvas id="priceChart"></canvas></div></div>
     <div id="bbEntryPanel" style="margin-top:10px"></div>
     <div class="rsi-macd-grid">
       <div>
-        <div class="card-header"><span class="dot" style="background:var(--purple)"></span>RSI (14)</div>
+        <div class="card-header"><span class="dot" style="background:var(--purple)"></span>RSI (14)<span style="font-size:0.6rem;color:var(--muted2);font-weight:400;margin-left:6px">"가격의 모멘텀 및 과매수/과매도 측정"</span></div>
         <div class="chart-scroll"><div class="chart-container-sm"><canvas id="rsiChart"></canvas></div></div>
         <div id="rsiEntryPanel" style="margin-top:8px"></div>
       </div>
       <div>
-        <div class="card-header"><span class="dot" style="background:var(--blue)"></span>MACD</div>
+        <div class="card-header"><span class="dot" style="background:var(--blue)"></span>MACD<span style="font-size:0.6rem;color:var(--muted2);font-weight:400;margin-left:6px">"단기/장기 이동평균선 사이의 수렴과 확산"</span></div>
         <div class="chart-scroll"><div class="chart-container-sm"><canvas id="macdChart"></canvas></div></div>
         <div id="macdEntryPanel" style="margin-top:8px"></div>
       </div>
