@@ -4767,10 +4767,22 @@ document.getElementById('auth-modal').addEventListener('click', function(e) {
 // ── 보관함 리포트 자동저장 ──
 function archiveSaveReport(payload) {
   if (!isLoggedIn()) return;
-  const email = currentUser();
-  const key   = `signnith_reports_${email}`;
-  const list  = JSON.parse(localStorage.getItem(key) || '[]');
-  list.unshift({ ...payload, id: Date.now(), savedAt: new Date().toISOString() });
+  const email   = currentUser();
+  const key     = `signnith_reports_${email}`;
+  const list    = JSON.parse(localStorage.getItem(key) || '[]');
+  const today   = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+  const newItem = { ...payload, id: Date.now(), savedAt: new Date().toISOString() };
+
+  // 같은 날짜 + 같은 티커가 있으면 교체, 없으면 맨 앞에 추가
+  const idx = list.findIndex(r =>
+    r.ticker === payload.ticker &&
+    (r.savedAt || '').slice(0, 10) === today
+  );
+  if (idx !== -1) {
+    list.splice(idx, 1); // 기존 항목 제거
+  }
+  list.unshift(newItem); // 최신 항목을 맨 앞에 삽입
+
   // 최대 200건 유지
   if (list.length > 200) list.splice(200);
   localStorage.setItem(key, JSON.stringify(list));
