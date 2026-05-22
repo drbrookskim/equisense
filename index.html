@@ -1128,6 +1128,11 @@ const THEME_KEY = 'tsa_theme';
 const THEME_CYCLE = ['dark', 'light', 'system'];
 const THEME_ICONS = { dark: '🌙', light: '🌞', system: '🖥️' };
 
+// 항상 현재 테마 기준으로 범례 텍스트 색상 반환
+function getLegendColor() {
+  return document.documentElement.classList.contains('light') ? '#334155' : '#f1f5f9';
+}
+
 function applyTheme(theme) {
   const resolved = theme === 'system'
     ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
@@ -1139,6 +1144,15 @@ function applyTheme(theme) {
     const b = document.getElementById(`theme-btn-${t}`);
     if (b) b.classList.toggle('active', t === theme);
   });
+  // 차트 범례 색상 즉시 반영
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = getLegendColor();
+    [priceChart, rsiChart, macdChart].forEach(c => {
+      if (!c) return;
+      c.options.plugins.legend.labels.color = getLegendColor();
+      c.update('none');
+    });
+  }
 }
 
 function toggleTheme() {
@@ -3296,7 +3310,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   const _chartDark  = !document.documentElement.classList.contains('light');
   const _tickColor  = _chartDark ? '#cbd5e1' : '#475569';
   const _gridColor  = _chartDark ? '#0f1825' : '#e2e8f0';
-  const _legColor   = _chartDark ? '#f1f5f9' : '#334155';
+  const _legColor   = getLegendColor();
   // Chart.js v4 전역 기본 색 — generateLabels 텍스트에 실제 적용됨
   Chart.defaults.color = _legColor;
   const _tooltipBg  = _chartDark ? '#1e2a40' : '#ffffff';
@@ -3342,11 +3356,11 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
              showLine:false, _signalMeta: meta };
   }
   function mkLegend(items) {
-    return { display:true, labels:{ color:_legColor, font:{size:LEG_SIZE}, padding:10,
+    return { display:true, labels:{ color:getLegendColor(), font:{size:LEG_SIZE}, padding:10,
       generateLabels:()=>items.map(([text,color,bold])=>({
         text, fillStyle:color, strokeStyle:color, lineWidth:0,
-        fontColor: _legColor,   // Chart.js v4: item text color
-        color:     _legColor,   // fallback
+        fontColor: getLegendColor(),   // Chart.js v4: item text color (dynamic)
+        color:     getLegendColor(),   // fallback (dynamic)
         fontStyle: bold?'bold':'normal'
       }))
     }};
