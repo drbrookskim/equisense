@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SIGNNITH · 보관함</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg:      #050810;
+    --card:    #111827;
+    --card2:   #0f1320;
+    --border:  #1e2a40;
+    --border2: #2d3f5a;
+    --text:    #f1f5f9;
+    --text2:   #e2e8f0;
+    --muted:   #94a3b8;
+    --muted2:  #64748b;
+    --green:   #00d4aa;
+    --red:     #ff4b6e;
+    --yellow:  #fbbf24;
+    --blue:    #3b82f6;
+    --sidebar: 260px;
+  }
+
+  html.light {
+    --bg:      #f0f4f8;
+    --card:    #ffffff;
+    --card2:   #f8fafc;
+    --border:  #e2e8f0;
+    --border2: #cbd5e1;
+    --text:    #0f172a;
+    --text2:   #1e293b;
+    --muted:   #64748b;
+    --muted2:  #94a3b8;
+  }
+
+  body {
+    font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    height: 52px;
+    background: rgba(10,8,30,0.82);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 14px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  html.light .topbar { background: rgba(240,244,248,0.9); }
+
+  .topbar-logo {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+  }
+  .topbar-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .topbar-sep { flex: 1; }
+  .topbar-user {
+    font-size: 0.75rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .topbar-user span { color: var(--text2); font-weight: 600; }
+  .btn-logout {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s, color .15s;
+  }
+  .btn-logout:hover { background: rgba(255,75,110,0.1); color: var(--red); border-color: rgba(255,75,110,0.3); }
+
+  /* ── Main layout ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar);
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--card2);
+  }
+
+  .sidebar-header {
+    padding: 16px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-header-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .sidebar-search {
+    width: 100%;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--card);
+    color: var(--text);
+    font-size: 13px;
+    padding: 0 10px;
+    outline: none;
+    font-family: inherit;
+  }
+  .sidebar-search::placeholder { color: var(--muted2); }
+
+  .sidebar-count {
+    padding: 8px 16px 6px;
+    font-size: 0.68rem;
+    color: var(--muted2);
+    flex-shrink: 0;
+  }
+
+  .sidebar-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .sidebar-list::-webkit-scrollbar { width: 4px; }
+  .sidebar-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .report-item {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background .12s;
+    position: relative;
+  }
+  .report-item:hover { background: var(--card); }
+  .report-item.active { background: rgba(59,130,246,0.1); border-left: 2px solid var(--blue); }
+
+  .report-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .report-item-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+  .badge-action {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .badge-BUY  { background: rgba(0,212,170,0.15); color: var(--green); }
+  .badge-SELL { background: rgba(255,75,110,0.15); color: var(--red); }
+  .badge-HOLD { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+  .report-item-ticker {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .report-item-date {
+    font-size: 0.66rem;
+    color: var(--muted2);
+  }
+
+  /* ── Empty state ── */
+  .sidebar-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted2);
+    font-size: 0.8rem;
+    padding: 24px;
+    text-align: center;
+  }
+  .sidebar-empty .icon { font-size: 2rem; }
+
+  /* ── Report viewer ── */
+  .viewer {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .viewer-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted2);
+  }
+  .viewer-empty .icon { font-size: 3rem; }
+  .viewer-empty p { font-size: 0.9rem; }
+
+  #report-frame {
+    flex: 1;
+    border: none;
+    width: 100%;
+    height: 100%;
+    display: none;
+  }
+
+  /* ── Not logged in overlay ── */
+  #not-logged-in {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(5,8,16,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+  #not-logged-in .icon { font-size: 3rem; }
+  #not-logged-in p { color: var(--muted); font-size: 0.9rem; }
+  .btn-go-main {
+    height: 42px;
+    padding: 0 24px;
+    border-radius: 10px;
+    border: none;
+    background: var(--blue);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity .2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+  .btn-go-main:hover { opacity: .85; }
+
+  /* ── Delete button ── */
+  .btn-delete-report {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--muted2);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0;
+    transition: opacity .15s, color .15s;
+  }
+  .report-item:hover .btn-delete-report { opacity: 1; }
+  .btn-delete-report:hover { color: var(--red); }
+
+  /* scrollbar global */
+  * { scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+</style>
+</head>
+<body>
+
+<!-- Not logged in -->
+<div id="not-logged-in" style="display:none">
+  <div class="icon">🔒</div>
+  <div style="font-size:1.1rem;font-weight:700;color:var(--text)">로그인이 필요합니다</div>
+  <p>보관함은 로그인 후 이용할 수 있습니다.</p>
+  <a href="index.html" class="btn-go-main">← 메인으로 돌아가기</a>
+</div>
+
+<!-- Topbar -->
+<header class="topbar" id="topbar" style="display:none">
+  <a href="index.html" class="topbar-logo">SIGNNITH</a>
+  <span style="color:var(--border2)">›</span>
+  <span class="topbar-title">📂 보관함</span>
+  <div class="topbar-sep"></div>
+  <div class="topbar-user">
+    <span id="user-email-display"></span>
+    <button class="btn-logout" onclick="logout()">로그아웃</button>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="main" id="main-area" style="display:none">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-header-title">저장된 리포트</div>
+      <input class="sidebar-search" id="sidebar-search" type="text" placeholder="종목명·티커 검색…" oninput="filterList()">
+    </div>
+    <div class="sidebar-count" id="sidebar-count"></div>
+    <div class="sidebar-list" id="sidebar-list"></div>
+  </aside>
+
+  <!-- Viewer -->
+  <section class="viewer">
+    <div class="viewer-empty" id="viewer-empty">
+      <div class="icon">📄</div>
+      <p>좌측 목록에서 종목을 선택하세요</p>
+    </div>
+    <iframe id="report-frame" title="리포트"></iframe>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const AUTH_SESSION_KEY = 'signnith_session';
+
+  // ── 세션 확인 ──
+  function getSession() {
+    try { return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null'); } catch { return null; }
+  }
+  function currentUser() {
+    const s = getSession();
+    return s?.email || null;
+  }
+
+  const email = currentUser();
+
+  if (!email) {
+    document.getElementById('not-logged-in').style.display = 'flex';
+    return;
+  }
+
+  // 로그인 상태
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('main-area').style.display = 'flex';
+  document.getElementById('user-email-display').textContent = email;
+
+  // ── 리포트 불러오기 ──
+  const REPORTS_KEY = `signnith_reports_${email}`;
+  let allReports = [];
+  let activeId   = null;
+
+  function loadReports() {
+    allReports = JSON.parse(localStorage.getItem(REPORTS_KEY) || '[]');
+  }
+
+  function saveReports() {
+    localStorage.setItem(REPORTS_KEY, JSON.stringify(allReports));
+  }
+
+  // ── 날짜 포맷 ──
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    const yy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mi = String(d.getMinutes()).padStart(2,'0');
+    return `${yy}.${mm}.${dd} ${hh}:${mi}`;
+  }
+
+  // ── 국기 ──
+  function flag(isKr, ticker) {
+    if (isKr) return '🇰🇷';
+    if (/\.(T)$/i.test(ticker)) return '🇯🇵';
+    if (/\.(L)$/i.test(ticker)) return '🇬🇧';
+    if (/\.(HK)$/i.test(ticker)) return '🇭🇰';
+    return '🇺🇸';
+  }
+
+  // ── 목록 렌더링 ──
+  function renderList(reports) {
+    const listEl  = document.getElementById('sidebar-list');
+    const countEl = document.getElementById('sidebar-count');
+    countEl.textContent = `총 ${reports.length}건`;
+
+    if (!reports.length) {
+      listEl.innerHTML = `<div class="sidebar-empty">
+        <div class="icon">📭</div>
+        <div>저장된 리포트가 없습니다</div>
+        <div style="font-size:0.72rem;margin-top:4px">메인에서 종목을 분석하면<br>자동으로 저장됩니다.</div>
+      </div>`;
+      return;
+    }
+
+    listEl.innerHTML = reports.map(r => `
+      <div class="report-item${r.id === activeId ? ' active' : ''}" onclick="selectReport(${r.id})" data-id="${r.id}">
+        <div class="report-item-top">
+          <div class="report-item-name">${flag(r.isKr, r.ticker)} ${r.companyName || r.ticker}</div>
+          <span class="badge-action badge-${r.action}">${r.action}</span>
+        </div>
+        <div class="report-item-ticker">${r.ticker} · 신뢰도 ${Math.round((r.confidence||0)*100)}%</div>
+        <div class="report-item-date">🕐 ${fmtDate(r.savedAt)}</div>
+        <button class="btn-delete-report" onclick="deleteReport(event, ${r.id})" title="삭제">✕</button>
+      </div>
+    `).join('');
+  }
+
+  // ── 검색 필터 ──
+  window.filterList = function() {
+    const q = document.getElementById('sidebar-search').value.trim().toLowerCase();
+    const filtered = q
+      ? allReports.filter(r =>
+          (r.ticker||'').toLowerCase().includes(q) ||
+          (r.companyName||'').toLowerCase().includes(q))
+      : allReports;
+    renderList(filtered);
+  };
+
+  // ── 리포트 선택 ──
+  window.selectReport = function(id) {
+    const r = allReports.find(x => x.id === id);
+    if (!r) return;
+    activeId = id;
+
+    const frame  = document.getElementById('report-frame');
+    const empty  = document.getElementById('viewer-empty');
+    const period = r.period || '6mo';
+    const style  = r.style  || 'balanced';
+    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}`;
+
+    empty.style.display  = 'none';
+    frame.style.display  = 'block';
+    frame.src            = url;
+
+    // 사이드바 active 표시 업데이트
+    document.querySelectorAll('.report-item').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.id) === id);
+    });
+  };
+
+  // ── 리포트 삭제 ──
+  window.deleteReport = function(e, id) {
+    e.stopPropagation();
+    if (!confirm('이 리포트를 삭제하시겠습니까?')) return;
+    allReports = allReports.filter(r => r.id !== id);
+    saveReports();
+    if (activeId === id) {
+      activeId = null;
+      document.getElementById('report-frame').style.display = 'none';
+      document.getElementById('report-frame').src = '';
+      document.getElementById('viewer-empty').style.display = 'flex';
+    }
+    filterList();
+  };
+
+  // ── 로그아웃 ──
+  window.logout = function() {
+    const s = getSession();
+    if (!s?.remember) localStorage.removeItem(AUTH_SESSION_KEY);
+    else              localStorage.removeItem(AUTH_SESSION_KEY);
+    window.location.href = 'index.html';
+  };
+
+  // ── 초기 로드 ──
+  loadReports();
+  filterList();
+
+  // ── localStorage 변경 감지 (다른 탭에서 저장 시 자동 갱신) ──
+  window.addEventListener('storage', e => {
+    if (e.key === REPORTS_KEY) {
+      loadReports();
+      filterList();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
