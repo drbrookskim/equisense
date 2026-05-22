@@ -388,6 +388,8 @@
     .page{ padding:20px; }
     body{ background:#fff; }
   }
+  /* 보관함 embedded 모드: topbar 숨김 */
+  body.embedded .topbar { display:none !important; }
   @media(max-width:600px){
     .topbar{ padding:0 16px; }
     .page{ padding:20px 12px 40px; }
@@ -1593,6 +1595,11 @@ function renderReport(data) {
   const ticker = params.get('ticker') || 'AAPL';
   const period = params.get('period') || '6mo';
   const style  = params.get('style')  || 'balanced';
+
+  // 보관함 iframe 모드: topbar 숨김
+  if (params.get('embedded') === '1') {
+    document.body.classList.add('embedded');
+  }
 
   document.title = `${ticker} 리포트 — SIGNNITH`;
 

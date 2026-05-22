@@ -65,11 +65,29 @@
   html.light .topbar { background: rgba(240,244,248,0.9); }
 
   .topbar-logo {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text);
+    display: flex;
+    align-items: center;
     text-decoration: none;
-    letter-spacing: -0.02em;
+  }
+  .topbar-logo-img {
+    height: 26px;
+    width: auto;
+    border-radius: 5px;
+    transition: filter 0.2s, opacity 0.2s;
+  }
+  html:not(.light) .topbar-logo-img {
+    filter: invert(1) brightness(0.92);
+    opacity: 0.92;
+  }
+  html.light .topbar-logo-img {
+    filter: none;
+    opacity: 0.85;
+  }
+  .topbar-sep-bar {
+    width: 1px;
+    height: 18px;
+    background: var(--border2);
+    margin: 0 4px;
   }
   .topbar-title {
     font-size: 0.85rem;
@@ -314,8 +332,10 @@
 
 <!-- Topbar -->
 <header class="topbar" id="topbar" style="display:none">
-  <a href="index.html" class="topbar-logo">SIGNNITH</a>
-  <span style="color:var(--border2)">›</span>
+  <a href="index.html" class="topbar-logo">
+    <img class="topbar-logo-img" src="assets/signnith-logo-white.png" alt="Signnith" />
+  </a>
+  <div class="topbar-sep-bar"></div>
   <span class="topbar-title">📂 보관함</span>
   <div class="topbar-sep"></div>
   <div class="topbar-user">
@@ -457,7 +477,7 @@
     const empty  = document.getElementById('viewer-empty');
     const period = r.period || '6mo';
     const style  = r.style  || 'balanced';
-    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}`;
+    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
 
     empty.style.display  = 'none';
     frame.style.display  = 'block';
