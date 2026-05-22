@@ -2965,7 +2965,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
     <!-- 캔들스틱 패턴 -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱 패턴 ${tip('최근 1~3일 봉 형태로 단기 방향 감지\n강세: Hammer, BullishEngulfing,\n  MorningStar, ThreeWhiteSoldiers 등\n약세: ShootingStar, BearishEngulfing,\n  EveningStar, ThreeBlackCrows 등')}<span style="font-size:0.6rem;color:var(--muted2);font-weight:400;margin-left:6px">시각적 가격 행동 (Price Action) 및 패턴 분석</span></div>
+      <div class="card-header"><span class="dot" style="background:var(--yellow)"></span>캔들스틱<br>패턴 ${tip('최근 1~3일 봉 형태로 단기 방향 감지\n강세: Hammer, BullishEngulfing,\n  MorningStar, ThreeWhiteSoldiers 등\n약세: ShootingStar, BearishEngulfing,\n  EveningStar, ThreeBlackCrows 등')}<span style="font-size:0.6rem;color:var(--muted2);font-weight:400;margin-left:6px">시각적 가격 행동 (Price Action) 및 패턴 분석</span></div>
       ${mrow('패턴 시그널', cs.cs_signal>0?'▲ 매수':cs.cs_signal<0?'▼ 매도':'— 중립', cs.cs_signal>0?'var(--up)':cs.cs_signal<0?'var(--down)':'var(--muted)', '강세 패턴 수 - 약세 패턴 수\n양수 → 매수 신호\n음수 → 매도 신호\n0 → 패턴 없거나 중립')}
       ${mrow('감지 패턴 수', cs.patterns.length+'개', '', '오늘 봉 포함 최근 3봉에서\n감지된 캔들스틱 패턴 총 개수')}
       ${cs.patterns.length>0
@@ -3048,8 +3048,8 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
     <!-- WACC 카드 (3번째 컬럼) -->
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>WACC 할인율 분석 ${tip('WACC — 가중평균자본비용','<b>WACC (Weighted Average Cost of Capital)</b>란 기업이 자금을 조달할 때 드는 평균 비용으로, DCF 밸류에이션의 핵심 할인율입니다.\n\n<b>공식</b>\nWACC = Re × E/V + Rd × (1−Tc) × D/V\n\n<b>구성요소</b>\n· Re: 자기자본비용 (CAPM 기반)\n· Rd: 타인자본비용 (세전 이자율 × (1−법인세))\n· E/V: 자기자본 비중\n· D/V: 부채 비중\n\n<b>해석 기준</b>\n<span class="tag-buy">▲ 낮을수록</span> — 자본 조달 비용이 낮아 DCF 할인 시 기업가치가 높게 산출됩니다.\n<span class="tag-sell">▼ 높을수록</span> — 미래 현금흐름을 더 크게 할인해 기업가치가 낮게 평가됩니다.\n\n<b>활용</b>\nWACC보다 높은 ROE/ROIC를 달성하는 기업은 주주가치를 창출 중입니다.')}
-        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">${waccResult.sectorLabel} 섹터 조정</span>
+      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>WACC 할인율 분석 ${tip('WACC 가중평균자본비용','<b>WACC (Weighted Average Cost of Capital)</b>란 기업이 자금을 조달할 때 드는 평균 비용으로, DCF 밸류에이션의 핵심 할인율입니다.\n\n<b>공식</b>\nWACC = Re × E/V + Rd × (1−Tc) × D/V\n\n<b>구성요소</b>\n· Re: 자기자본비용 (CAPM 기반)\n· Rd: 타인자본비용 (세전 이자율 × (1−법인세))\n· E/V: 자기자본 비중\n· D/V: 부채 비중\n\n<b>해석 기준</b>\n<span class="tag-buy">▲ 낮을수록</span> — 자본 조달 비용이 낮아 DCF 할인 시 기업가치가 높게 산출됩니다.\n<span class="tag-sell">▼ 높을수록</span> — 미래 현금흐름을 더 크게 할인해 기업가치가 낮게 평가됩니다.\n\n<b>활용</b>\nWACC보다 높은 ROE/ROIC를 달성하는 기업은 주주가치를 창출 중입니다.')}
+        <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">${waccResult.sectorLabel}<br>섹터 조정</span>
         <span style="font-size:0.6rem;color:var(--muted2);font-weight:400;margin-left:6px">가중평균자본비용(Weighted Average Cost of Capital)로 기본적 분석의 핵심</span>
       </div>
       <div style="text-align:center;padding:10px 0 6px">
