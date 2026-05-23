@@ -5223,15 +5223,20 @@ async function authLogin() {
 
   if (!email || !pw) { errEl.textContent='아이디와 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
 
+  // ★ 팝업 차단 우회: await 이전에 동기적으로 창을 먼저 열어둠
+  const archiveWin = window.open('', '_blank');
+
   const users = getUsers();
   const hash  = await hashPassword(pw);
   if (!users[email] || users[email].hash !== hash) {
+    archiveWin && archiveWin.close();
     errEl.textContent = '아이디 또는 비밀번호가 올바르지 않습니다.'; errEl.style.display='block'; return;
   }
   const session = { email, remember, loginAt: Date.now() };
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
   closeAuthModal();
-  window.open('archive.html', '_blank');
+  if (archiveWin) archiveWin.location.href = 'archive.html';
+  else window.open('archive.html', '_blank');
 }
 
 async function authSignup() {
@@ -5249,6 +5254,9 @@ async function authSignup() {
   const users = getUsers();
   if (users[email]) { errEl.textContent='이미 사용 중인 아이디입니다.'; errEl.style.display='block'; return; }
 
+  // ★ 팝업 차단 우회: await 이전에 동기적으로 창을 먼저 열어둠
+  const archiveWin = window.open('', '_blank');
+
   const hash = await hashPassword(pw);
   users[email] = { hash, createdAt: Date.now() };
   saveUsers(users);
@@ -5256,7 +5264,8 @@ async function authSignup() {
   // 가입 후 자동 로그인
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ email, remember: false, loginAt: Date.now() }));
   closeAuthModal();
-  window.open('archive.html', '_blank');
+  if (archiveWin) archiveWin.location.href = 'archive.html';
+  else window.open('archive.html', '_blank');
 }
 
 async function authReset() {
