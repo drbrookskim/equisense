@@ -1,0 +1,53 @@
+{
+  "_comment": "해자 점수를 직접 입력하세요. 0.0 ~ 10.0 범위. grade: wide(>=7.0) / narrow(4.0~6.9) / none(<4.0)",
+  "scores": [
+    {
+      "ticker": "AAPL",
+      "market": "US",
+      "fiscal_year": 2024,
+      "dimension_scores": [
+        { "dimension": "cost_advantage",    "score": 7.0, "rationale": "애플 실리콘 수직 통합으로 비용 우위" },
+        { "dimension": "intangible_assets", "score": 9.5, "rationale": "브랜드 가치 세계 1위, 디자인 특허" },
+        { "dimension": "switching_costs",   "score": 9.0, "rationale": "iOS 생태계 락인, iMessage/FaceTime" },
+        { "dimension": "network_effects",   "score": 7.5, "rationale": "앱스토어 양면 플랫폼 네트워크 효과" }
+      ],
+      "analyst_note": "강력한 생태계 락인과 브랜드 프리미엄으로 WIDE 해자 유지"
+    },
+    {
+      "ticker": "MSFT",
+      "market": "US",
+      "fiscal_year": 2024,
+      "dimension_scores": [
+        { "dimension": "cost_advantage",    "score": 6.5, "rationale": "규모의 경제, Azure 인프라 효율" },
+        { "dimension": "intangible_assets", "score": 8.5, "rationale": "Office/Windows 라이선스, 특허 포트폴리오" },
+        { "dimension": "switching_costs",   "score": 9.5, "rationale": "엔터프라이즈 M365, Azure 이전 비용 극대" },
+        { "dimension": "network_effects",   "score": 8.0, "rationale": "LinkedIn, Teams 네트워크 효과" }
+      ],
+      "analyst_note": "엔터프라이즈 전환 비용이 핵심 해자, AI 통합으로 강화 추세"
+    },
+    {
+      "ticker": "005930",
+      "market": "KR",
+      "fiscal_year": 2024,
+      "dimension_scores": [
+        { "dimension": "cost_advantage",    "score": 8.5, "rationale": "메모리 반도체 원가 우위, 수직 계열화" },
+        { "dimension": "intangible_assets", "score": 7.0, "rationale": "반도체 공정 기술 특허" },
+        { "dimension": "switching_costs",   "score": 6.0, "rationale": "B2B 공급망 교체 비용 존재" },
+        { "dimension": "network_effects",   "score": 4.0, "rationale": "제한적 네트워크 효과" }
+      ],
+      "analyst_note": "기술 우위 기반 NARROW 해자, HBM 경쟁 심화가 리스크"
+    },
+    {
+      "ticker": "035720",
+      "market": "KR",
+      "fiscal_year": 2024,
+      "dimension_scores": [
+        { "dimension": "cost_advantage",    "score": 4.0, "rationale": "플랫폼 운영 효율 평균 수준" },
+        { "dimension": "intangible_assets", "score": 6.0, "rationale": "카카오톡 브랜드, 캐릭터IP" },
+        { "dimension": "switching_costs",   "score": 7.5, "rationale": "카카오톡 메신저 국내 락인" },
+        { "dimension": "network_effects",   "score": 8.0, "rationale": "4800만 MAU 기반 네트워크 효과" }
+      ],
+      "analyst_note": "국내 메신저 독점적 지위, 수익화 다각화 성과가 관건"
+    }
+  ]
+}

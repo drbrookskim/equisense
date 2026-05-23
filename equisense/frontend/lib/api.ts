@@ -1,43 +1,38 @@
 import type {
-  AnalysisJob,
-  DocType,
   FundamentalAnalysis,
   Market,
   MoatAnalysis,
+  QualitativeIndex,
+  QualitativeResult,
   TechnicalAnalysis,
   TechnicalPeriod,
-  TriggerQualitativeResponse,
+  Watchlist,
 } from '@/types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? ''
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
-async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    next: { revalidate: 0 },
-  })
-
-  const json = await res.json()
-
+async function readJson<T>(path: string): Promise<T> {
+  const url = `${BASE_PATH}${path}`
+  const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) {
-    throw Object.assign(new Error(json.error?.message ?? 'API error'), {
-      status: res.status,
-      code: json.error?.code,
-    })
+    throw Object.assign(new Error(`Not found: ${url}`), { status: res.status })
   }
+  return res.json() as Promise<T>
+}
 
-  return json as T
+export async function getWatchlist(): Promise<Watchlist> {
+  return readJson('/data/watchlist.json')
 }
 
 export async function getFundamentals(
   ticker: string,
   market: Market,
 ): Promise<FundamentalAnalysis> {
-  return apiFetch(`/companies/${ticker}/fundamentals?market=${market}`)
+  return readJson(`/data/fundamentals/${ticker}_${market}.json`)
 }
 
 export async function getMoatScore(ticker: string, market: Market): Promise<MoatAnalysis> {
-  return apiFetch(`/companies/${ticker}/moat?market=${market}`)
+  return readJson(`/data/moat/${ticker}_${market}.json`)
 }
 
 export async function getTechnicalData(
@@ -45,30 +40,21 @@ export async function getTechnicalData(
   market: Market,
   period: TechnicalPeriod = '1y',
 ): Promise<TechnicalAnalysis> {
-  return apiFetch(`/companies/${ticker}/technical?market=${market}&period=${period}`)
+  return readJson(`/data/technical/${ticker}_${market}_${period}.json`)
 }
 
-export async function triggerQualitativeAnalysis(
+export async function getQualitativeIndex(
   ticker: string,
   market: Market,
-  fiscal_year: number,
-  doc_type: DocType,
-): Promise<TriggerQualitativeResponse> {
-  const res = await fetch(`${API_BASE}/companies/${ticker}/qualitative`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ market, fiscal_year, doc_type }),
-  })
-  const json = await res.json()
-  if (!res.ok) {
-    throw Object.assign(new Error(json.error?.message ?? 'API error'), {
-      status: res.status,
-      code: json.error?.code,
-    })
-  }
-  return json as TriggerQualitativeResponse
+): Promise<QualitativeIndex> {
+  return readJson(`/data/qualitative/${ticker}_${market}_index.json`)
 }
 
-export async function getJobStatus(jobId: string): Promise<AnalysisJob> {
-  return apiFetch(`/jobs/${jobId}`)
+export async function getQualitativeResult(
+  ticker: string,
+  market: Market,
+  year: number,
+  docType: string,
+): Promise<QualitativeResult> {
+  return readJson(`/data/qualitative/${ticker}_${market}_${year}_${docType}.json`)
 }

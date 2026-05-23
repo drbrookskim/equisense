@@ -1,5 +1,10 @@
+import { readWatchlist } from '@/lib/watchlist'
 import type { Market } from '@/types'
 import QualitativeAnalysisView from '@/components/qualitative/QualitativeAnalysisView'
+
+export function generateStaticParams() {
+  return readWatchlist().companies.map((c) => ({ ticker: c.ticker }))
+}
 
 export default async function QualitativePage({
   params,
@@ -10,7 +15,6 @@ export default async function QualitativePage({
 }) {
   const { ticker } = await params
   const { market = 'US' } = await searchParams
-
   const validMarket = (market === 'KR' ? 'KR' : 'US') as Market
 
   return <QualitativeAnalysisView ticker={ticker} market={validMarket} />

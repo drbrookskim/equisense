@@ -1,0 +1,8 @@
+{
+  "companies": [
+    { "ticker": "AAPL", "market": "US", "name": "Apple Inc." },
+    { "ticker": "MSFT", "market": "US", "name": "Microsoft Corp." },
+    { "ticker": "005930", "market": "KR", "name": "삼성전자" },
+    { "ticker": "035720", "market": "KR", "name": "카카오" }
+  ]
+}

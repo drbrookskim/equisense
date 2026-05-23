@@ -1,25 +1,26 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { getJobStatus, triggerQualitativeAnalysis } from '@/lib/api'
+import { useEffect, useState } from 'react'
+import { getQualitativeIndex, getQualitativeResult } from '@/lib/api'
 import type {
-  AnalysisJob,
   DocType,
-  JobStatus,
   Market,
-  NoiseFilterItem,
+  QualitativeIndexEntry,
   QualitativeResult,
   RiskFactor,
 } from '@/types'
-
-const CURRENT_YEAR = new Date().getFullYear()
-const FISCAL_YEARS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - 1 - i)
-const POLL_INTERVAL_MS = 3000
 
 interface Props {
   ticker: string
   market: Market
 }
+
+const DOC_LABEL: Record<DocType, string> = {
+  annual_report: '사업보고서',
+  earnings_call: '실적발표',
+}
+
+// ── 하위 컴포넌트 ──────────────────────────────────────────────────────────
 
 function IntegrityGauge({ score }: { score: number }) {
   const color =
@@ -35,10 +36,7 @@ function IntegrityGauge({ score }: { score: number }) {
         <span className="mb-1 text-sm text-zinc-400">/ 100</span>
       </div>
       <div className="mt-3 h-2 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
-        <div
-          className={`h-2 rounded-full transition-all ${bgColor}`}
-          style={{ width: `${score}%` }}
-        />
+        <div className={`h-2 rounded-full transition-all ${bgColor}`} style={{ width: `${score}%` }} />
       </div>
     </div>
   )
@@ -62,13 +60,10 @@ function ResultCard({ result }: { result: QualitativeResult }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        {result.integrity_score !== null && (
-          <IntegrityGauge score={result.integrity_score} />
-        )}
-
+        {result.integrity_score !== null && <IntegrityGauge score={result.integrity_score} />}
         {result.summary_ko && (
           <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-            <p className="mb-2 text-xs font-medium text-zinc-500">AI 요약</p>
+            <p className="mb-2 text-xs font-medium text-zinc-500">분석 요약</p>
             <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
               {result.summary_ko}
             </p>
@@ -78,20 +73,13 @@ function ResultCard({ result }: { result: QualitativeResult }) {
 
       {result.risk_factors && result.risk_factors.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-            리스크 요인
-          </h3>
+          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">리스크 요인</h3>
           <ul className="space-y-2">
             {result.risk_factors.map((rf, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 rounded-lg border border-zinc-100 px-4 py-3 dark:border-zinc-800"
-              >
+              <li key={i} className="flex items-start gap-3 rounded-lg border border-zinc-100 px-4 py-3 dark:border-zinc-800">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                      {rf.title}
-                    </span>
+                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{rf.title}</span>
                     <SeverityBadge severity={rf.severity} />
                   </div>
                   <p className="mt-1 text-xs text-zinc-500">{rf.description}</p>
@@ -104,15 +92,10 @@ function ResultCard({ result }: { result: QualitativeResult }) {
 
       {result.growth_drivers && result.growth_drivers.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-            성장 동력
-          </h3>
+          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">성장 동력</h3>
           <ul className="space-y-2">
             {result.growth_drivers.map((gd, i) => (
-              <li
-                key={i}
-                className="rounded-lg border border-zinc-100 px-4 py-3 dark:border-zinc-800"
-              >
+              <li key={i} className="rounded-lg border border-zinc-100 px-4 py-3 dark:border-zinc-800">
                 <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{gd.title}</p>
                 <p className="mt-1 text-xs text-zinc-500">{gd.description}</p>
               </li>
@@ -123,19 +106,12 @@ function ResultCard({ result }: { result: QualitativeResult }) {
 
       {result.noise_filter && result.noise_filter.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-            노이즈 필터
-          </h3>
+          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">노이즈 필터</h3>
           <ul className="space-y-2">
             {result.noise_filter.map((nf, i) => (
-              <li
-                key={i}
-                className="rounded-lg border border-zinc-100 px-4 py-3 dark:border-zinc-800"
-              >
+              <li key={i} className="rounded-lg border border-zinc-100 px-4 py-3 dark:border-zinc-800">
                 <div className="flex items-start gap-2">
-                  <span
-                    className={`mt-0.5 shrink-0 text-sm ${nf.is_substantiated ? 'text-emerald-500' : 'text-red-500'}`}
-                  >
+                  <span className={`mt-0.5 shrink-0 text-sm ${nf.is_substantiated ? 'text-emerald-500' : 'text-red-500'}`}>
                     {nf.is_substantiated ? '✓' : '✗'}
                   </span>
                   <div>
@@ -152,89 +128,41 @@ function ResultCard({ result }: { result: QualitativeResult }) {
   )
 }
 
-function StatusBanner({ status }: { status: JobStatus }) {
-  const config = {
-    PENDING: {
-      text: '분석 대기 중…',
-      className: 'bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400',
-    },
-    PROCESSING: {
-      text: 'AI 분석 진행 중… (최대 2분 소요)',
-      className: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
-    },
-    COMPLETED: { text: '분석 완료', className: 'hidden' },
-    FAILED: { text: '분석 중 오류가 발생했습니다.', className: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' },
-  }
-  const c = config[status]
-  if (c.className === 'hidden') return null
-  return (
-    <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${c.className}`}>
-      {(status === 'PENDING' || status === 'PROCESSING') && (
-        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-        </svg>
-      )}
-      {c.text}
-    </div>
-  )
-}
+// ── 메인 컴포넌트 ──────────────────────────────────────────────────────────
 
 export default function QualitativeAnalysisView({ ticker, market }: Props) {
-  const [fiscalYear, setFiscalYear] = useState<number>(FISCAL_YEARS[0])
-  const [docType, setDocType] = useState<DocType>('annual_report')
-  const [job, setJob] = useState<AnalysisJob | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [entries, setEntries] = useState<QualitativeIndexEntry[]>([])
+  const [selected, setSelected] = useState<QualitativeIndexEntry | null>(null)
+  const [result, setResult] = useState<QualitativeResult | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [resultLoading, setResultLoading] = useState(false)
+  const [noData, setNoData] = useState(false)
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
-    }
-  }, [])
-
-  const startPolling = useCallback(
-    (jobId: string) => {
-      stopPolling()
-      pollRef.current = setInterval(async () => {
-        try {
-          const updated = await getJobStatus(jobId)
-          setJob(updated)
-          if (updated.status === 'COMPLETED' || updated.status === 'FAILED') {
-            stopPolling()
-          }
-        } catch {
-          stopPolling()
-        }
-      }, POLL_INTERVAL_MS)
-    },
-    [stopPolling],
-  )
-
-  useEffect(() => stopPolling, [stopPolling])
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
+  // 인덱스 로드
+  useEffect(() => {
     setLoading(true)
-    try {
-      const res = await triggerQualitativeAnalysis(ticker, market, fiscalYear, docType)
-      const initialJob: AnalysisJob = { job_id: res.job_id, status: 'PENDING', result: null, error: null }
-      setJob(initialJob)
-      startPolling(res.job_id)
-    } catch (err: unknown) {
-      const e = err as { message?: string; code?: string }
-      if (e?.code === 'RATE_LIMIT_EXCEEDED') {
-        setError('일일 분석 한도(5회)에 도달했습니다. 내일 다시 시도해 주세요.')
-      } else {
-        setError(e?.message ?? '분석 요청에 실패했습니다.')
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+    setNoData(false)
+    getQualitativeIndex(ticker, market)
+      .then((idx) => {
+        setEntries(idx.analyses)
+        if (idx.analyses.length > 0) {
+          setSelected(idx.analyses[0])
+        }
+      })
+      .catch(() => setNoData(true))
+      .finally(() => setLoading(false))
+  }, [ticker, market])
+
+  // 선택된 항목 결과 로드
+  useEffect(() => {
+    if (!selected) return
+    setResultLoading(true)
+    setResult(null)
+    getQualitativeResult(ticker, market, selected.year, selected.doc_type)
+      .then(setResult)
+      .catch(() => setResult(null))
+      .finally(() => setResultLoading(false))
+  }, [ticker, market, selected])
 
   return (
     <div className="space-y-8">
@@ -243,61 +171,68 @@ export default function QualitativeAnalysisView({ ticker, market }: Props) {
           {ticker}
           <span className="ml-2 text-base font-normal text-zinc-500">({market})</span>
         </h2>
-        <span className="text-sm text-zinc-500">정성적 분석 (AI)</span>
+        <span className="text-sm text-zinc-500">정성적 분석</span>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-wrap items-end gap-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-      >
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">회계연도</label>
-          <select
-            value={fiscalYear}
-            onChange={(e) => setFiscalYear(Number(e.target.value))}
-            className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            disabled={loading || (job?.status === 'PENDING' || job?.status === 'PROCESSING')}
-          >
-            {FISCAL_YEARS.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">문서 유형</label>
-          <select
-            value={docType}
-            onChange={(e) => setDocType(e.target.value as DocType)}
-            className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            disabled={loading || (job?.status === 'PENDING' || job?.status === 'PROCESSING')}
-          >
-            <option value="annual_report">사업보고서</option>
-            <option value="earnings_call">실적발표</option>
-          </select>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading || job?.status === 'PENDING' || job?.status === 'PROCESSING'}
-          className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+      {/* 새 분석 실행 안내 */}
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+        새 분석을 실행하려면{' '}
+        <a
+          href={`https://github.com/${process.env.NEXT_PUBLIC_GITHUB_REPO ?? 'your-repo'}/actions/workflows/analyze_qualitative.yml`}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
         >
-          {loading ? '요청 중…' : '분석 시작'}
-        </button>
-      </form>
+          GitHub Actions → M3 Qualitative Analysis
+        </a>
+        를 수동으로 트리거하세요. (ticker: {ticker}, market: {market})
+      </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
-          {error}
+      {loading && (
+        <div className="flex h-40 items-center justify-center">
+          <span className="text-sm text-zinc-400">분석 목록 로딩 중…</span>
         </div>
       )}
 
-      {job && <StatusBanner status={job.status} />}
+      {noData && !loading && (
+        <div className="flex h-40 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <p className="text-sm text-zinc-500">
+            아직 분석 결과가 없습니다. GitHub Actions를 실행하면 여기에 표시됩니다.
+          </p>
+        </div>
+      )}
 
-      {job?.status === 'COMPLETED' && job.result && (
-        <ResultCard result={job.result} />
+      {!loading && entries.length > 0 && (
+        <>
+          {/* 분석 선택 탭 */}
+          <div className="flex flex-wrap gap-2">
+            {entries.map((e) => {
+              const isActive = selected?.year === e.year && selected?.doc_type === e.doc_type
+              return (
+                <button
+                  key={`${e.year}-${e.doc_type}`}
+                  onClick={() => setSelected(e)}
+                  className={[
+                    'rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900'
+                      : 'border border-zinc-300 text-zinc-600 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-400',
+                  ].join(' ')}
+                >
+                  {e.year} {DOC_LABEL[e.doc_type as DocType]}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* 결과 표시 */}
+          {resultLoading && (
+            <div className="flex h-40 items-center justify-center">
+              <span className="text-sm text-zinc-400">결과 로딩 중…</span>
+            </div>
+          )}
+          {!resultLoading && result && <ResultCard result={result} />}
+        </>
       )}
     </div>
   )
