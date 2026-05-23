@@ -1530,7 +1530,52 @@ function renderChartPatternV2(patterns) {
     return;
   }
 
-  el.innerHTML = patterns.map(p => {
+  // ── 상충 신호 분석 ──
+  const bullish = patterns.filter(p => p.signal === 'STRONG_BUY' || p.signal === 'BUY');
+  const bearish = patterns.filter(p => p.signal === 'STRONG_SELL' || p.signal === 'SELL');
+  const hasConflict = bullish.length > 0 && bearish.length > 0;
+
+  let conflictHtml = '';
+  if (hasConflict) {
+    const bullScore = bullish.reduce((s,p) => s + (p.signal==='STRONG_BUY'?2:1), 0);
+    const bearScore = bearish.reduce((s,p) => s + (p.signal==='STRONG_SELL'?2:1), 0);
+    const bias = bullScore > bearScore ? '매수 우위' : bearScore > bullScore ? '매도 우위' : '균형 (중립)';
+    const biasColor = bullScore > bearScore ? '#228B22' : bearScore > bullScore ? '#DC143C' : '#B8860B';
+    const action = bullScore > bearScore
+      ? '단기 눌림 후 매수 진입 검토. 매수 패턴의 진입조건(거래량 확인) 충족 시 분할매수 시작.'
+      : bearScore > bullScore
+      ? '보유 중이라면 일부 익절 또는 손절 기준 재설정. 신규 진입은 매도 패턴 해소 후 재평가.'
+      : '명확한 방향성 확인 전까지 신규 진입 보류. 거래량 급증 방향으로 돌파 시 추종 진입.';
+
+    conflictHtml = `
+    <div style="width:100%;background:rgba(184,134,11,0.08);border:1px solid rgba(184,134,11,0.25);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:0.72rem;font-weight:700;background:rgba(184,134,11,0.2);color:#B8860B;padding:2px 10px;border-radius:20px">⚡ 상충 신호 감지</span>
+        <span style="font-size:0.72rem;color:var(--muted)">매수 ${bullish.length}개 · 매도 ${bearish.length}개 동시 감지</span>
+        <span style="margin-left:auto;font-size:0.72rem;font-weight:700;color:${biasColor}">${bias}</span>
+      </div>
+      <div style="font-size:0.7rem;color:var(--muted2);line-height:1.6;margin-bottom:8px">
+        <b style="color:var(--text2)">해석</b> &nbsp;매수와 매도 신호가 동시에 존재한다는 것은 시장 참여자들의 의견이 엇갈리는
+        <b style="color:var(--yellow)">방향 불확실 구간</b>임을 의미합니다.
+        단기 변동성이 높고 어느 방향으로든 급등락이 발생할 수 있습니다.
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:8px">
+        <div style="flex:1;background:rgba(34,139,34,0.08);border-radius:8px;padding:8px 10px">
+          <div style="font-size:0.65rem;font-weight:700;color:#228B22;margin-bottom:4px">▲ 매수 신호 (${bullish.length})</div>
+          ${bullish.map(p=>`<div style="font-size:0.65rem;color:var(--muted2);line-height:1.5">· ${p.name} (${p.confidence}%)</div>`).join('')}
+        </div>
+        <div style="flex:1;background:rgba(220,20,60,0.08);border-radius:8px;padding:8px 10px">
+          <div style="font-size:0.65rem;font-weight:700;color:#DC143C;margin-bottom:4px">▼ 매도 신호 (${bearish.length})</div>
+          ${bearish.map(p=>`<div style="font-size:0.65rem;color:var(--muted2);line-height:1.5">· ${p.name} (${p.confidence}%)</div>`).join('')}
+        </div>
+      </div>
+      <div style="font-size:0.7rem;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 12px;border-left:3px solid ${biasColor}">
+        <b style="color:var(--text2)">권장 액션</b>&nbsp; ${action}
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = conflictHtml + patterns.map(p => {
     const sc = SIGNAL_COLORS[p.signal] || SIGNAL_COLORS.WAIT;
     const isBull = p.signal === 'STRONG_BUY' || p.signal === 'BUY';
     const isBear = p.signal === 'STRONG_SELL' || p.signal === 'SELL';
@@ -4478,7 +4523,7 @@ function renderValueChain({ ticker, companyName, isKr }) {
 
       if (sectorName) {
         // 섹터 노드
-        const secLabel = sectorName.length > 14 ? sectorName.slice(0,14)+'…' : sectorName;
+        const secLabel = wrapLabel(sectorName, 14);
         nodes.push({ id:'_sector', label: secLabel, rel:0.75 });
         links.push({ source:'_center', target:'_sector' });
         etfs.forEach((e, i) => {
@@ -4503,13 +4548,13 @@ function renderValueChain({ ticker, companyName, isKr }) {
       // ── 한국 주식 미등록: 전체 산업 맵 (기존 동작) ──
       VALUE_CHAIN_DATA.forEach((ind, i) => {
         const indId = `ind_${i}`;
-        nodes.push({ id:indId, label: ind.industry.length>13?ind.industry.slice(0,13)+'…':ind.industry, rel:0.5 });
+        nodes.push({ id:indId, label: wrapLabel(ind.industry, 12), rel:0.5 });
         links.push({ source:'_center', target:indId });
         ind.sectors.forEach((sec, j) => {
           const filtered = filterByNation(sec.stocks);
           if (!filtered.length) return;
           const secId = `sec_${i}_${j}`;
-          nodes.push({ id:secId, label: sec.name.length>11?sec.name.slice(0,11)+'…':sec.name, rel:0.3 });
+          nodes.push({ id:secId, label: wrapLabel(sec.name, 11), rel:0.3 });
           links.push({ source:indId, target:secId });
           filtered.forEach((s, k) => {
             nodes.push({ id:`st_${i}_${j}_${k}`, label:s, rel:0.15 });
@@ -4531,8 +4576,8 @@ function renderValueChain({ ticker, companyName, isKr }) {
   const nodes = [], links = [];
   const displayName = companyName || ticker;
 
-  nodes.push({ id:'_center', label: displayName.length>13?displayName.slice(0,13)+'…':displayName, rel:1.0 });
-  nodes.push({ id:'_industry', label: matchedIndustry.industry.length>15?matchedIndustry.industry.slice(0,15)+'…':matchedIndustry.industry, rel:0.7 });
+  nodes.push({ id:'_center', label: wrapLabel(displayName, 13), rel:1.0 });
+  nodes.push({ id:'_industry', label: wrapLabel(matchedIndustry.industry, 14), rel:0.7 });
   links.push({ source:'_center', target:'_industry' });
 
   matchedIndustry.sectors.forEach((sec, si) => {
@@ -4541,7 +4586,7 @@ function renderValueChain({ ticker, companyName, isKr }) {
     if (!filtered.length) return;
 
     const secId = `_sec_${si}`;
-    nodes.push({ id:secId, label: sec.name.length>12?sec.name.slice(0,12)+'…':sec.name, rel: isMain ? 0.65 : 0.3 });
+    nodes.push({ id:secId, label: wrapLabel(sec.name, 12), rel: isMain ? 0.65 : 0.3 });
     links.push({ source:'_industry', target:secId });
 
     filtered.forEach((s, k) => {
@@ -4560,6 +4605,29 @@ function renderValueChain({ ticker, companyName, isKr }) {
   div.style.cssText = 'position:absolute;top:12px;left:16px;font-size:0.72rem;color:var(--muted);pointer-events:none';
   div.innerHTML = `<b style="color:var(--orange)">${matchedIndustry.industry}</b> &rsaquo; <b style="color:var(--blue)">${matchedSector.name}</b>`;
   wrap.appendChild(div);
+}
+
+// ── VC 라벨 줄바꿈 헬퍼 (긴 텍스트를 자연스럽게 2줄로) ──
+function wrapLabel(text, maxPerLine = 12) {
+  if (text.length <= maxPerLine) return text;
+  // 자연 분리점: 공백, ·, ,  앞에서 분리
+  const splits = [' ', '·', ',', '/'];
+  const mid = Math.floor(text.length / 2);
+  let best = -1, bestDist = Infinity;
+  for (let i = 0; i < text.length; i++) {
+    if (splits.some(s => text[i] === s)) {
+      const dist = Math.abs(i - mid);
+      if (dist < bestDist) { bestDist = dist; best = i; }
+    }
+  }
+  if (best > 0) {
+    const sep = text[best];
+    const a = text.slice(0, best).trim();
+    const b = text.slice(best + (sep === ' ' ? 1 : 0)).trim();
+    return a + '\n' + b;
+  }
+  // 분리점 없으면 중간에서 자름
+  return text.slice(0, mid) + '\n' + text.slice(mid);
 }
 
 function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
@@ -4611,7 +4679,7 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
     .attr('fill', d => (d.rel ?? 0) >= 1.0 ? 'url(#vc-center-grad)' : GRAYS[relIdx(d.rel ?? 0.3)])
     .attr('stroke','none');
 
-  // 텍스트 — 원 하단
+  // 텍스트 — 원 하단 (다중 줄 지원)
   node.append('text')
     .attr('class','nd-lbl')
     .attr('text-anchor','middle')
@@ -4619,7 +4687,11 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
     .attr('fill', textCol)
     .attr('font-size', 9)
     .attr('font-weight', '500')
-    .text(d => d.label);
+    .each(function(d) {
+      const lines = d.label.split('\n');
+      if (lines.length === 1) { d3.select(this).text(d.label); }
+      else { lines.forEach((l, i) => d3.select(this).append('tspan').attr('x', 0).attr('dy', i === 0 ? 0 : 10).text(l)); }
+    });
 
   // zoom 핸들러는 svg에 등록된 것을 재활용 (wrap의 svg)
   const svgEl = g.node().closest('svg');
