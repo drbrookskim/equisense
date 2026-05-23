@@ -1580,7 +1580,7 @@ function renderChartPatternV2(patterns) {
     const isBull = p.signal === 'STRONG_BUY' || p.signal === 'BUY';
     const isBear = p.signal === 'STRONG_SELL' || p.signal === 'SELL';
     const icon   = isBull ? '▲' : isBear ? '▼' : '◆';
-    return `<div style="flex:1;min-width:300px;max-width:480px;background:var(--card2);border-radius:12px;padding:12px 14px;border:1px solid var(--border)">
+    return `<div style="flex:1 1 calc(33% - 10px);min-width:260px;max-width:calc(33% - 10px);background:var(--card2);border-radius:12px;padding:12px 14px;border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="background:${sc.bg};color:${sc.text};font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.06em">${icon} ${sc.label}</span>
         <span style="font-size:0.72rem;font-weight:700;color:var(--text)">${p.name}</span>
