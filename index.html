@@ -1548,7 +1548,7 @@ function renderChartPatternV2(patterns) {
       : '명확한 방향성 확인 전까지 신규 진입 보류. 거래량 급증 방향으로 돌파 시 추종 진입.';
 
     conflictHtml = `
-    <div style="width:100%;background:rgba(184,134,11,0.08);border:1px solid rgba(184,134,11,0.25);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div style="width:100%;flex-basis:100%;flex-shrink:0;background:rgba(184,134,11,0.08);border:1px solid rgba(184,134,11,0.25);border-radius:12px;padding:14px 16px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:0.72rem;font-weight:700;background:rgba(184,134,11,0.2);color:#B8860B;padding:2px 10px;border-radius:20px">⚡ 상충 신호 감지</span>
         <span style="font-size:0.72rem;color:var(--muted)">매수 ${bullish.length}개 · 매도 ${bearish.length}개 동시 감지</span>
@@ -2403,6 +2403,11 @@ function computeIndicators(bars) {
       stochD[i]=(stochK[i]+stochK[i-1]+stochK[i-2])/3;
   }
 
+  // SMA5 / SMA50 (for chart pattern v2)
+  const sma5=new Array(n).fill(null), sma50=new Array(n).fill(null);
+  for (let i=4;i<n;i++) sma5[i]=C.slice(i-4,i+1).reduce((a,b)=>a+b,0)/5;
+  for (let i=49;i<n;i++) sma50[i]=C.slice(i-49,i+1).reduce((a,b)=>a+b,0)/50;
+
   // Bollinger
   const sma20=new Array(n).fill(null), bbU=new Array(n).fill(null), bbL=new Array(n).fill(null), bbPct=new Array(n).fill(null);
   for (let i=19;i<n;i++) {
@@ -2449,7 +2454,7 @@ function computeIndicators(bars) {
     }
   }
 
-  return { C, H, L, V, macdLine, sigLine, hist, rsi, stochK, stochD, stochSlowK, stochSlowD, sma20, bbU, bbL, bbPct, atr, volRatio, obv };
+  return { C, H, L, V, macdLine, sigLine, hist, rsi, stochK, stochD, stochSlowK, stochSlowD, sma5, sma20, sma50, bbU, bbL, bbPct, atr, volRatio, obv };
 }
 
 // ══════════════════════════════════════════════════════
@@ -4514,7 +4519,7 @@ function renderValueChain({ ticker, companyName, isKr }) {
 
   if (!matchedSector) {
     const nodes = [], links = [];
-    const centerLabel = (companyName||ticker).slice(0,14);
+    const centerLabel = wrapLabel(companyName||ticker, 14);
     nodes.push({ id:'_center', label: centerLabel, rel:1.0 });
 
     if (!isKr) {
@@ -4623,7 +4628,7 @@ function wrapLabel(text, maxPerLine = 12) {
   if (best > 0) {
     const sep = text[best];
     const a = text.slice(0, best).trim();
-    const b = text.slice(best + (sep === ' ' ? 1 : 0)).trim();
+    const b = text.slice(best + 1).trim();
     return a + '\n' + b;
   }
   // 분리점 없으면 중간에서 자름
