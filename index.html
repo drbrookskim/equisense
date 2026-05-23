@@ -828,12 +828,12 @@
   /* ── 고급 분석 6열 그리드 ── */
   .adv-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 12px;
     margin-bottom: 12px;
   }
-  @media (max-width: 1100px) { .adv-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 700px)  { .adv-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 1200px) { .adv-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 700px)  { .adv-grid { grid-template-columns: repeat(2, 1fr); } }
 
   /* ── Knowledge Graph ── */
   .kg-card { grid-column: 1 / -1; }
@@ -1553,7 +1553,7 @@ const TIPS = {
   // ── 고급 분석 ──
   advSignal: {
     title: '고급 분석 시그널 — 5-Layer Fusion',
-    body: `<b>개요</b>\n캔들스틱 · 엘리어트파동 · 일목균형표 · SMC · 퀀트팩터 등\n5개 분석 레이어의 신호를 가중 평균해 하나의 종합 점수로 통합합니다.\n\n<b>각 레이어 역할</b>\n• <b>캔들스틱 (w=1.5)</b> : 최근 1~3봉 패턴으로 단기 방향 포착\n• <b>엘리어트파동 (w=2.0)</b> : 중장기 파동 구조 분석 (가중치 최고)\n• <b>일목균형표 (w=1.5)</b> : 구름·크로스로 추세 강도 측정\n• <b>SMC (w=1.5)</b> : 기관·세력 흔적 포착\n• <b>퀀트팩터 (w=2.0)</b> : 모멘텀·추세 계량화 (가중치 최고)\n\n<b>복합점수 해석</b>\n<span class="tag-buy">▲ +0.3 이상</span> — LONG 신호\n<span class="tag-sell">▼ -0.3 이하</span> — SHORT 신호\n<span class="tag-warn">◆ -0.3 ~ +0.3</span> — STAND ASIDE (방향성 불확실)\n\n이 복합점수는 기존 기술·기본 점수에 40% 가중치로 블렌딩되어 최종 매매 판단에 반영됩니다.`
+    body: `<b>개요</b>\n캔들스틱 · 엘리어트파동 · 일목균형표 · SMC · 퀀트팩터 · WACC 등\n6개 분석 레이어의 신호를 가중 평균해 하나의 종합 점수로 통합합니다.\n\n<b>각 레이어 역할</b>\n• <b>캔들스틱 (w=1.5)</b> : 최근 1~3봉 패턴으로 단기 방향 포착\n• <b>엘리어트파동 (w=2.0)</b> : 중장기 파동 구조 분석 (가중치 최고)\n• <b>일목균형표 (w=1.5)</b> : 구름·크로스로 추세 강도 측정\n• <b>SMC (w=1.5)</b> : 기관·세력 흔적 포착\n• <b>퀀트팩터 (w=2.0)</b> : 모멘텀·추세 계량화 (가중치 최고)\n• <b>WACC (w=1.5)</b> : ROE vs WACC 가치창출 판단\n\n<b>복합점수 해석</b>\n<span class="tag-buy">▲ +0.3 이상</span> — LONG 신호\n<span class="tag-sell">▼ -0.3 이하</span> — SHORT 신호\n<span class="tag-warn">◆ -0.3 ~ +0.3</span> — STAND ASIDE (방향성 불확실)\n\n이 복합점수는 기존 기술·기본 점수에 40% 가중치로 블렌딩되어 최종 매매 판단에 반영됩니다.`
   },
   csPattern: {
     title: '캔들스틱 패턴 — Candlestick Patterns (15종)',
@@ -1577,7 +1577,7 @@ const TIPS = {
   },
   advComposite: {
     title: '복합점수 — Advanced Composite Score',
-    body: `<b>계산 방법</b>\n5개 레이어 시그널을 가중치로 평균합니다.\n\n복합점수 = Σ(시그널 × 가중치) / 총 가중치\n\n<b>가중치 구성</b>\n캔들스틱 : 1.5 (단기 패턴)\n엘리어트파동 : 2.0 (중장기 구조)\n일목균형표 : 1.5 (추세 강도)\nSMC : 1.5 (세력 흔적)\n퀀트팩터 : 2.0 (계량 신호)\n총 가중치 합계 : 8.5\n\n<b>임계값</b>\n<span class="tag-buy">▲ > +0.3</span> — LONG 진입 고려\n<span class="tag-sell">▼ < -0.3</span> — SHORT 또는 비중 축소\n<span class="tag-warn">◆ -0.3 ~ +0.3</span> — STAND ASIDE\n\n이 점수는 기술·기본 점수(60%)에 40% 가중치로 블렌딩되어 최종 매매 액션을 결정합니다.`
+    body: `<b>계산 방법</b>\n5개 레이어 시그널을 가중치로 평균합니다.\n\n복합점수 = Σ(시그널 × 가중치) / 총 가중치\n\n<b>가중치 구성</b>\n캔들스틱 : 1.5 (단기 패턴)\n엘리어트파동 : 2.0 (중장기 구조)\n일목균형표 : 1.5 (추세 강도)\nSMC : 1.5 (세력 흔적)\n퀀트팩터 : 2.0 (계량 신호)\nWACC : 1.5 (ROE vs WACC 가치판단)\n총 가중치 합계 : 10.0\n\n<b>임계값</b>\n<span class="tag-buy">▲ > +0.3</span> — LONG 진입 고려\n<span class="tag-sell">▼ < -0.3</span> — SHORT 또는 비중 축소\n<span class="tag-warn">◆ -0.3 ~ +0.3</span> — STAND ASIDE\n\n이 점수는 기술·기본 점수(60%)에 40% 가중치로 블렌딩되어 최종 매매 액션을 결정합니다.`
   },
   ewState: {
     title: '파동 상태 — Elliott Wave Status',
@@ -2282,15 +2282,32 @@ function computeQuantFactors(bars, ind) {
 // ══════════════════════════════════════════════════════
 //  Layer 5: 시그널 통합 (가중 평균)
 // ══════════════════════════════════════════════════════
-const MASTER_WEIGHTS = { cs: 1.5, ew: 2.0, ichi: 1.5, smc: 1.5, quant: 2.0 };
+const MASTER_WEIGHTS = { cs: 1.5, ew: 2.0, ichi: 1.5, smc: 1.5, quant: 2.0, wacc: 1.5 };
 
-function fuseAdvancedSignals(cs, ew, ichi, smc, quant) {
+// WACC vs ROE 비교로 매매 시그널 산출
+// ROE > WACC × 1.2 → 가치창출(매수 +1)
+// ROE < WACC × 0.8 → 가치훼손(매도 -1)
+// 그 외 → 중립(0)
+function computeWACCSignal(waccResult, fundMetrics) {
+  const wacc = waccResult?.wacc ?? null;
+  const roe  = (fundMetrics?.roe ?? null);  // 0~1 소수 or 퍼센트
+  if (wacc == null || roe == null) return 0;
+  // fundMetrics.roe는 scoreFundamental에서 pct2num 처리된 값(%)
+  const roeDecimal = roe > 1 ? roe / 100 : roe;
+  if (roeDecimal > wacc * 1.2) return  1;
+  if (roeDecimal < wacc * 0.8) return -1;
+  return 0;
+}
+
+function fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fundMetrics) {
+  const waccSig = computeWACCSignal(waccResult, fundMetrics);
   const signals = {
     cs:   cs.cs_signal,
     ew:   ew.ew_signal,
     ichi: ichi.ichi_signal,
     smc:  smc.smc_signal,
     quant: quant.quant_signal,
+    wacc: waccSig,
   };
   let wsum = 0, wtotal = 0;
   const details = {};
@@ -2301,7 +2318,7 @@ function fuseAdvancedSignals(cs, ew, ichi, smc, quant) {
     details[key] = { score: val, weight: w, label: val>0?'▲ 매수':val<0?'▼ 매도':'— 관망' };
   }
   const composite = wtotal > 0 ? wsum / wtotal : 0;
-  return { composite, details };
+  return { composite, details, waccSignal: waccSig };
 }
 
 // ══════════════════════════════════════════════════════
@@ -2565,8 +2582,9 @@ async function runAnalysis() {
     const smc      = computeSMC(bars);
     // Layer 3: Quant factors
     const quant    = computeQuantFactors(bars, ind);
-    // Layer 5: Signal fusion
-    const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant);
+    // Layer 5: Signal fusion (waccResult 계산 후 전달)
+    const waccResult = computeWACC(fundInfo, isKr);
+    const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fund.metrics);
 
     const decision = makeDecision(tech, fund, style, price, advanced);
 
@@ -2584,8 +2602,6 @@ async function runAnalysis() {
       sessionStorage.setItem('last_period',  document.getElementById('period-select').value);
       sessionStorage.setItem('last_style',   document.getElementById('style-select').value);
     } catch(e) {}
-
-    const waccResult = computeWACC(fundInfo, isKr);
 
     const companyNameResolved = fundInfo.companyName || quote?.longName || quote?.shortName || resolveTickerName(ticker) || ticker;
 
@@ -2870,7 +2886,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
 
         ${(()=>{
           const W = waccResult;
-          const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'일목균형표',smc:'SMC',quant:'퀀트'};
+          const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'일목균형표',smc:'SMC',quant:'퀀트',wacc:'WACC'};
 
           // ① 통합 신호
           const sigTag = d.action==='BUY'?`<span class="tag-buy">매수</span>`:d.action==='SELL'?`<span class="tag-sell">매도</span>`:`<span class="tag-warn">관망</span>`;
@@ -2955,29 +2971,39 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     </div>
   </div>
 
-  <!-- ── Row 2: 고급 분석 카드 (6열 그리드) ── -->
-  <div class="adv-grid">
-
-    <!-- 고급 분석 시그널 요약 -->
+  <!-- ── Row 2-A: 고급 분석 시그널 (full-width) ── -->
+  <div class="row" style="margin-top:0;grid-template-columns:1fr">
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널 ${tip('5개 레이어를 가중 평균한 종합 매매 신호\n각 레이어의 w(가중치)가 높을수록\n최종 복합점수에 더 큰 영향을 미침\n+1=매수 / 0=중립 / -1=매도')}</div>
-      ${Object.entries(advanced.details).map(([key, v]) => {
-        const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'일목균형표', smc:'SMC', quant:'퀀트팩터' };
-        const tipMap  = {
-          cs:   '최근 봉 패턴으로 단기 방향 판단\n매수 패턴 수 - 매도 패턴 수 = cs_score\n+→매수 / -→매도 / 0→중립',
-          ew:   '중장기 파동 구조 분석 (가중치 최고)\n5파 완성 → 조정 예상(매도)\nABC조정 완료 → 반등 예상(매수)',
-          ichi: '일목균형표\n구름·전환선·기준선 복합 판단\n구름 위 + 전환선 상향돌파 → 강한 매수\n구름 아래 + 전환선 하향이탈 → 강한 매도',
-          smc:  '기관·세력 거래 흔적 분석\nBOS·FVG·OB 중 하나라도 매수 신호면 +1\n모두 없거나 반대면 0/-1',
-          quant:'모멘텀·추세·RSI·MACD·BB %B 팩터\nZ-스코어 가중 평균 → -1~+1 스코어',
-        };
-        const c = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
-        return `<div class="metric-row"><span>${nameMap[key]||key} <span style="font-size:0.6rem;color:var(--muted)">w=${v.weight}</span>${tip(tipMap[key]||'')}</span><span class="metric-val" style="color:${c}">${v.label}</span></div>`;
-      }).join('')}
-      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;font-size:0.78rem">
-        <span style="color:var(--muted)">복합점수 ${tip('각 시그널을 가중치로 평균한 값\n> +0.3 → LONG 신호\n< -0.3 → SHORT 신호\n그 외 → STAND ASIDE')}</span>
-        <span style="float:right;font-weight:700;color:${d.advancedComposite>0.2?'var(--up)':d.advancedComposite<-0.2?'var(--down)':'var(--yellow)'}">${d.advancedComposite.toFixed(3)}</span>
+      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널 ${tip('6개 레이어를 가중 평균한 종합 매매 신호\n각 레이어의 w(가중치)가 높을수록\n최종 복합점수에 더 큰 영향을 미침\n+1=매수 / 0=중립 / -1=매도')}
+        <span style="float:right;font-weight:800;font-size:1rem;color:${d.advancedComposite>0.2?'var(--up)':d.advancedComposite<-0.2?'var(--down)':'var(--yellow)'}">
+          복합점수 ${d.advancedComposite>=0?'+':''}${d.advancedComposite.toFixed(3)}
+          <span style="font-size:0.68rem;font-weight:400;color:var(--muted);margin-left:6px">${d.advancedComposite>0.3?'LONG':d.advancedComposite<-0.3?'SHORT':'STAND ASIDE'}</span>
+        </span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        ${Object.entries(advanced.details).map(([key, v]) => {
+          const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'일목균형표', smc:'SMC', quant:'퀀트팩터', wacc:'WACC' };
+          const tipMap  = {
+            cs:   '최근 봉 패턴으로 단기 방향 판단\n매수 패턴 수 - 매도 패턴 수 = cs_score\n+→매수 / -→매도 / 0→중립',
+            ew:   '중장기 파동 구조 분석 (가중치 최고)\n5파 완성 → 조정 예상(매도)\nABC조정 완료 → 반등 예상(매수)',
+            ichi: '일목균형표\n구름·전환선·기준선 복합 판단\n구름 위 + 전환선 상향돌파 → 강한 매수\n구름 아래 + 전환선 하향이탈 → 강한 매도',
+            smc:  '기관·세력 거래 흔적 분석\nBOS·FVG·OB 중 하나라도 매수 신호면 +1\n모두 없거나 반대면 0/-1',
+            quant:'모멘텀·추세·RSI·MACD·BB %B 팩터\nZ-스코어 가중 평균 → -1~+1 스코어',
+            wacc: 'WACC vs ROE 가치창출 분석\nROE > WACC×1.2 → 가치창출(매수)\nROE < WACC×0.8 → 가치훼손(매도)\n그 외 → 중립',
+          };
+          const bg = v.score>0?'rgba(52,211,153,0.12)':v.score<0?'rgba(255,75,110,0.12)':'var(--border)';
+          const tc = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
+          return `<div style="flex:1;min-width:120px;background:${bg};border-radius:10px;padding:8px 12px;text-align:center">
+            <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px">${nameMap[key]||key} <span style="font-size:0.62rem;opacity:0.7">w=${v.weight}</span>${tip(tipMap[key]||'')}</div>
+            <div style="font-size:0.88rem;font-weight:700;color:${tc}">${v.label}</div>
+          </div>`;
+        }).join('')}
       </div>
     </div>
+  </div>
+
+  <!-- ── Row 2-B: 고급 분석 상세 카드 (5열 그리드) ── -->
+  <div class="adv-grid">
 
     <!-- 캔들스틱 패턴 -->
     <div class="card">
@@ -3072,6 +3098,18 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         <div style="font-size:2rem;font-weight:800;color:var(--blue)">${(waccResult.wacc*100).toFixed(2)}%</div>
         <div style="font-size:0.72rem;color:var(--muted);margin-top:2px">가중평균자본비용 (WACC)</div>
       </div>
+      ${(() => {
+        const wSig = advanced.details.wacc?.score ?? 0;
+        const roeVal = M.roe != null ? M.roe : null;
+        const waccPct = (waccResult.wacc*100).toFixed(2);
+        const roePct  = roeVal != null ? roeVal.toFixed(1) : '-';
+        const sigColor = wSig>0?'var(--up)':wSig<0?'var(--down)':'var(--yellow)';
+        const sigLabel = wSig>0?'▲ 가치창출 (매수)':wSig<0?'▼ 가치훼손 (매도)':'— 중립';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;background:${wSig>0?'rgba(52,211,153,0.1)':wSig<0?'rgba(255,75,110,0.1)':'var(--border)'};border-radius:8px;padding:7px 12px;margin-bottom:8px;font-size:0.78rem">
+          <span style="color:var(--muted)">ROE ${roePct}% vs WACC ${waccPct}%</span>
+          <span style="font-weight:700;color:${sigColor}">${sigLabel}</span>
+        </div>`;
+      })()}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
         <div class="mini-card" style="padding:8px 10px">
           <div class="label">자기자본비용 (Re)${tip('자기자본비용 (Re)','<b>CAPM 공식</b>\nRe = Rf + β × (ERP + 섹터조정)\n\n<b>구성요소</b>\n· Rf: 무위험수익률 (국채 10년물)\n· β(베타): 시장 대비 주가 민감도\n· ERP: 시장위험프리미엄 (주식투자의 초과수익 기대치)\n\n<b>해석</b>\n투자자가 이 기업 주식에 요구하는 최소 기대수익률입니다. 베타가 높을수록(변동성↑) Re도 높아져 기업가치 할인이 커집니다.')}</div>
