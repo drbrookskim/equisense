@@ -6,55 +6,100 @@
 <title>SIGNNITH · 보관함</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
+  /* ── CSS 변수: 다크 모드 (기본) — report.html과 동일한 글라스모피즘 원칙 ── */
   :root {
-    --bg:      #050810;
-    --card:    #111827;
-    --card2:   #0f1320;
-    --border:  #1e2a40;
-    --border2: #2d3f5a;
-    --text:    #f1f5f9;
-    --text2:   #e2e8f0;
-    --muted:   #94a3b8;
-    --muted2:  #64748b;
-    --green:   #00d4aa;
-    --red:     #ff4b6e;
-    --yellow:  #fbbf24;
-    --blue:    #3b82f6;
-    --sidebar: 260px;
+    --bg:       transparent;
+    --card:     rgba(17,24,39,0.82);
+    --card2:    rgba(15,19,32,0.75);
+    --border:   rgba(255,255,255,0.08);
+    --border2:  rgba(255,255,255,0.14);
+    --text:     #f1f5f9;
+    --text2:    #e2e8f0;
+    --muted:    #94a3b8;
+    --muted2:   #64748b;
+    --topbar:   rgba(10,8,30,0.82);
+    --green:    #00d4aa;
+    --red:      #ff4b6e;
+    --up:       #ff4b6e;
+    --down:     #3b82f6;
+    --yellow:   #fbbf24;
+    --blue:     #3b82f6;
+    --shadow:   rgba(0,0,0,.4);
+    --sidebar:  260px;
   }
 
+  /* ── CSS 변수: 라이트 모드 — report.html과 동일 ── */
   html.light {
-    --bg:      #f0f4f8;
-    --card:    #ffffff;
-    --card2:   #f8fafc;
-    --border:  #e2e8f0;
-    --border2: #cbd5e1;
-    --text:    #0f172a;
-    --text2:   #1e293b;
-    --muted:   #64748b;
-    --muted2:  #94a3b8;
+    --bg:       transparent;
+    --card:     rgba(255,255,255,0.78);
+    --card2:    rgba(241,245,249,0.65);
+    --border:   rgba(180,160,140,0.20);
+    --border2:  rgba(180,160,140,0.30);
+    --text:     #0f172a;
+    --text2:    #1e293b;
+    --muted:    #334155;
+    --muted2:   #64748b;
+    --topbar:   rgba(255,255,255,0.75);
+    --green:    #047857;
+    --red:      #be123c;
+    --up:       #be123c;
+    --down:     #1d4ed8;
+    --yellow:   #b45309;
+    --blue:     #1d4ed8;
+    --shadow:   rgba(0,0,0,.10);
   }
 
   body {
-    font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Space Grotesk', 'Noto Sans KR', -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
     height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: background .25s, color .25s;
+  }
+
+  /* ── Aurora Canvas ── */
+  #aurora-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+    pointer-events: none;
+    display: block;
+  }
+  /* ── Particle Canvas ── */
+  #particle-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    display: block;
+  }
+  #main-wrap {
+    position: relative;
+    z-index: 1;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   /* ── Topbar ── */
   .topbar {
     height: 52px;
-    background: rgba(10,8,30,0.82);
-    backdrop-filter: blur(12px);
+    background: var(--topbar);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px var(--shadow);
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -62,7 +107,13 @@
     flex-shrink: 0;
     z-index: 100;
   }
-  html.light .topbar { background: rgba(240,244,248,0.9); }
+  html.light .topbar {
+    background: rgba(255,255,255,0.75);
+    border-bottom: 1px solid rgba(180,160,140,0.18);
+    box-shadow: 0 2px 24px rgba(120,90,70,0.10);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  }
 
   .topbar-logo {
     display: flex;
@@ -134,6 +185,8 @@
     flex-direction: column;
     overflow: hidden;
     background: var(--card2);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .sidebar-header {
@@ -155,12 +208,15 @@
     border-radius: 8px;
     border: 1px solid var(--border2);
     background: var(--card);
+    backdrop-filter: blur(8px);
     color: var(--text);
     font-size: 13px;
     padding: 0 10px;
     outline: none;
     font-family: inherit;
+    transition: border-color .15s;
   }
+  .sidebar-search:focus { border-color: var(--blue); }
   .sidebar-search::placeholder { color: var(--muted2); }
 
   .sidebar-count {
@@ -271,7 +327,9 @@
     position: fixed;
     inset: 0;
     z-index: 500;
-    background: rgba(5,8,16,0.92);
+    background: rgba(5,8,16,0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -322,6 +380,11 @@
 </head>
 <body>
 
+<canvas id="aurora-canvas"></canvas>
+<canvas id="particle-canvas"></canvas>
+
+<div id="main-wrap">
+
 <!-- Not logged in -->
 <div id="not-logged-in" style="display:none">
   <div class="icon">🔒</div>
@@ -366,9 +429,136 @@
     <iframe id="report-frame" title="리포트"></iframe>
   </section>
 
-</div>
+</div><!-- /#main-wrap -->
 
 <script>
+// ── 테마 동기화 (report.html과 동일한 key) ──
+const THEME_KEY = 'tsa_theme';
+function applyThemeA(theme) {
+  const isLight = theme === 'light' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+  document.documentElement.classList.toggle('light', isLight);
+}
+applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
+
+// ── Particle Network Background ──
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const CFG = { SPEED_MAX:0.38, RADIUS:1.5, GLOW_RADIUS:3.2, LINK_DIST:150, MOUSE_DIST:150, REPEL_STRENGTH:5.0, REPEL_EASE:0.08 };
+  function isDark() { return !document.documentElement.classList.contains('light'); }
+  const DARK_P=[160,200,255],DARK_L=[100,160,255],DARK_ML=[140,110,255];
+  const LIGHT_P=[80,120,200],LIGHT_L=[60,100,180],LIGHT_ML=[110,70,200];
+  let W,H,particles; const mouse={x:-9999,y:-9999};
+  class Particle {
+    constructor() {
+      this.x=Math.random()*W; this.y=Math.random()*H;
+      const spd=0.08+Math.random()*CFG.SPEED_MAX,ang=Math.random()*Math.PI*2;
+      this.vx=Math.cos(ang)*spd; this.vy=Math.sin(ang)*spd;
+      this.rx=0; this.ry=0;
+      this.alpha=0.25+Math.random()*0.45; this.r=CFG.RADIUS*(0.7+Math.random()*0.6);
+      this.phase=Math.random()*Math.PI*2; this.wobble=(Math.random()-0.5)*0.005;
+    }
+    update(dt) {
+      this.phase+=this.wobble*dt;
+      const cos=Math.cos(this.phase*0.35),sin=Math.sin(this.phase*0.35);
+      const nx=this.vx*cos-this.vy*sin,ny=this.vx*sin+this.vy*cos;
+      this.vx=nx; this.vy=ny;
+      const dx=this.x-mouse.x,dy=this.y-mouse.y,d=Math.hypot(dx,dy);
+      if(d<CFG.MOUSE_DIST&&d>0){const f=(1-d/CFG.MOUSE_DIST)*CFG.REPEL_STRENGTH;this.rx+=(dx/d)*f;this.ry+=(dy/d)*f;}
+      this.vx+=this.rx*CFG.REPEL_EASE; this.vy+=this.ry*CFG.REPEL_EASE;
+      this.rx*=0.82; this.ry*=0.82;
+      const spd=Math.hypot(this.vx,this.vy),max=CFG.SPEED_MAX*2.4;
+      if(spd>max){this.vx=(this.vx/spd)*max;this.vy=(this.vy/spd)*max;}
+      this.x+=this.vx*(dt/16); this.y+=this.vy*(dt/16);
+      if(this.x<-20)this.x=W+20; if(this.x>W+20)this.x=-20;
+      if(this.y<-20)this.y=H+20; if(this.y>H+20)this.y=-20;
+    }
+    draw(cp) {
+      const[r,g,b]=cp;
+      const grd=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,CFG.GLOW_RADIUS*this.r);
+      grd.addColorStop(0,`rgba(${r},${g},${b},${this.alpha*0.85})`);
+      grd.addColorStop(0.4,`rgba(${r},${g},${b},${this.alpha*0.25})`);
+      grd.addColorStop(1,`rgba(${r},${g},${b},0)`);
+      ctx.beginPath();ctx.arc(this.x,this.y,CFG.GLOW_RADIUS*this.r,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+      ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(${r},${g},${b},${this.alpha})`;ctx.fill();
+    }
+  }
+  function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;const count=Math.min(Math.floor((W*H)/10000),180);if(!particles||Math.abs(particles.length-count)>15)particles=Array.from({length:count},()=>new Particle());}
+  let last=0;
+  function frame(ts){
+    const dt=Math.min(ts-last,50);last=ts;
+    const dark=isDark(),cp=dark?DARK_P:LIGHT_P,cl=dark?DARK_L:LIGHT_L,cm=dark?DARK_ML:LIGHT_ML;
+    const maxLA=dark?0.52:0.22,maxMA=dark?0.50:0.28;
+    ctx.clearRect(0,0,W,H);
+    for(const p of particles)p.update(dt);
+    for(let i=0;i<particles.length;i++){for(let j=i+1;j<particles.length;j++){const a=particles[i],b=particles[j],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<CFG.LINK_DIST){const op=(1-d/CFG.LINK_DIST)*maxLA;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(${cl[0]},${cl[1]},${cl[2]},${op})`;ctx.lineWidth=op*1.8;ctx.stroke();}}}
+    const mx=mouse.x,my=mouse.y;
+    for(const p of particles){const d=Math.hypot(p.x-mx,p.y-my);if(d<CFG.MOUSE_DIST){const op=(1-d/CFG.MOUSE_DIST)*maxMA;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(mx,my);ctx.strokeStyle=`rgba(${cm[0]},${cm[1]},${cm[2]},${op*0.55})`;ctx.lineWidth=op*1.1;ctx.stroke();}}
+    for(const p of particles)p.draw(cp);
+    if(mouse.x>0){const mg=ctx.createRadialGradient(mx,my,0,mx,my,CFG.MOUSE_DIST*0.55);mg.addColorStop(0,dark?'rgba(110,80,220,0.05)':'rgba(80,100,200,0.04)');mg.addColorStop(1,'rgba(0,0,0,0)');ctx.beginPath();ctx.arc(mx,my,CFG.MOUSE_DIST*0.55,0,Math.PI*2);ctx.fillStyle=mg;ctx.fill();}
+    requestAnimationFrame(frame);
+  }
+  window.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+  window.addEventListener('mouseleave',()=>{mouse.x=-9999;mouse.y=-9999;});
+  window.addEventListener('touchmove',e=>{mouse.x=e.touches[0].clientX;mouse.y=e.touches[0].clientY;},{passive:true});
+  window.addEventListener('touchend',()=>{mouse.x=-9999;mouse.y=-9999;});
+  let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(resize,120);});
+  resize(); requestAnimationFrame(frame);
+})();
+
+// ── Aurora Blob Background ──
+(function initAurora() {
+  const canvas = document.getElementById('aurora-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const darkBlobs=[
+    {x:.18,y:.22,r:.38,color:'rgba(108,92,231,',vx:.00012,vy:.00008,phase:0},
+    {x:.72,y:.15,r:.32,color:'rgba(0,153,255,',vx:-.0001,vy:.00013,phase:1.2},
+    {x:.55,y:.72,r:.42,color:'rgba(0,212,170,',vx:.00009,vy:-.0001,phase:2.4},
+    {x:.10,y:.75,r:.28,color:'rgba(167,139,250,',vx:.00014,vy:.00006,phase:0.7},
+    {x:.88,y:.58,r:.34,color:'rgba(236,72,153,',vx:-.0001,vy:-.0001,phase:3.1},
+    {x:.42,y:.42,r:.25,color:'rgba(56,189,248,',vx:.00007,vy:.00015,phase:1.8},
+  ];
+  const lightBlobs=[
+    {x:.20,y:.18,r:.40,color:'rgba(255,182,159,',vx:.00010,vy:.00007,phase:0},
+    {x:.75,y:.20,r:.35,color:'rgba(129,236,236,',vx:-.0009,vy:.00012,phase:1.4},
+    {x:.50,y:.68,r:.44,color:'rgba(253,242,180,',vx:.00008,vy:-.0009,phase:2.6},
+    {x:.12,y:.70,r:.30,color:'rgba(210,196,255,',vx:.00013,vy:.00006,phase:0.9},
+    {x:.85,y:.55,r:.32,color:'rgba(255,214,214,',vx:-.0008,vy:-.0008,phase:3.3},
+    {x:.40,y:.38,r:.28,color:'rgba(180,235,220,',vx:.00006,vy:.00014,phase:2.0},
+  ];
+  let W,H,t=0;
+  function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+  window.addEventListener('resize',resize); resize();
+  function isDark(){return !document.documentElement.classList.contains('light');}
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const dark=isDark();
+    const angle=160*Math.PI/180,L=Math.sqrt(W*W+H*H),cx=W/2,cy=H/2;
+    const x0=cx-Math.cos(angle)*L/2,y0=cy-Math.sin(angle)*L/2,x1=cx+Math.cos(angle)*L/2,y1=cy+Math.sin(angle)*L/2;
+    const bg=ctx.createLinearGradient(x0,y0,x1,y1);
+    if(dark){bg.addColorStop(0,'#050810');bg.addColorStop(1,'#080520');}
+    else{bg.addColorStop(0,'#F8F1EE');bg.addColorStop(0.5,'#ECF8F8');bg.addColorStop(1,'#FCFAF2');}
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    const blobs=dark?darkBlobs:lightBlobs,coreAlpha=dark?0.14:0.50,midAlpha=dark?0.06:0.22;
+    for(const b of blobs){
+      const pulse=1+0.06*Math.sin(t*0.0008+b.phase);
+      const bx=(b.x+Math.sin(t*b.vx+b.phase)*0.18)*W,by=(b.y+Math.cos(t*b.vy+b.phase)*0.15)*H;
+      const br=b.r*Math.min(W,H)*pulse;
+      const grad=ctx.createRadialGradient(bx,by,0,bx,by,br);
+      grad.addColorStop(0,b.color+coreAlpha+')');
+      grad.addColorStop(0.4,b.color+midAlpha+')');
+      grad.addColorStop(1,b.color+'0)');
+      ctx.beginPath();ctx.arc(bx,by,br,0,Math.PI*2);ctx.fillStyle=grad;ctx.fill();
+    }
+    ctx.fillStyle=dark?'rgba(0,0,0,0.38)':'rgba(255,255,255,0.28)'; ctx.fillRect(0,0,W,H);
+    t++; requestAnimationFrame(draw);
+  }
+  new MutationObserver(()=>{}).observe(document.documentElement,{attributes:true,attributeFilter:['class']});
+  requestAnimationFrame(draw);
+})();
+
 (() => {
   'use strict';
 
