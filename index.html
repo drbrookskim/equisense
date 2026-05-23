@@ -1580,7 +1580,7 @@ function renderChartPatternV2(patterns) {
     const isBull = p.signal === 'STRONG_BUY' || p.signal === 'BUY';
     const isBear = p.signal === 'STRONG_SELL' || p.signal === 'SELL';
     const icon   = isBull ? '▲' : isBear ? '▼' : '◆';
-    return `<div style="flex:1;min-width:220px;max-width:360px;background:var(--card2);border-radius:12px;padding:12px 14px;border:1px solid var(--border)">
+    return `<div style="flex:1;min-width:300px;max-width:480px;background:var(--card2);border-radius:12px;padding:12px 14px;border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="background:${sc.bg};color:${sc.text};font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.06em">${icon} ${sc.label}</span>
         <span style="font-size:0.72rem;font-weight:700;color:var(--text)">${p.name}</span>
@@ -1590,7 +1590,7 @@ function renderChartPatternV2(patterns) {
         <span style="color:var(--up);font-weight:600">진입</span> ${p.entry}
       </div>
       ${p.stop ? `<div style="font-size:0.65rem;color:var(--muted);margin-bottom:6px"><span style="color:var(--down);font-weight:600">손절</span> ${p.stop}</div>` : ''}
-      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:grid;grid-template-columns:1fr 1fr 2fr;gap:4px">
         <div style="font-size:0.6rem;color:var(--muted)"><span style="display:block;font-weight:700;color:var(--text2);margin-bottom:2px">캔들</span>${p.chart3?.candle||'-'}</div>
         <div style="font-size:0.6rem;color:var(--muted)"><span style="display:block;font-weight:700;color:var(--text2);margin-bottom:2px">거래량</span>${p.chart3?.volume||'-'}</div>
         <div style="font-size:0.6rem;color:var(--muted)"><span style="display:block;font-weight:700;color:var(--text2);margin-bottom:2px">이평선</span>${p.chart3?.ma||'-'}</div>
