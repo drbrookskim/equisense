@@ -968,6 +968,10 @@
   </div>
   <div class="topbar-right">
     <span class="pill">Serverless Stock Analysis</span>
+    <span id="topbar-user-chip" style="display:none;align-items:center;gap:6px;font-size:0.72rem;color:var(--muted);background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:20px;padding:3px 12px;letter-spacing:.02em">
+      <span style="color:var(--blue);font-size:0.7rem">👤</span>
+      <span id="topbar-user-id" style="color:var(--text2);font-weight:600"></span>
+    </span>
     <button class="btn-settings" onclick="openSettings()" title="설정">⚙️</button>
   </div>
 </header>
@@ -987,6 +991,22 @@
         <button id="theme-btn-dark"   onclick="applyTheme('dark')"   class="theme-opt-btn">🌙 다크</button>
         <button id="theme-btn-light"  onclick="applyTheme('light')"  class="theme-opt-btn">🌞 라이트</button>
         <button id="theme-btn-system" onclick="applyTheme('system')" class="theme-opt-btn">🖥️ 시스템</button>
+      </div>
+    </div>
+
+    <!-- ── 계정 (로그인 시에만 표시) ── -->
+    <div id="settings-account-section" style="display:none;border-top:1px solid var(--border);padding-top:18px">
+      <div class="settings-label">👤 계정</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 14px">
+        <div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:2px">로그인된 아이디</div>
+          <div id="settings-user-id" style="font-size:0.88rem;font-weight:700;color:var(--text)"></div>
+        </div>
+        <button onclick="authLogout()"
+          style="height:34px;padding:0 16px;border-radius:8px;border:1px solid rgba(255,75,110,0.35);background:rgba(255,75,110,0.08);color:var(--red);font-size:0.76rem;font-weight:700;cursor:pointer;transition:all .2s"
+          onmouseover="this.style.background='rgba(255,75,110,0.18)'" onmouseout="this.style.background='rgba(255,75,110,0.08)'">
+          로그아웃
+        </button>
       </div>
     </div>
 
@@ -1027,8 +1047,8 @@
       <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">🗂️ 보관함 로그인</div>
       <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">분석 리포트를 저장하고 언제든 꺼내보세요.</div>
       <div id="auth-error-login" style="display:none;font-size:0.76rem;color:var(--red);background:rgba(255,75,110,0.08);border:1px solid rgba(255,75,110,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px"></div>
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">이메일</label>
-      <input id="auth-email" type="email" placeholder="email@example.com" autocomplete="email"
+      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">아이디</label>
+      <input id="auth-email" type="text" placeholder="아이디 입력" autocomplete="username"
         style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:12px;outline:none">
       <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">비밀번호</label>
       <input id="auth-pw" type="password" placeholder="비밀번호" autocomplete="current-password"
@@ -1050,10 +1070,10 @@
     <!-- 회원가입 뷰 -->
     <div id="auth-view-signup" style="display:none">
       <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">📝 회원가입</div>
-      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">이메일과 비밀번호로 계정을 만듭니다.</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">아이디와 비밀번호로 계정을 만듭니다.</div>
       <div id="auth-error-signup" style="display:none;font-size:0.76rem;color:var(--red);background:rgba(255,75,110,0.08);border:1px solid rgba(255,75,110,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px"></div>
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">이메일</label>
-      <input id="signup-email" type="email" placeholder="email@example.com"
+      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">아이디</label>
+      <input id="signup-email" type="text" placeholder="아이디 입력 (영문·숫자)"
         style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:12px;outline:none">
       <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">비밀번호 <span style="color:var(--muted2)">(8자 이상)</span></label>
       <input id="signup-pw" type="password" placeholder="비밀번호"
@@ -1075,8 +1095,8 @@
       <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">🔑 비밀번호 초기화</div>
       <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">현재 비밀번호 확인 후 새 비밀번호로 변경합니다.</div>
       <div id="auth-error-reset" style="display:none;font-size:0.76rem;color:var(--red);background:rgba(255,75,110,0.08);border:1px solid rgba(255,75,110,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px"></div>
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">이메일</label>
-      <input id="reset-email" type="email" placeholder="email@example.com"
+      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">아이디</label>
+      <input id="reset-email" type="text" placeholder="아이디 입력"
         style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:12px;outline:none">
       <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">현재 비밀번호</label>
       <input id="reset-pw-old" type="password" placeholder="현재 비밀번호"
@@ -1200,6 +1220,12 @@ function openSettings() {
     const b = document.getElementById(`theme-btn-${t}`);
     if (b) b.classList.toggle('active', t === cur);
   });
+  // 계정 섹션
+  const uid = currentUser();
+  const acctSec = document.getElementById('settings-account-section');
+  const acctId  = document.getElementById('settings-user-id');
+  if (acctSec) acctSec.style.display = uid ? 'block' : 'none';
+  if (acctId && uid) acctId.textContent = uid;
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings(e) {
@@ -5195,12 +5221,12 @@ async function authLogin() {
   const errEl    = document.getElementById('auth-error-login');
   errEl.style.display = 'none';
 
-  if (!email || !pw) { errEl.textContent='이메일과 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
+  if (!email || !pw) { errEl.textContent='아이디와 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
 
   const users = getUsers();
   const hash  = await hashPassword(pw);
   if (!users[email] || users[email].hash !== hash) {
-    errEl.textContent = '이메일 또는 비밀번호가 올바르지 않습니다.'; errEl.style.display='block'; return;
+    errEl.textContent = '아이디 또는 비밀번호가 올바르지 않습니다.'; errEl.style.display='block'; return;
   }
   const session = { email, remember, loginAt: Date.now() };
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
@@ -5215,13 +5241,13 @@ async function authSignup() {
   const errEl = document.getElementById('auth-error-signup');
   errEl.style.display = 'none';
 
-  if (!email || !pw) { errEl.textContent='이메일과 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent='올바른 이메일 형식이 아닙니다.'; errEl.style.display='block'; return; }
+  if (!email || !pw) { errEl.textContent='아이디와 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
+  if (email.length < 3) { errEl.textContent='아이디는 3자 이상이어야 합니다.'; errEl.style.display='block'; return; }
   if (pw.length < 8) { errEl.textContent='비밀번호는 8자 이상이어야 합니다.'; errEl.style.display='block'; return; }
   if (pw !== pw2)    { errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.style.display='block'; return; }
 
   const users = getUsers();
-  if (users[email]) { errEl.textContent='이미 가입된 이메일입니다.'; errEl.style.display='block'; return; }
+  if (users[email]) { errEl.textContent='이미 사용 중인 아이디입니다.'; errEl.style.display='block'; return; }
 
   const hash = await hashPassword(pw);
   users[email] = { hash, createdAt: Date.now() };
@@ -5246,7 +5272,7 @@ async function authReset() {
   const users   = getUsers();
   const oldHash = await hashPassword(oldPw);
   if (!users[email] || users[email].hash !== oldHash) {
-    errEl.textContent='이메일 또는 현재 비밀번호가 올바르지 않습니다.'; errEl.style.display='block'; return;
+    errEl.textContent='아이디 또는 현재 비밀번호가 올바르지 않습니다.'; errEl.style.display='block'; return;
   }
   users[email].hash = await hashPassword(newPw);
   saveUsers(users);
@@ -5284,7 +5310,25 @@ function openArchive() {
 
 function closeAuthModal() {
   document.getElementById('auth-modal').style.display = 'none';
+  updateTopbarUser();
 }
+
+function authLogout() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  closeSettings();
+  updateTopbarUser();
+}
+
+function updateTopbarUser() {
+  const uid   = currentUser();
+  const chip  = document.getElementById('topbar-user-chip');
+  const label = document.getElementById('topbar-user-id');
+  if (chip)  chip.style.display  = uid ? 'flex' : 'none';
+  if (label) label.textContent   = uid || '';
+}
+
+// 페이지 로드 시 아이디 칩 반영
+updateTopbarUser();
 
 // 모달 바깥 클릭 시 닫기
 document.getElementById('auth-modal').addEventListener('click', function(e) {
