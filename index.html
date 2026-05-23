@@ -1144,14 +1144,16 @@ function applyTheme(theme) {
     const b = document.getElementById(`theme-btn-${t}`);
     if (b) b.classList.toggle('active', t === theme);
   });
-  // 차트 범례 색상 즉시 반영
+  // 차트 범례 색상 즉시 반영 (차트 변수가 선언된 이후에만 접근)
   if (typeof Chart !== 'undefined') {
     Chart.defaults.color = getLegendColor();
-    [priceChart, rsiChart, macdChart].forEach(c => {
-      if (!c) return;
-      c.options.plugins.legend.labels.color = getLegendColor();
-      c.update('none');
-    });
+    try {
+      [priceChart, rsiChart, macdChart].forEach(c => {
+        if (!c) return;
+        c.options.plugins.legend.labels.color = getLegendColor();
+        c.update('none');
+      });
+    } catch(e) { /* 차트 미생성 상태 무시 */ }
   }
 }
 
