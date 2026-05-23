@@ -9,7 +9,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   /* ── 다크 모드 (기본) ── */
   :root {
@@ -991,27 +990,6 @@
       </div>
     </div>
 
-    <!-- ── Google Drive ── -->
-    <div class="settings-section" style="margin-top:16px">
-      <div class="settings-label">📁 Google Drive 연결 <span style="font-size:0.62rem;color:var(--muted);font-weight:400">(차트패턴유형 폴더)</span></div>
-      <div style="margin-top:8px">
-        <input id="gdrive-client-id" type="text" placeholder="OAuth Client ID (Google Cloud Console)"
-          style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.78rem;outline:none"
-          value="${localStorage.getItem('gdrive_client_id')||''}">
-        <div style="font-size:0.68rem;color:var(--muted);margin-top:4px">Google Cloud Console → API 및 서비스 → 사용자 인증 정보 → OAuth 2.0 클라이언트 ID</div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
-        <button onclick="gdriveConnect()" id="gdrive-connect-btn"
-          style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:0.78rem;cursor:pointer;font-weight:600">
-          🔗 연결
-        </button>
-        <button onclick="gdriveDisconnect()" id="gdrive-disconnect-btn"
-          style="display:none;background:var(--border);color:var(--muted);border:none;border-radius:8px;padding:7px 16px;font-size:0.78rem;cursor:pointer">
-          연결 해제
-        </button>
-        <span id="gdrive-status" style="font-size:0.72rem;color:var(--muted)">미연결</span>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1230,174 +1208,350 @@ function closeSettings(e) {
 }
 
 // ══════════════════════════════════════════════════════
-//  Google Drive OAuth + 차트 패턴 라이브러리
+//  차트 패턴 분석 v2 (chart_patterns_analysis_v2.md 기반)
 // ══════════════════════════════════════════════════════
-let _gdriveToken = null;
-const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-const GDRIVE_FOLDER_NAME = '차트패턴유형';
 
-function gdriveConnect() {
-  const clientId = document.getElementById('gdrive-client-id')?.value.trim()
-                || localStorage.getItem('gdrive_client_id') || '';
-  if (!clientId) {
-    alert('설정에서 Google OAuth Client ID를 먼저 입력하세요.\n(Google Cloud Console → API 및 서비스 → 사용자 인증 정보)');
-    openSettings(); return;
+const SIGNAL_COLORS = {
+  STRONG_BUY:  { bg:'#006400', text:'#fff', label:'강력 매수' },
+  BUY:         { bg:'#228B22', text:'#fff', label:'매수' },
+  WAIT:        { bg:'#B8860B', text:'#fff', label:'관망' },
+  SELL:        { bg:'#DC143C', text:'#fff', label:'매도' },
+  STRONG_SELL: { bg:'#8B0000', text:'#fff', label:'강력 매도' },
+};
+
+// 피벗 고점/저점 감지 유틸
+function _pivots(arr, key, n=3) {
+  const pts = [];
+  for (let i=n; i<arr.length-n; i++) {
+    const v = arr[i][key];
+    let hi=true, lo=true;
+    for(let j=i-n;j<=i+n;j++){if(j===i)continue;if(arr[j][key]>=v)hi=false;if(arr[j][key]<=v)lo=false;}
+    if(hi||lo) pts.push({i,v,hi,lo});
   }
-  localStorage.setItem('gdrive_client_id', clientId);
-
-  const tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: GDRIVE_SCOPE,
-    callback: async (resp) => {
-      if (resp.error) { console.error(resp); return; }
-      _gdriveToken = resp.access_token;
-      gdriveUpdateUI(true);
-      await gdriveLoadPatterns();
-    },
-  });
-  tokenClient.requestAccessToken();
+  return pts;
 }
 
-function gdriveDisconnect() {
-  if (_gdriveToken) google.accounts.oauth2.revoke(_gdriveToken);
-  _gdriveToken = null;
-  gdriveUpdateUI(false);
-  document.getElementById('drive-pattern-images').innerHTML =
-    `<div id="gdrive-connect-prompt" style="font-size:0.78rem;color:var(--muted);padding:20px;text-align:center;width:100%;border:1px dashed var(--border);border-radius:10px">
-      ⚙️ 설정에서 Google Drive를 연결하면 패턴 이미지가 표시됩니다.
-      <br><button onclick="openSettings()" style="margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:0.72rem;cursor:pointer">설정 열기</button>
-    </div>`;
-  document.getElementById('gdrive-folder-status').textContent = '';
-}
+function computeChartPatternV2(bars, ind) {
+  if (!bars || bars.length < 10) return [];
+  const detected = [];
+  const n = bars.length;
+  const last = bars[n-1];
+  const prev = bars[n-2] || last;
 
-function gdriveUpdateUI(connected) {
-  const statusEl   = document.getElementById('gdrive-status');
-  const connectBtn = document.getElementById('gdrive-connect-btn');
-  const disconnBtn = document.getElementById('gdrive-disconnect-btn');
-  if (statusEl)   statusEl.textContent = connected ? '✅ 연결됨' : '미연결';
-  if (connectBtn) connectBtn.style.display = connected ? 'none' : '';
-  if (disconnBtn) disconnBtn.style.display = connected ? '' : 'none';
-}
+  // ── 보조지표 값 ──
+  const ma5  = ind?.ma5  ?? null;
+  const ma20 = ind?.ma20 ?? null;
+  const ma50 = ind?.ma50 ?? null;
+  const ma200= ind?.ma200?? null;
+  const vol  = last.volume ?? 0;
+  const avgVol = bars.slice(-20).reduce((s,b)=>s+(b.volume||0),0)/20 || 1;
 
-async function gdriveFetch(url) {
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${_gdriveToken}` } });
-  if (!r.ok) throw new Error(`Drive API ${r.status}`);
-  return r.json();
-}
+  // ── 이동평균 분석 설명 ──
+  const maDesc = ma5 && ma20
+    ? (ma5 > ma20 ? `MA5(${ma5?.toFixed?.(0)}) > MA20(${ma20?.toFixed?.(0)}) 정배열` : `MA5(${ma5?.toFixed?.(0)}) < MA20(${ma20?.toFixed?.(0)}) 역배열`)
+    : '이평 미산출';
+  const volDesc = `거래량 평균 대비 ${(vol/avgVol*100).toFixed(0)}%`;
 
-async function gdriveLoadPatterns() {
-  if (!_gdriveToken) return;
-  const patternRow = document.getElementById('chart-pattern-row');
-  if (patternRow) patternRow.style.display = '';
-
-  const statusEl = document.getElementById('gdrive-folder-status');
-  const imgWrap  = document.getElementById('drive-pattern-images');
-  if (statusEl) statusEl.textContent = '폴더 검색 중…';
-  if (imgWrap)  imgWrap.innerHTML = '<div style="color:var(--muted);font-size:0.78rem;padding:10px">로딩 중…</div>';
-
-  try {
-    // 1. 폴더 검색
-    const folderRes = await gdriveFetch(
-      `https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(GDRIVE_FOLDER_NAME)}'+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)&pageSize=5`
-    );
-    const folder = folderRes.files?.[0];
-    if (!folder) {
-      if (statusEl) statusEl.textContent = `'${GDRIVE_FOLDER_NAME}' 폴더를 찾을 수 없습니다`;
-      if (imgWrap)  imgWrap.innerHTML = `<div style="color:var(--red);font-size:0.78rem;padding:10px">Google Drive에 '${GDRIVE_FOLDER_NAME}' 폴더가 없습니다.</div>`;
-      return;
+  // ── 1. 골든크로스 / 데드크로스 ──
+  if (ma5 && ma50) {
+    const prevMa5  = ind?.prevMa5  ?? null;
+    const prevMa50 = ind?.prevMa50 ?? null;
+    if (prevMa5 && prevMa50) {
+      if (prevMa5 <= prevMa50 && ma5 > ma50) {
+        detected.push({
+          id:'GOLDEN_CROSS', name:'골든크로스', signal:'BUY', confidence:80,
+          category:'ma_cross',
+          entry:'단기선(MA5) 장기선(MA50) 상향 돌파 확인',
+          stop:'장기선(MA50) 하향 이탈 시',
+          chart3:{ candle:`종가 ${last.close?.toFixed?.(0)}`, volume:volDesc, ma:maDesc }
+        });
+      } else if (prevMa5 >= prevMa50 && ma5 < ma50) {
+        detected.push({
+          id:'DEAD_CROSS', name:'데드크로스', signal:'SELL', confidence:80,
+          category:'ma_cross',
+          entry:'단기선(MA5) 장기선(MA50) 하향 이탈 확인',
+          stop:'장기선(MA50) 상향 돌파 시',
+          chart3:{ candle:`종가 ${last.close?.toFixed?.(0)}`, volume:volDesc, ma:maDesc }
+        });
+      }
     }
-
-    // 2. 이미지 파일 목록
-    const filesRes = await gdriveFetch(
-      `https://www.googleapis.com/drive/v3/files?q='${folder.id}'+in+parents+and+trashed=false+and+(mimeType+contains+'image/')&fields=files(id,name,mimeType)&pageSize=50&orderBy=name`
-    );
-    const files = filesRes.files || [];
-    if (statusEl) statusEl.textContent = `${folder.name} · ${files.length}개 패턴`;
-
-    if (!files.length) {
-      if (imgWrap) imgWrap.innerHTML = `<div style="color:var(--muted);font-size:0.78rem;padding:10px">폴더에 이미지 파일이 없습니다.</div>`;
-      return;
-    }
-
-    // 3. 이미지 렌더링
-    const html = files.map(f => {
-      const name = f.name.replace(/\.[^.]+$/, '');
-      const src  = `https://drive.google.com/thumbnail?id=${f.id}&sz=w160`;
-      return `<div style="text-align:center;cursor:pointer" onclick="gdriveShowPattern('${f.id}','${name.replace(/'/g,"\\'")}')">
-        <img src="${src}" alt="${name}"
-          style="width:80px;height:60px;object-fit:cover;border-radius:8px;border:2px solid var(--border);display:block;margin:0 auto"
-          onerror="this.style.display='none'"
-          onload="this.style.borderColor='var(--blue)'">
-        <div style="font-size:0.62rem;color:var(--muted);margin-top:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
-      </div>`;
-    }).join('');
-    if (imgWrap) imgWrap.innerHTML = html;
-
-    // 4. 감지된 패턴과 이름 매칭 하이라이트
-    gdrivehighlightMatched(files);
-
-  } catch(err) {
-    console.error('Drive load error:', err);
-    if (statusEl) statusEl.textContent = '로드 실패';
-    if (imgWrap)  imgWrap.innerHTML = `<div style="color:var(--red);font-size:0.78rem;padding:10px">오류: ${err.message}</div>`;
   }
-}
 
-function gdrivehighlightMatched(files) {
-  const resultEl = document.getElementById('week-pattern-result');
-  const detected = (resultEl?.dataset?.patterns || '').split(',').filter(Boolean);
-  if (!detected.length) return;
-  // 파일 이름과 감지 패턴 이름 매칭 (부분 일치)
-  const imgs = document.querySelectorAll('#drive-pattern-images img');
-  imgs.forEach((img, i) => {
-    const fname = (files[i]?.name || '').toLowerCase();
-    const matched = detected.some(p => fname.includes(p.toLowerCase()) || p.toLowerCase().includes(fname.replace(/\.[^.]+$/,'')));
-    if (matched) {
-      img.style.borderColor = 'var(--up)';
-      img.style.boxShadow = '0 0 8px rgba(52,211,153,0.5)';
+  // ── 2. MA20 이탈 ──
+  if (ma20 && last.close < ma20 * 0.98 && prev.close >= ma20) {
+    detected.push({
+      id:'MA20_BREAKDOWN', name:'20일선 이탈', signal:'SELL', confidence:75,
+      category:'ma_cross',
+      entry:'종가 20일선 하향 이탈',
+      stop:'20일선 회복 시',
+      chart3:{ candle:`종가 ${last.close?.toFixed?.(0)} < MA20 ${ma20?.toFixed?.(0)}`, volume:volDesc, ma:maDesc }
+    });
+  }
+
+  // ── 3. 상승 장악형 ──
+  if (prev.close < prev.open && last.close > last.open) {
+    const prevBody = prev.open - prev.close;
+    const currBody = last.close - last.open;
+    if (currBody > prevBody * 1.0 && last.close > prev.open && last.open < prev.close) {
+      detected.push({
+        id:'BULLISH_ENGULFING', name:'상승 장악형', signal:'STRONG_BUY', confidence:90,
+        category:'candle_advanced',
+        entry:'전일 음봉 완전 포함 대형 양봉',
+        stop:'전일 저점 하향 이탈',
+        chart3:{ candle:'전일 음봉 완전 포함 확인', volume:volDesc, ma:maDesc }
+      });
     }
-  });
+  }
+
+  // ── 4. Gap Up / Gap Down ──
+  if (last.open > prev.high * 1.005) {
+    detected.push({
+      id:'GAP_UP', name:'갭 상승', signal:'BUY', confidence:85,
+      category:'gap_patterns',
+      entry:`갭 상승 (전고: ${prev.high?.toFixed?.(0)} → 시가: ${last.open?.toFixed?.(0)})`,
+      stop:'갭 하단 이탈 시',
+      chart3:{ candle:`갭 상승 +${((last.open/prev.high-1)*100).toFixed(1)}%`, volume:volDesc, ma:maDesc }
+    });
+  } else if (last.open < prev.low * 0.995) {
+    detected.push({
+      id:'GAP_DOWN', name:'갭 하락', signal:'SELL', confidence:80,
+      category:'gap_patterns',
+      entry:`갭 하락 (전저: ${prev.low?.toFixed?.(0)} → 시가: ${last.open?.toFixed?.(0)})`,
+      stop:'갭 상단 돌파 시',
+      chart3:{ candle:`갭 하락 ${((last.open/prev.low-1)*100).toFixed(1)}%`, volume:volDesc, ma:maDesc }
+    });
+  }
+
+  // ── 5. 피벗 기반 패턴 (최소 20봉 필요) ──
+  if (bars.length >= 20) {
+    const highs = _pivots(bars, 'high', 3);
+    const lows  = _pivots(bars, 'low',  3);
+
+    // Double Top
+    const topPivots = highs.filter(p=>p.hi).slice(-4);
+    if (topPivots.length >= 2) {
+      const [p1,p2] = topPivots.slice(-2);
+      if (Math.abs(p1.v - p2.v) / p1.v < 0.03 && p2.i > p1.i) {
+        const neckLow = Math.min(...bars.slice(p1.i, p2.i).map(b=>b.low));
+        if (last.close < neckLow * 0.99) {
+          detected.push({
+            id:'DOUBLE_TOP', name:'쌍봉 (Double Top)', signal:'STRONG_SELL', confidence:100,
+            category:'reversal_bearish',
+            entry:'넥라인 하향 이탈 확인 — 매도',
+            stop:`두 번째 고점(${p2.v?.toFixed?.(0)}) 위`,
+            chart3:{ candle:`두 고점 ${p1.v?.toFixed?.(0)} / ${p2.v?.toFixed?.(0)}`, volume:volDesc, ma:maDesc }
+          });
+        }
+      }
+    }
+
+    // Double Bottom
+    const botPivots = lows.filter(p=>p.lo).slice(-4);
+    if (botPivots.length >= 2) {
+      const [p1,p2] = botPivots.slice(-2);
+      if (Math.abs(p1.v - p2.v) / p1.v < 0.03 && p2.i > p1.i) {
+        const neckHigh = Math.max(...bars.slice(p1.i, p2.i).map(b=>b.high));
+        if (last.close > neckHigh * 1.01) {
+          detected.push({
+            id:'DOUBLE_BOTTOM', name:'쌍바닥 (Double Bottom)', signal:'STRONG_BUY', confidence:85,
+            category:'reversal_bullish',
+            entry:'넥라인 상향 돌파 확인 — 매수',
+            stop:`두 번째 저점(${p2.v?.toFixed?.(0)}) 아래`,
+            chart3:{ candle:`두 저점 ${p1.v?.toFixed?.(0)} / ${p2.v?.toFixed?.(0)}`, volume:volDesc, ma:maDesc }
+          });
+        }
+      }
+    }
+
+    // Head & Shoulders
+    if (topPivots.length >= 3) {
+      const [s1,head,s2] = topPivots.slice(-3);
+      if (head.v > s1.v * 1.02 && head.v > s2.v * 1.02 && Math.abs(s1.v-s2.v)/s1.v < 0.05) {
+        const neckLow = Math.min(...bars.slice(s1.i, s2.i).map(b=>b.low));
+        if (last.close < neckLow * 0.99) {
+          detected.push({
+            id:'HEAD_AND_SHOULDERS', name:'헤드앤숄더', signal:'STRONG_SELL', confidence:90,
+            category:'reversal_bearish',
+            entry:'넥라인 하향 이탈 + 거래량 확인',
+            stop:`오른쪽 어깨(${s2.v?.toFixed?.(0)}) 위`,
+            chart3:{ candle:`헤드 ${head.v?.toFixed?.(0)} / 숄더 ${s1.v?.toFixed?.(0)},${s2.v?.toFixed?.(0)}`, volume:volDesc, ma:maDesc }
+          });
+        }
+      }
+    }
+
+    // Inverse H&S
+    if (botPivots.length >= 3) {
+      const [s1,head,s2] = botPivots.slice(-3);
+      if (head.v < s1.v * 0.98 && head.v < s2.v * 0.98 && Math.abs(s1.v-s2.v)/s1.v < 0.05) {
+        const neckHigh = Math.max(...bars.slice(s1.i, s2.i).map(b=>b.high));
+        if (last.close > neckHigh * 1.01) {
+          detected.push({
+            id:'INVERSE_HEAD_AND_SHOULDERS', name:'역헤드앤숄더', signal:'STRONG_BUY', confidence:85,
+            category:'reversal_bullish',
+            entry:'넥라인 상향 돌파 + 거래량 급증',
+            stop:`오른쪽 어깨(${s2.v?.toFixed?.(0)}) 아래`,
+            chart3:{ candle:`역헤드 ${head.v?.toFixed?.(0)} / 숄더 ${s1.v?.toFixed?.(0)},${s2.v?.toFixed?.(0)}`, volume:volDesc, ma:maDesc }
+          });
+        }
+      }
+    }
+
+    // Ascending Triangle (수평 저항 + 고점 동등, 저점 상승)
+    if (bars.length >= 15) {
+      const recent = bars.slice(-15);
+      const rHighs = recent.map(b=>b.high);
+      const rLows  = recent.map(b=>b.low);
+      const maxH   = Math.max(...rHighs);
+      const minH   = Math.min(...rHighs);
+      const firstL = rLows[0];
+      const lastL  = rLows[rLows.length-1];
+      if ((maxH - minH)/maxH < 0.03 && lastL > firstL * 1.02) {
+        if (last.close > maxH * 1.005) {
+          detected.push({
+            id:'ASCENDING_TRIANGLE', name:'상승 삼각형', signal:'STRONG_BUY', confidence:100,
+            category:'continuation',
+            entry:'수평 저항선 상향 돌파 + 거래량 확인',
+            stop:'삼각형 내 재진입',
+            chart3:{ candle:`저항 ${maxH?.toFixed?.(0)} 돌파`, volume:volDesc, ma:maDesc }
+          });
+        }
+      }
+
+      // Descending Triangle
+      const minL  = Math.min(...rLows);
+      const maxL  = Math.max(...rLows);
+      const firstH = rHighs[0];
+      const lastH  = rHighs[rHighs.length-1];
+      if ((maxL - minL)/maxL < 0.03 && lastH < firstH * 0.98) {
+        if (last.close < minL * 0.995) {
+          detected.push({
+            id:'DESCENDING_TRIANGLE', name:'하락 삼각형', signal:'SELL', confidence:80,
+            category:'continuation',
+            entry:'수평 지지선 하향 이탈',
+            stop:'삼각형 내 재진입',
+            chart3:{ candle:`지지 ${minL?.toFixed?.(0)} 이탈`, volume:volDesc, ma:maDesc }
+          });
+        }
+      }
+
+      // Box Range (횡보)
+      const rangeH = Math.max(...recent.map(b=>b.high));
+      const rangeL = Math.min(...recent.map(b=>b.low));
+      const rangePct = (rangeH - rangeL) / rangeH;
+      if (rangePct < 0.05) {
+        detected.push({
+          id:'BOX_RANGE', name:'박스권 횡보', signal:'WAIT', confidence:50,
+          category:'neutral',
+          entry:`박스 상단(${rangeH?.toFixed?.(0)}) / 하단(${rangeL?.toFixed?.(0)}) 돌파 확인`,
+          stop:'박스 반대편 이탈',
+          chart3:{ candle:`박스폭 ${(rangePct*100).toFixed(1)}%`, volume:volDesc, ma:maDesc }
+        });
+      }
+    }
+
+    // Bullish Flag (깃대 상승 후 횡보 수렴)
+    if (bars.length >= 15) {
+      const flagpole = bars.slice(-15,-8);
+      const flag     = bars.slice(-8);
+      const poleRise = (flagpole[flagpole.length-1].close - flagpole[0].close) / flagpole[0].close;
+      const flagHigh = Math.max(...flag.map(b=>b.high));
+      const flagLow  = Math.min(...flag.map(b=>b.low));
+      const consolidation = (flagHigh - flagLow) / flagHigh;
+      if (poleRise > 0.07 && consolidation < 0.05 && last.close > flagHigh * 1.005) {
+        detected.push({
+          id:'BULLISH_FLAG', name:'상승 깃발', signal:'STRONG_BUY', confidence:100,
+          category:'reversal_bullish',
+          entry:'깃발 상단 돌파 + 거래량 증가',
+          stop:'깃발 하단 이탈',
+          chart3:{ candle:`깃대 +${(poleRise*100).toFixed(1)}% 후 수렴 돌파`, volume:volDesc, ma:maDesc }
+        });
+      }
+
+      // Bearish Flag
+      const poleDrop = (flagpole[0].close - flagpole[flagpole.length-1].close) / flagpole[0].close;
+      if (poleDrop > 0.07 && consolidation < 0.05 && last.close < flagLow * 0.995) {
+        detected.push({
+          id:'BEARISH_FLAG', name:'하락 깃발', signal:'SELL', confidence:80,
+          category:'reversal_bearish',
+          entry:'깃발 하단 이탈',
+          stop:'깃발 상단 돌파',
+          chart3:{ candle:`깃대 -${(poleDrop*100).toFixed(1)}% 후 수렴 이탈`, volume:volDesc, ma:maDesc }
+        });
+      }
+    }
+
+    // Rising Wedge (상승 쐐기형)
+    if (bars.length >= 20) {
+      const seg = bars.slice(-20);
+      const segHighs = seg.map((b,i)=>({i,v:b.high}));
+      const segLows  = seg.map((b,i)=>({i,v:b.low}));
+      const highSlope = (segHighs[segHighs.length-1].v - segHighs[0].v) / segHighs[0].v;
+      const lowSlope  = (segLows[segLows.length-1].v  - segLows[0].v)  / segLows[0].v;
+      if (highSlope > 0.03 && lowSlope > highSlope * 1.3) {
+        // 저점이 고점보다 가파르게 상승 → 수렴 쐐기
+        if (last.close < seg[seg.length-1].low * 0.995) {
+          detected.push({
+            id:'RISING_WEDGE', name:'상승 쐐기형', signal:'SELL', confidence:75,
+            category:'reversal_bearish',
+            entry:'하단 추세선 이탈',
+            stop:'쐐기 상단 돌파',
+            chart3:{ candle:`쐐기 상단 기울기 +${(highSlope*100).toFixed(1)}%`, volume:volDesc, ma:maDesc }
+          });
+        }
+      }
+    }
+  }
+
+  // ── 6. 도지 캔들 ──
+  const body  = Math.abs(last.close - last.open);
+  const range = last.high - last.low;
+  if (range > 0 && body / range < 0.1) {
+    detected.push({
+      id:'DOJI', name:'십자도지', signal:'WAIT', confidence:50,
+      category:'candle_basics',
+      entry:'다음 봉 방향 확인 후 진입',
+      stop:'도지 저점 하향 이탈',
+      chart3:{ candle:`도지 몸통비 ${(body/range*100).toFixed(1)}%`, volume:volDesc, ma:maDesc }
+    });
+  }
+
+  return detected;
 }
 
-function gdriveShowPattern(fileId, name) {
-  const url = `https://drive.google.com/file/d/${fileId}/view`;
-  window.open(url, '_blank', 'width=800,height=600');
-}
-
-// 1주일 캔들 패턴 감지 (renderDashboard에서 호출)
-function analyzeWeekPattern(bars, patterns1w) {
-  const el = document.getElementById('week-pattern-result');
-  const row = document.getElementById('chart-pattern-row');
+function renderChartPatternV2(patterns) {
+  const el = document.getElementById('chart-pattern-v2-content');
   if (!el) return;
-  if (row) row.style.display = '';
 
-  if (!patterns1w || !patterns1w.length) {
-    el.innerHTML = '<span style="color:var(--muted)">최근 1주일 내 감지된 캔들 패턴 없음</span>';
-    el.dataset.patterns = '';
+  if (!patterns || !patterns.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:0.82rem;padding:16px 0;text-align:center">
+      감지된 차트 패턴 없음 — 명확한 패턴 형성 대기 중
+    </div>`;
     return;
   }
 
-  const bullPatterns = ['Hammer','BullishEngulfing','MorningStar','ThreeWhiteSoldiers','PiercingLine','DragonFlyDoji'];
-  const html = patterns1w.map(p => {
-    const isBull = bullPatterns.some(b => p.includes(b));
-    const color  = isBull ? 'var(--up)' : 'var(--down)';
-    const tag    = isBull ? '▲' : '▼';
-    return `<div style="display:inline-flex;align-items:center;gap:5px;background:${isBull?'rgba(52,211,153,0.1)':'rgba(255,75,110,0.1)'};border-radius:8px;padding:5px 10px;margin:3px 4px 3px 0;font-size:0.78rem">
-      <span style="color:${color};font-weight:700">${tag}</span>
-      <span style="color:var(--text)">${p}</span>
+  el.innerHTML = patterns.map(p => {
+    const sc = SIGNAL_COLORS[p.signal] || SIGNAL_COLORS.WAIT;
+    const isBull = p.signal === 'STRONG_BUY' || p.signal === 'BUY';
+    const isBear = p.signal === 'STRONG_SELL' || p.signal === 'SELL';
+    const icon   = isBull ? '▲' : isBear ? '▼' : '◆';
+    return `<div style="flex:1;min-width:220px;max-width:360px;background:var(--card2);border-radius:12px;padding:12px 14px;border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:${sc.bg};color:${sc.text};font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.06em">${icon} ${sc.label}</span>
+        <span style="font-size:0.72rem;font-weight:700;color:var(--text)">${p.name}</span>
+        <span style="margin-left:auto;font-size:0.62rem;color:var(--muted)">${p.confidence}%</span>
+      </div>
+      <div style="font-size:0.68rem;color:var(--muted2);margin-bottom:6px;line-height:1.5">
+        <span style="color:var(--up);font-weight:600">진입</span> ${p.entry}
+      </div>
+      ${p.stop ? `<div style="font-size:0.65rem;color:var(--muted);margin-bottom:6px"><span style="color:var(--down);font-weight:600">손절</span> ${p.stop}</div>` : ''}
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+        <div style="font-size:0.6rem;color:var(--muted)"><span style="display:block;font-weight:700;color:var(--text2);margin-bottom:2px">캔들</span>${p.chart3?.candle||'-'}</div>
+        <div style="font-size:0.6rem;color:var(--muted)"><span style="display:block;font-weight:700;color:var(--text2);margin-bottom:2px">거래량</span>${p.chart3?.volume||'-'}</div>
+        <div style="font-size:0.6rem;color:var(--muted)"><span style="display:block;font-weight:700;color:var(--text2);margin-bottom:2px">이평선</span>${p.chart3?.ma||'-'}</div>
+      </div>
     </div>`;
   }).join('');
-
-  el.innerHTML = html;
-  el.dataset.patterns = patterns1w.join(',');
-
-  // Drive 이미 로드된 경우 매칭 하이라이트
-  if (_gdriveToken) {
-    const imgs = document.querySelectorAll('#drive-pattern-images img');
-    if (imgs.length) gdrivehighlightMatched(
-      [...imgs].map((img,i) => ({ name: img.alt }))
-    );
-  }
 }
 
 // ── 기간/스타일 원형 버튼 사이클 ──
@@ -3345,39 +3499,17 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
     </div>
   </div>
 
-  <!-- ── 차트 패턴 분석 (Google Drive) ── -->
+  <!-- ── 차트 패턴 분석 v2 ── -->
   <div class="row" id="chart-pattern-row" style="margin-top:0;grid-template-columns:1fr;display:none">
     <div class="card" id="chart-pattern-card">
       <div class="card-header">
         <div class="card-header-row">
           <span class="dot" style="background:var(--blue)"></span>차트 패턴 분석
-          <span style="font-size:0.62rem;color:var(--muted);font-weight:400;margin-left:4px">최근 1주일 · Google Drive 패턴 라이브러리</span>
-          <button onclick="gdriveConnect()" id="chart-pattern-connect-btn"
-            style="margin-left:auto;background:var(--blue);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:0.68rem;cursor:pointer;font-weight:600;display:none">
-            📁 Drive 연결
-          </button>
         </div>
-        <span class="card-sub">1주일 캔들 패턴 감지 + Google Drive '차트패턴유형' 폴더 레퍼런스 이미지 매칭</span>
+        <span class="card-sub">캔들·이평선·Gap·추세 패턴 자동 감지 (chart_patterns_analysis_v2 기반)</span>
       </div>
-      <div id="chart-pattern-content" style="display:flex;gap:16px;flex-wrap:wrap">
-        <!-- 1주일 패턴 감지 결과 -->
-        <div style="flex:1;min-width:220px">
-          <div style="font-size:0.7rem;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">📊 1주일 감지 패턴</div>
-          <div id="week-pattern-result" style="font-size:0.82rem;color:var(--text)">분석 중…</div>
-        </div>
-        <!-- Google Drive 레퍼런스 이미지 -->
-        <div style="flex:2;min-width:280px">
-          <div style="font-size:0.7rem;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">
-            📁 패턴 레퍼런스 라이브러리
-            <span id="gdrive-folder-status" style="font-weight:400;font-size:0.65rem;margin-left:6px;color:var(--muted2)"></span>
-          </div>
-          <div id="drive-pattern-images" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
-            <div id="gdrive-connect-prompt" style="font-size:0.78rem;color:var(--muted);padding:20px;text-align:center;width:100%;border:1px dashed var(--border);border-radius:10px">
-              ⚙️ 설정에서 Google Drive를 연결하면 '차트패턴유형' 폴더의 패턴 이미지가 여기에 표시됩니다.
-              <br><button onclick="openSettings()" style="margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:0.72rem;cursor:pointer">설정 열기</button>
-            </div>
-          </div>
-        </div>
+      <div id="chart-pattern-v2-content" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+        <div style="color:var(--muted);font-size:0.82rem;padding:16px 0">분석 중…</div>
       </div>
     </div>
   </div>
@@ -3589,19 +3721,20 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price, currency, isKr, changeAmt, companyName });
   renderValueChain({ ticker, companyName, isKr });
 
-  // ── 차트 패턴 분석 (1주일) ──
+  // ── 차트 패턴 분석 v2 ──
   try {
-    const week5 = bars.slice(-5);  // 최근 5봉 (1주일)
-    const patterns1w = [];
-    // computeCSPatterns는 bars 배열을 받음 → 1주일 봉으로 재실행
-    if (typeof computeCandlestick === 'function') {
-      const cs1w = computeCandlestick(week5);
-      patterns1w.push(...(cs1w.patterns || []));
-    } else {
-      patterns1w.push(...(cs.patterns || []));
-    }
-    analyzeWeekPattern(bars, patterns1w);
-  } catch(e) { console.warn('week pattern:', e); }
+    const patRow = document.getElementById('chart-pattern-row');
+    if (patRow) patRow.style.display = '';
+    const cpv2 = computeChartPatternV2(bars, {
+      ma5:   ind?.sma5?.slice(-1)[0]  ?? null,
+      ma20:  ind?.sma20?.slice(-1)[0] ?? null,
+      ma50:  ind?.sma50?.slice(-1)[0] ?? null,
+      ma200: ind?.sma200?.slice(-1)[0]?? null,
+      prevMa5:  ind?.sma5?.slice(-2)[0]  ?? null,
+      prevMa50: ind?.sma50?.slice(-2)[0] ?? null,
+    });
+    renderChartPatternV2(cpv2);
+  } catch(e) { console.warn('chart pattern v2:', e); }
 
   // ══════════════════════════════════════════════════════
   // ── 공통 차트 옵션 ──
