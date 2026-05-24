@@ -2720,6 +2720,69 @@ function computeQuantFactors(bars, ind) {
 }
 
 // ══════════════════════════════════════════════════════
+//  Layer IPP: 변곡점 예측
+// ══════════════════════════════════════════════════════
+function computeIPP(bars, ind) {
+  const n = bars.length;
+  if (n < 30) return { ipp_score: 0, direction: 'NEUTRAL', eta_days: 7, confidence: 0, signals: [] };
+  const C = bars.map(b => b.close), H = bars.map(b => b.high), L = bars.map(b => b.low), V = bars.map(b => b.volume || 0);
+  const li = n - 1;
+  const signals = [];
+  let rule_score = 0;
+
+  // RSI 과매도/과매수
+  const rsi = last(ind.rsi);
+  if (rsi != null && rsi < 30) { rule_score += 20; signals.push('🔴 RSI 과매도 (' + rsi.toFixed(1) + ')'); }
+  if (rsi != null && rsi > 70) { rule_score -= 20; signals.push('🔵 RSI 과매수 (' + rsi.toFixed(1) + ')'); }
+
+  // 연속 하락 4일+ + 긴 아래꼬리
+  let consec_down = 0;
+  for (let i = li; i >= Math.max(1, li-5); i--) { if (C[i] < C[i-1]) consec_down++; else break; }
+  const body = Math.abs(C[li] - bars[li].open);
+  const lower_shadow = Math.min(C[li], bars[li].open) - L[li];
+  if (consec_down >= 4 && lower_shadow > body * 1.5) { rule_score += 25; signals.push('🔨 ' + consec_down + '일 연속하락 + 긴 아래꼬리'); }
+
+  // 연속 상승 4일+ + 긴 윗꼬리
+  let consec_up = 0;
+  for (let i = li; i >= Math.max(1, li-5); i--) { if (C[i] > C[i-1]) consec_up++; else break; }
+  const upper_shadow = H[li] - Math.max(C[li], bars[li].open);
+  if (consec_up >= 4 && upper_shadow > body * 1.5) { rule_score -= 25; signals.push('⚡ ' + consec_up + '일 연속상승 + 긴 윗꼬리'); }
+
+  // OBV 다이버전스
+  let obv = 0; const obvArr = [];
+  for (let i = 0; i < n; i++) { obv += (i === 0 ? 0 : C[i] > C[i-1] ? V[i] : C[i] < C[i-1] ? -V[i] : 0); obvArr.push(obv); }
+  const obvSlope = n >= 10 ? obvArr[li] - obvArr[li-10] : 0;
+  const priceSlope = n >= 10 ? C[li] - C[li-10] : 0;
+  if (obvSlope > 0 && priceSlope < 0) { rule_score += 20; signals.push('📈 OBV↑ + 주가↓ (강세 다이버전스)'); }
+  if (obvSlope < 0 && priceSlope > 0) { rule_score -= 20; signals.push('📉 OBV↓ + 주가↑ (약세 다이버전스)'); }
+
+  // 거래량 수렴/급증
+  if (n >= 21) {
+    const vol20avg = V.slice(li-19, li+1).reduce((a,b) => a+b, 0) / 20;
+    const vol5avg  = V.slice(li-4,  li+1).reduce((a,b) => a+b, 0) / 5;
+    const volRatio = vol20avg > 0 ? vol5avg / vol20avg : 1;
+    if (volRatio < 0.5) { rule_score += 10; signals.push('📊 거래량 바닥 수렴 (' + volRatio.toFixed(2) + 'x)'); }
+    if (volRatio > 2.0 && n >= 10 && Math.abs(priceSlope) / (C[li-10] || 1) < 0.01) { rule_score -= 15; signals.push('💥 거래량 급증 + 가격 미반응'); }
+  }
+
+  // 볼린저밴드 수축
+  const bbUv = last(ind.bbU), bbLv = last(ind.bbL), sma20v = last(ind.sma20);
+  const bbW = (bbUv != null && bbLv != null && sma20v != null && sma20v > 0) ? (bbUv - bbLv) / sma20v : null;
+  if (bbW != null && bbW < 0.05) { rule_score += 12; signals.push('🎯 BB 수축 (에너지 축적)'); }
+
+  // ATR 수축
+  const atr = last(ind.atr);
+  const atrMA = n >= 30 ? ind.atr.slice(li-29, li+1).filter(v => v != null).reduce((a,b) => a+b, 0) / 30 : null;
+  if (atr != null && atrMA != null && atr < atrMA * 0.7) { rule_score += 10; signals.push('🔇 ATR 수축 (<0.7배, 변동성 소진)'); }
+
+  const ipp_score = Math.max(-100, Math.min(100, rule_score));
+  const direction = ipp_score >= 20 ? 'BULLISH_REVERSAL' : ipp_score <= -20 ? 'BEARISH_REVERSAL' : 'NEUTRAL';
+  const confidence = Math.min(100, Math.round(Math.abs(ipp_score)));
+  const eta_days = Math.abs(ipp_score) >= 40 ? 3 : Math.abs(ipp_score) >= 20 ? 5 : 7;
+  return { ipp_score, direction, eta_days, confidence, signals };
+}
+
+// ══════════════════════════════════════════════════════
 //  Layer 5: 시그널 통합 (가중 평균)
 // ══════════════════════════════════════════════════════
 const MASTER_WEIGHTS = { cs: 1.5, ew: 2.0, ichi: 1.5, smc: 1.5, quant: 2.0, wacc: 1.5 };
@@ -3022,6 +3085,8 @@ async function runAnalysis() {
     const smc      = computeSMC(bars);
     // Layer 3: Quant factors
     const quant    = computeQuantFactors(bars, ind);
+    // Layer IPP: 변곡점 예측
+    const ipp      = computeIPP(bars, ind);
     // Layer 5: Signal fusion (waccResult 계산 후 전달)
     const waccResult = computeWACC(fundInfo, isKr);
     const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fund.metrics);
@@ -3050,7 +3115,7 @@ async function runAnalysis() {
       companyName: companyNameResolved,
       sector: fundInfo.sector || '-',
       changeAmt, changePct, high52w, low52w, mktState, updatedAt,
-      fundInfo, cs, ew, ichi, smc, quant, advanced,
+      fundInfo, cs, ew, ichi, smc, quant, ipp, advanced,
       exchangeName: quote?.fullExchangeName || quote?.exchange || '',
       waccResult,
     });
@@ -3194,7 +3259,7 @@ function guessExchange(ticker) {
 
 function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, isKr, currency,
     companyName, sector, changeAmt, changePct, high52w, low52w, mktState, updatedAt, fundInfo,
-    cs, ew, ichi, smc, quant, advanced, exchangeName, waccResult }) {
+    cs, ew, ichi, smc, quant, ipp, advanced, exchangeName, waccResult }) {
   const flag      = isKr ? '🇰🇷' : '🇺🇸';
   const badgeCls  = {BUY:'buy',SELL:'sell',HOLD:'hold'}[d.action]||'hold';
   const badgeLbl  = {BUY:'● 매수 BUY',SELL:'● 매도 SELL',HOLD:'● 관망 HOLD'}[d.action];
@@ -3495,6 +3560,28 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       ${mrow('MA20', quant.above_ma20>0?'위 (강세)':'아래 (약세)', quant.above_ma20>0?'var(--up)':'var(--down)', TIPS.maPos.title, TIPS.maPos.body)}
       ${mrow('MA60', quant.above_ma60>0?'위 (강세)':'아래 (약세)', quant.above_ma60>0?'var(--up)':'var(--down)', TIPS.maPos.title, TIPS.maPos.body)}
       ${mrow('연환산 변동성', quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-', '', TIPS.volatility.title, TIPS.volatility.body)}
+    </div>
+
+    <!-- 변곡점 예측 (IPP) -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-row"><span class="dot" style="background:var(--purple)"></span>🔮 변곡점 예측 (IPP) ${tip('변곡점 예측 (IPP)','RSI 다이버전스 · OBV · 볼린저밴드 수축 · ATR 수축 · 거래량 이상 · 캔들 패턴 등 규칙 기반 앙상블로 N일 이내 주가 방향 전환 가능성을 수치화합니다.\n\n<b>해석</b>\n+20 이상 → 상승전환 임박\n-20 이하 → 하락전환 임박\n중간 → 방향성 불명확')}</div>
+        <span class="card-sub">단기 변곡점 탐지 — 규칙 기반 앙상블 (RSI·OBV·BB·ATR·거래량·캔들)</span>
+      </div>
+      ${(() => {
+        const score = ipp?.ipp_score ?? 0;
+        const dir = ipp?.direction ?? 'NEUTRAL';
+        const dirLabel = dir === 'BULLISH_REVERSAL' ? '🟢 상승전환 임박' : dir === 'BEARISH_REVERSAL' ? '🔴 하락전환 임박' : '🟡 중립';
+        const scoreColor = score >= 20 ? 'var(--up)' : score <= -20 ? 'var(--down)' : 'var(--yellow)';
+        return `
+          ${mrow('IPP Score', (score >= 0 ? '+' : '') + score, scoreColor)}
+          ${mrow('방향', dirLabel, scoreColor)}
+          ${mrow('예상 ETA', (ipp?.eta_days ?? 7) + '일 이내', '')}
+          ${mrow('신뢰도', (ipp?.confidence ?? 0) + '%', '')}
+          ${ipp?.signals?.length ? `<div style="padding:8px 14px 4px;font-size:0.72rem;color:var(--muted)">탐지 신호</div>
+          <div style="padding:0 14px 10px;font-size:0.75rem;line-height:1.8;color:var(--text2)">${ipp.signals.join('<br>')}</div>` : ''}
+        `;
+      })()}
     </div>
 
   </div>
