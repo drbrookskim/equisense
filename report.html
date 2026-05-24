@@ -1368,12 +1368,13 @@ function renderReport(data) {
       barPct: advPct,
       barScore: d.advancedComposite,
       valueText: (d.advancedComposite>=0?'+':'')+d.advancedComposite.toFixed(3),
-      descLabel: '5개 레이어 가중 평균 (캔들·엘리어트·일목균형표·SMC·퀀트)',
-      descHtml: Object.entries(advanced.details).map(([k,v])=>{
-        const nm={cs:'캔들스틱',ew:'엘리어트파동',ichi:'일목균형표',smc:'SMC',quant:'퀀트팩터'};
+      descLabel: '7개 레이어 가중 평균 (캔들·엘리어트·일목균형표·SMC·퀀트·WACC·변곡점)',
+      descHtml: `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px">${Object.entries(advanced.details).map(([k,v])=>{
+        const nm={cs:'캔들스틱',ew:'엘리어트파동',ichi:'일목균형표',smc:'SMC',quant:'퀀트팩터',wacc:'WACC',ipp:'변곡점(IPP)'};
+        const bg=v.score>0?'rgba(52,211,153,0.12)':v.score<0?'rgba(255,75,110,0.12)':'rgba(128,128,128,0.08)';
         const c=v.score>0?'tag-buy':v.score<0?'tag-sell':'';
-        return `<b>${nm[k]||k}</b> (w=${v.weight}): <span class="${c}">${v.label}</span>`;
-      }).join(' &nbsp;·&nbsp; ')
+        return `<div style="background:${bg};border-radius:8px;padding:6px 8px;text-align:center"><div style="font-size:0.68rem;color:#888;margin-bottom:2px">${nm[k]||k} <span style="font-size:0.6rem;opacity:0.7">w=${v.weight}</span></div><div style="font-size:0.82rem;font-weight:700"><span class="${c}">${v.label}</span></div></div>`;
+      }).join('')}</div>`
     })}
   </div>`;
 
