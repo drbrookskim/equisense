@@ -794,7 +794,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   document.getElementById('topbar').style.display = 'flex';
   function syncLayout() {
     const m = document.getElementById('main-area');
-    if (!m || m.style.display === 'none') return;
+    if (!m) return;
     m.style.display = window.innerWidth <= 768 ? 'flex' : 'grid';
   }
   syncLayout();
