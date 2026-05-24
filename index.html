@@ -844,11 +844,10 @@
   /* ── 고급 분석 6열 그리드 ── */
   .adv-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     margin-bottom: 12px;
   }
-  @media (max-width: 1200px) { .adv-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 700px)  { .adv-grid { grid-template-columns: repeat(2, 1fr); } }
 
   /* ── Knowledge Graph ── */
@@ -3487,7 +3486,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
           <span style="font-size:0.68rem;font-weight:400;color:var(--muted);margin-left:6px">${d.advancedComposite>0.3?'LONG':d.advancedComposite<-0.3?'SHORT':'STAND ASIDE'}</span>
         </span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         ${Object.entries(advanced.details).map(([key, v]) => {
           const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'일목균형표', smc:'SMC', quant:'퀀트팩터', wacc:'WACC', ipp:'변곡점(IPP)' };
           const tipMap  = {
@@ -3501,7 +3500,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
           };
           const bg = v.score>0?'rgba(52,211,153,0.12)':v.score<0?'rgba(255,75,110,0.12)':'var(--border)';
           const tc = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
-          return `<div style="background:${bg};border-radius:10px;padding:8px 12px;text-align:center">
+          return `<div style="flex:1;min-width:120px;background:${bg};border-radius:10px;padding:8px 12px;text-align:center">
             <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px">${nameMap[key]||key} <span style="font-size:0.62rem;opacity:0.7">w=${v.weight}</span>${tip(tipMap[key]||'')}</div>
             <div style="font-size:0.88rem;font-weight:700;color:${tc}">${v.label}</div>
           </div>`;
