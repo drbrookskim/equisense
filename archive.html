@@ -169,23 +169,49 @@
   }
   .btn-logout:hover { background: rgba(255,75,110,0.1); color: var(--red); border-color: rgba(255,75,110,0.3); }
 
-  /* ── Main layout ── */
+  /* ── Hamburger (PC에서 숨김) ── */
+  .btn-hamburger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-size: 1.1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  .btn-hamburger:hover { background: var(--card); }
+
+  /* ── Drawer overlay (모바일 전용) ── */
+  #drawer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px);
+  }
+
+  /* ── Main layout: PC 3컬럼 ── */
   .main {
-    display: flex;
+    display: grid;
+    grid-template-columns: 220px 320px 1fr;
+    grid-template-rows: 1fr;
     flex: 1;
     overflow: hidden;
   }
 
   /* ── Sidebar ── */
   .sidebar {
-    width: var(--sidebar);
-    min-width: 200px;
-    max-width: 300px;
-    flex-shrink: 0;
-    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border-right: 1px solid var(--border);
     background: var(--card2);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -296,15 +322,14 @@
   }
   .sidebar-empty .icon { font-size: 2rem; }
 
-  /* ── Report viewer ── */
-  .viewer {
-    flex: 1;
-    overflow: hidden;
+  /* ── 스냅샷 컬럼 (PC 중간) ── */
+  .snapshot-col {
     display: flex;
     flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
   }
-
-  .viewer-empty {
+  .col-empty {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -312,56 +337,45 @@
     justify-content: center;
     gap: 12px;
     color: var(--muted2);
+    padding: 24px;
+    text-align: center;
   }
-  .viewer-empty .icon { font-size: 3rem; }
-  .viewer-empty p { font-size: 0.9rem; }
+  .col-empty .icon { font-size: 2.4rem; }
+  .col-empty p { font-size: 0.82rem; }
 
-  #report-frame {
-    flex: 1;
-    border: none;
-    border-top: 1px solid var(--border);
-    width: 100%;
-    min-height: 600px;
-    display: none;
-  }
-
-  /* ── 스냅샷 패널 ── */
   #snapshot-panel {
     display: none;
     flex-direction: column;
-    gap: 16px;
-    padding: 24px 28px;
     overflow-y: auto;
-    flex-shrink: 0;
-    max-height: 55vh;
+    flex: 1;
+    padding: 20px 16px;
+    gap: 14px;
   }
   .snap-inner {
-    max-width: 860px;
-    width: 100%;
-    margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
+    width: 100%;
   }
   .snap-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
   }
-  .snap-title { font-size: 1.3rem; font-weight: 700; color: var(--text); }
-  .snap-meta  { font-size: 0.72rem; color: var(--muted); }
+  .snap-title { font-size: 1.05rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .snap-meta  { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
   .snap-action-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
   }
   .snap-badge {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    padding: 4px 14px;
+    padding: 3px 12px;
     border-radius: 20px;
     letter-spacing: .04em;
   }
@@ -371,92 +385,122 @@
   .snap-section {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px 20px;
+    border-radius: 12px;
+    padding: 12px 14px;
   }
   .snap-section-title {
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     color: var(--muted);
     font-weight: 600;
     letter-spacing: .06em;
     text-transform: uppercase;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
+  /* PC 중간 컬럼(320px)에서 2열 */
   .snap-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
-  .snap-kv {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .snap-kv-label { font-size: 0.68rem; color: var(--muted); }
-  .snap-kv-val   { font-size: 0.88rem; font-weight: 600; color: var(--text2); }
+  .snap-kv { display: flex; flex-direction: column; gap: 2px; }
+  .snap-kv-label { font-size: 0.64rem; color: var(--muted); }
+  .snap-kv-val   { font-size: 0.82rem; font-weight: 600; color: var(--text2); }
   .snap-signal-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
   }
   .snap-sig-chip {
-    border-radius: 10px;
-    padding: 8px 10px;
+    border-radius: 8px;
+    padding: 7px 8px;
     text-align: center;
   }
-  .snap-sig-chip .sig-name { font-size: 0.68rem; color: var(--muted); margin-bottom: 3px; }
-  .snap-sig-chip .sig-val  { font-size: 0.82rem; font-weight: 700; }
+  .snap-sig-chip .sig-name { font-size: 0.62rem; color: var(--muted); margin-bottom: 2px; }
+  .snap-sig-chip .sig-val  { font-size: 0.76rem; font-weight: 700; }
   .btn-reanalyze {
-    height: 36px;
-    padding: 0 18px;
-    border-radius: 10px;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 8px;
     border: 1px solid var(--border2);
     background: rgba(59,130,246,0.12);
     color: var(--blue);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
     transition: background .15s;
   }
   .btn-reanalyze:hover { background: rgba(59,130,246,0.25); }
 
+  /* ── 리포트 컬럼 (PC 우측) ── */
+  .report-col {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #report-frame {
+    flex: 1;
+    border: none;
+    width: 100%;
+    height: 100%;
+    display: none;
+  }
+
   /* ── 반응형: 모바일 (768px 미만) ── */
   @media (max-width: 768px) {
+    /* 햄버거 표시, 3컬럼 → 단일 컬럼 */
+    .btn-hamburger { display: flex; }
     .main {
+      display: flex;
       flex-direction: column;
       overflow-y: auto;
+      overflow-x: hidden;
     }
+    /* 사이드바 → 고정 드로어 */
     .sidebar {
-      width: 100%;
-      min-width: unset;
-      max-width: unset;
-      max-height: 40vh;
+      position: fixed;
+      top: 0; left: 0;
+      width: 280px;
+      height: 100%;
+      z-index: 300;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      border-right: 1px solid var(--border2);
+    }
+    .sidebar.open { transform: translateX(0); }
+    #drawer-overlay.open { display: block; }
+
+    /* 스냅샷 컬럼: 전체 너비, 고정 높이 해제 */
+    .snapshot-col {
       border-right: none;
       border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .sidebar-list {
-      overflow-y: auto;
-    }
-    .viewer {
       overflow: visible;
-      flex: unset;
     }
     #snapshot-panel {
-      max-height: unset;
       overflow-y: visible;
+      flex: unset;
+      padding: 20px 16px;
+      max-width: 700px;
+      margin: 0 auto;
+      width: 100%;
     }
+    /* 모바일에서 그리드 3열로 확장 (공간 충분) */
+    .snap-grid        { grid-template-columns: repeat(3, 1fr); }
+    .snap-signal-grid { grid-template-columns: repeat(3, 1fr); }
+
+    /* 리포트 컬럼: 전체 너비 */
+    .report-col { overflow: visible; }
     #report-frame {
-      min-height: 80vh;
-      height: 80vh;
+      display: block;
+      height: 85vh;
+      min-height: 500px;
+      border-top: 1px solid var(--border);
+      max-width: 700px;
+      margin: 0 auto;
+      width: 100%;
     }
-    .snap-grid,
-    .snap-signal-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .report-item-name {
-      max-width: 200px;
-    }
+    .col-empty { min-height: 120px; flex: unset; }
+    .report-item-name { max-width: 200px; }
   }
 
   /* ── Not logged in overlay ── */
@@ -530,8 +574,12 @@
   <a href="index.html" class="btn-go-main">← 메인으로 돌아가기</a>
 </div>
 
+<!-- Drawer overlay -->
+<div id="drawer-overlay" onclick="closeDrawer()"></div>
+
 <!-- Topbar -->
 <header class="topbar" id="topbar" style="display:none">
+  <button class="btn-hamburger" onclick="toggleDrawer()">☰</button>
   <a href="index.html" class="topbar-logo">
     <img class="topbar-logo-img" src="assets/signnith-logo-white.png" alt="Signnith" />
   </a>
@@ -548,7 +596,7 @@
 <div class="main" id="main-area" style="display:none">
 
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-header-title">저장된 리포트</div>
       <input class="sidebar-search" id="sidebar-search" type="text" placeholder="종목명·티커 검색…" oninput="filterList()">
@@ -557,13 +605,21 @@
     <div class="sidebar-list" id="sidebar-list"></div>
   </aside>
 
-  <!-- Viewer -->
-  <section class="viewer">
-    <div class="viewer-empty" id="viewer-empty">
-      <div class="icon">📄</div>
-      <p>좌측 목록에서 종목을 선택하세요</p>
+  <!-- 스냅샷 컬럼 -->
+  <section class="snapshot-col">
+    <div class="col-empty" id="snap-empty">
+      <div class="icon">📋</div>
+      <p>종목을 선택하면<br>저장된 분석이 표시됩니다</p>
     </div>
     <div id="snapshot-panel"></div>
+  </section>
+
+  <!-- 리포트 컬럼 -->
+  <section class="report-col">
+    <div class="col-empty" id="report-empty">
+      <div class="icon">📈</div>
+      <p>현재 기준 재분석을<br>실행하면 리포트가 표시됩니다</p>
+    </div>
     <iframe id="report-frame" title="리포트"></iframe>
   </section>
 
@@ -877,54 +933,90 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     </div>`;
   }
 
+  // ── 드로어 (모바일 사이드바) ──
+  window.toggleDrawer = function() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('drawer-overlay');
+    const isOpen  = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', !isOpen);
+    overlay.classList.toggle('open', !isOpen);
+  };
+  window.closeDrawer = function() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('drawer-overlay').classList.remove('open');
+  };
+
   // ── 리포트 선택 ──
   window.selectReport = function(id) {
     const r = allReports.find(x => x.id === id);
     if (!r) return;
     activeId = id;
 
-    const snap  = document.getElementById('snapshot-panel');
-    const frame = document.getElementById('report-frame');
-    const empty = document.getElementById('viewer-empty');
+    const snap        = document.getElementById('snapshot-panel');
+    const snapEmpty   = document.getElementById('snap-empty');
+    const frame       = document.getElementById('report-frame');
+    const reportEmpty = document.getElementById('report-empty');
 
-    empty.style.display = 'none';
-    frame.style.display = 'none';
-    frame.src           = '';
-    snap.style.display  = 'flex';
-    snap.innerHTML      = renderSnapshot(r);
+    // 스냅샷 표시
+    snapEmpty.style.display = 'none';
+    snap.style.display      = 'flex';
+    snap.innerHTML          = renderSnapshot(r);
+
+    // PC: 리포트 자동 로드 / 모바일: 플레이스홀더 유지 (재분석 버튼으로 로드)
+    const isMobile = window.innerWidth <= 768;
+    if (!isMobile) {
+      const period = r.period || '6mo';
+      const style  = r.style  || 'balanced';
+      const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
+      reportEmpty.style.display = 'none';
+      frame.style.display       = 'block';
+      frame.src                 = url;
+    } else {
+      // 모바일: 기존 리포트 초기화, 드로어 닫고 스냅샷으로 스크롤
+      frame.style.display       = 'none';
+      frame.src                 = '';
+      reportEmpty.style.display = 'flex';
+      closeDrawer();
+      setTimeout(() => snap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
 
     document.querySelectorAll('.report-item').forEach(el => {
       el.classList.toggle('active', Number(el.dataset.id) === id);
     });
-
-    // 모바일: 선택 후 스냅샷 영역으로 스크롤
-    if (window.innerWidth <= 768) {
-      snap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
   };
 
-  // ── 재분석 (스냅샷 유지 + iframe 하단 펼침) ──
+  // ── 재분석 (모바일: 토글 / PC: 새탭) ──
   window.reanalyze = function(id) {
     const r = allReports.find(x => x.id === id);
     if (!r) return;
-    const frame  = document.getElementById('report-frame');
-    const btn    = document.getElementById(`btn-reanalyze-${id}`);
     const period = r.period || '6mo';
     const style  = r.style  || 'balanced';
+    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
 
-    if (frame.style.display === 'block') {
-      // 이미 열려 있으면 닫기 (토글)
-      frame.style.display = 'none';
-      frame.src           = '';
-      if (btn) btn.textContent = '🔄 현재 기준 재분석';
-      return;
+    if (window.innerWidth <= 768) {
+      const frame       = document.getElementById('report-frame');
+      const reportEmpty = document.getElementById('report-empty');
+      const btn         = document.getElementById(`btn-reanalyze-${id}`);
+      if (frame.style.display === 'block') {
+        frame.style.display       = 'none';
+        frame.src                 = '';
+        reportEmpty.style.display = 'flex';
+        if (btn) btn.textContent  = '🔄 현재 기준 재분석';
+      } else {
+        reportEmpty.style.display = 'none';
+        frame.style.display       = 'block';
+        frame.src                 = url;
+        if (btn) btn.textContent  = '✕ 리포트 닫기';
+        setTimeout(() => frame.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }
+    } else {
+      // PC: 리포트 컬럼에 이미 표시 중 — 새로고침
+      const frame       = document.getElementById('report-frame');
+      const reportEmpty = document.getElementById('report-empty');
+      reportEmpty.style.display = 'none';
+      frame.style.display       = 'block';
+      frame.src                 = url;
     }
-
-    const url = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
-    frame.style.display = 'block';
-    frame.src           = url;
-    if (btn) btn.textContent = '✕ 리포트 닫기';
-    frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   // ── 리포트 삭제 ──
@@ -936,9 +1028,10 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     if (activeId === id) {
       activeId = null;
       document.getElementById('report-frame').style.display = 'none';
-      document.getElementById('report-frame').src = '';
+      document.getElementById('report-frame').src           = '';
       document.getElementById('snapshot-panel').style.display = 'none';
-      document.getElementById('viewer-empty').style.display = 'flex';
+      document.getElementById('snap-empty').style.display   = 'flex';
+      document.getElementById('report-empty').style.display = 'flex';
     }
     filterList();
   };
