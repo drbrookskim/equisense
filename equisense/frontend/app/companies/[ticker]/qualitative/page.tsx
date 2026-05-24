@@ -1,6 +1,6 @@
-import { Suspense } from 'react'
 import { readWatchlist } from '@/lib/watchlist'
-import QualitativeView from './QualitativeView'
+import type { Market } from '@/types'
+import QualitativeAnalysisView from '@/components/qualitative/QualitativeAnalysisView'
 
 export function generateStaticParams() {
   return readWatchlist().companies.map((c) => ({ ticker: c.ticker }))
@@ -8,13 +8,14 @@ export function generateStaticParams() {
 
 export default async function QualitativePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ ticker: string }>
+  searchParams: Promise<{ market?: string }>
 }) {
   const { ticker } = await params
-  return (
-    <Suspense fallback={<div className="flex h-60 items-center justify-center"><span className="text-sm text-zinc-400">로딩 중…</span></div>}>
-      <QualitativeView ticker={ticker} />
-    </Suspense>
-  )
+  const { market = 'US' } = await searchParams
+  const validMarket = (market === 'KR' ? 'KR' : 'US') as Market
+
+  return <QualitativeAnalysisView ticker={ticker} market={validMarket} />
 }
