@@ -179,6 +179,8 @@
   /* ── Sidebar ── */
   .sidebar {
     width: var(--sidebar);
+    min-width: 200px;
+    max-width: 300px;
     flex-shrink: 0;
     border-right: 1px solid var(--border);
     display: flex;
@@ -417,6 +419,45 @@
     transition: background .15s;
   }
   .btn-reanalyze:hover { background: rgba(59,130,246,0.25); }
+
+  /* ── 반응형: 모바일 (768px 미만) ── */
+  @media (max-width: 768px) {
+    .main {
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .sidebar {
+      width: 100%;
+      min-width: unset;
+      max-width: unset;
+      max-height: 40vh;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-list {
+      overflow-y: auto;
+    }
+    .viewer {
+      overflow: visible;
+      flex: unset;
+    }
+    #snapshot-panel {
+      max-height: unset;
+      overflow-y: visible;
+    }
+    #report-frame {
+      min-height: 80vh;
+      height: 80vh;
+    }
+    .snap-grid,
+    .snap-signal-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .report-item-name {
+      max-width: 200px;
+    }
+  }
 
   /* ── Not logged in overlay ── */
   #not-logged-in {
@@ -855,6 +896,11 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     document.querySelectorAll('.report-item').forEach(el => {
       el.classList.toggle('active', Number(el.dataset.id) === id);
     });
+
+    // 모바일: 선택 후 스냅샷 영역으로 스크롤
+    if (window.innerWidth <= 768) {
+      snap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   // ── 재분석 (스냅샷 유지 + iframe 하단 펼침) ──
