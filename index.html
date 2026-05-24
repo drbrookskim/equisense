@@ -1160,6 +1160,25 @@
 //  라이트/다크 모드
 // ══════════════════════════════════════════════════════
 const THEME_KEY = 'tsa_theme';
+
+// ── 환경설정 (유저별) ──────────────────────────────────────
+function prefsKey() { return currentUser() ? `signnith_prefs_${currentUser()}` : null; }
+function loadPrefs() {
+  const key = prefsKey();
+  if (!key) return {};
+  try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch { return {}; }
+}
+function savePrefs(patch) {
+  const key = prefsKey();
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify({ ...loadPrefs(), ...patch }));
+}
+function applyPrefs() {
+  const p = loadPrefs();
+  if (p.style)  { const el = document.getElementById('style-select');  if (el) el.value = p.style; }
+  if (p.period) { const el = document.getElementById('period-select'); if (el) el.value = p.period; }
+  if (p.theme)  applyTheme(p.theme);
+}
 // 테마 순서: dark → light → system
 const THEME_CYCLE = ['dark', 'light', 'system'];
 const THEME_ICONS = { dark: '🌙', light: '🌞', system: '🖥️' };
@@ -1175,6 +1194,7 @@ function applyTheme(theme) {
     : theme;
   document.documentElement.classList.toggle('light', resolved === 'light');
   localStorage.setItem(THEME_KEY, theme);
+  savePrefs({ theme });
   // 설정 모달 버튼 활성 상태 반영
   ['dark','light','system'].forEach(t => {
     const b = document.getElementById(`theme-btn-${t}`);
@@ -1634,6 +1654,7 @@ function cyclePeriod() {
   sel.value = next.v;
   const lbl = document.getElementById('period-label');
   if (lbl) lbl.textContent = next.l;
+  savePrefs({ period: next.v });
 }
 function cycleStyle() {
   const sel = document.getElementById('style-select');
@@ -1642,6 +1663,7 @@ function cycleStyle() {
   sel.value = next.v;
   const lbl = document.getElementById('style-label');
   if (lbl) lbl.textContent = next.l;
+  savePrefs({ style: next.v });
 }
 function syncCircleLabels() {
   const pv = document.getElementById('period-select')?.value || '6mo';
@@ -1671,7 +1693,7 @@ function setTicker(t, el) {
 // ══════════════════════════════════════════════════════
 //  즐겨찾기
 // ══════════════════════════════════════════════════════
-const FAV_KEY = 'tsa_favorites_v2'; // v2: name+market 필드 포함
+function favKey() { return currentUser() ? `signnith_favorites_${currentUser()}` : null; }
 const DEFAULT_FAVS = {
   us:  [
     { ticker:'AAPL',    name:'Apple',     market:'NASDAQ' },
@@ -1694,15 +1716,19 @@ const DEFAULT_FAVS = {
 };
 
 function loadFavs() {
+  const key = favKey();
+  if (!key) return JSON.parse(JSON.stringify(DEFAULT_FAVS));
   try {
-    const saved = JSON.parse(localStorage.getItem(FAV_KEY));
+    const saved = JSON.parse(localStorage.getItem(key));
     if (saved && saved.us && saved.kr) return saved;
   } catch {}
-  return JSON.parse(JSON.stringify(DEFAULT_FAVS)); // deep copy
+  return JSON.parse(JSON.stringify(DEFAULT_FAVS));
 }
 
 function saveFavs(favs) {
-  localStorage.setItem(FAV_KEY, JSON.stringify(favs));
+  const key = favKey();
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify(favs));
 }
 
 function isFaved(ticker) {
@@ -1837,30 +1863,38 @@ function updateFavBtn(ticker) {
 }
 
 // ── 검색 기록 ──────────────────────────────────────────
-const HISTORY_KEY = 'tsa_history';
-const HISTORY_MAX = 10;
+function histKey() { return currentUser() ? `signnith_history_${currentUser()}` : null; }
+const HISTORY_MAX = 20;
 
 function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  const key = histKey();
+  if (!key) return [];
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); }
   catch { return []; }
 }
 
 function saveHistory(ticker, companyName) {
+  const key = histKey();
+  if (!key) return;
   let list = loadHistory().filter(h => h.ticker !== ticker);
-  list.unshift({ ticker, name: companyName || ticker });
+  list.unshift({ ticker, name: companyName || ticker, searchedAt: new Date().toISOString() });
   if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  localStorage.setItem(key, JSON.stringify(list));
   renderHistory();
 }
 
 function removeHistory(ticker) {
+  const key = histKey();
+  if (!key) return;
   const list = loadHistory().filter(h => h.ticker !== ticker);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  localStorage.setItem(key, JSON.stringify(list));
   renderHistory();
 }
 
 function clearHistory() {
-  localStorage.removeItem(HISTORY_KEY);
+  const key = histKey();
+  if (!key) return;
+  localStorage.removeItem(key);
   renderHistory();
 }
 
@@ -3135,6 +3169,28 @@ async function runAnalysis() {
       techScore:   decision.techScore,
       fundScore:   decision.fundScore,
       combined:    decision.combined,
+      advancedComposite: decision.advancedComposite,
+      advanced: {
+        composite: advanced.composite,
+        details: Object.fromEntries(
+          Object.entries(advanced.details).map(([k,v]) => [k, { score: v.score, label: v.label }])
+        ),
+      },
+      ipp: {
+        ipp_score:  ipp.ipp_score,
+        direction:  ipp.direction,
+        eta_days:   ipp.eta_days,
+        confidence: ipp.confidence,
+        signals:    ipp.signals,
+      },
+      keyIndicators: {
+        rsi:      tech.indicators.rsi,
+        macd:     tech.indicators.macdHist,
+        bbPct:    tech.indicators.bbPct,
+        atr:      tech.indicators.atr,
+        volRatio: tech.indicators.volRatio,
+        stochK:   tech.indicators.stochK,
+      },
     });
 
     // StockTwits 심리 비동기 (번역 포함)
@@ -5324,6 +5380,9 @@ async function authLogin() {
   const session = { email, remember, loginAt: Date.now() };
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
   closeAuthModal();
+  applyPrefs();
+  renderFavs();
+  renderHistory();
   if (archiveWin) archiveWin.location.href = 'archive.html';
   else window.open('archive.html', '_blank');
 }
@@ -5353,6 +5412,9 @@ async function authSignup() {
   // 가입 후 자동 로그인
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ email, remember: false, loginAt: Date.now() }));
   closeAuthModal();
+  applyPrefs();
+  renderFavs();
+  renderHistory();
   if (archiveWin) archiveWin.location.href = 'archive.html';
   else window.open('archive.html', '_blank');
 }
@@ -5415,6 +5477,8 @@ function authLogout() {
   localStorage.removeItem(AUTH_SESSION_KEY);
   closeSettings();
   updateTopbarUser();
+  renderFavs();
+  renderHistory();
 }
 
 function updateTopbarUser() {

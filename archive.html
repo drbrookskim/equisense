@@ -322,6 +322,92 @@
     display: none;
   }
 
+  /* ── 스냅샷 패널 ── */
+  #snapshot-panel {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .snap-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .snap-title { font-size: 1.3rem; font-weight: 700; color: var(--text); }
+  .snap-meta  { font-size: 0.72rem; color: var(--muted); }
+  .snap-action-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .snap-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 20px;
+    letter-spacing: .04em;
+  }
+  .snap-badge.BUY  { background: rgba(0,212,170,0.15); color: var(--green); border: 1px solid rgba(0,212,170,0.3); }
+  .snap-badge.SELL { background: rgba(255,75,110,0.15); color: var(--red);   border: 1px solid rgba(255,75,110,0.3); }
+  .snap-badge.HOLD { background: rgba(251,191,36,0.12); color: var(--yellow);border: 1px solid rgba(251,191,36,0.25); }
+  .snap-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px;
+  }
+  .snap-section-title {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .snap-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .snap-kv {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .snap-kv-label { font-size: 0.68rem; color: var(--muted); }
+  .snap-kv-val   { font-size: 0.88rem; font-weight: 600; color: var(--text2); }
+  .snap-signal-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .snap-sig-chip {
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .snap-sig-chip .sig-name { font-size: 0.68rem; color: var(--muted); margin-bottom: 3px; }
+  .snap-sig-chip .sig-val  { font-size: 0.82rem; font-weight: 700; }
+  .btn-reanalyze {
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border2);
+    background: rgba(59,130,246,0.12);
+    color: var(--blue);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-reanalyze:hover { background: rgba(59,130,246,0.25); }
+
   /* ── Not logged in overlay ── */
   #not-logged-in {
     position: fixed;
@@ -426,6 +512,7 @@
       <div class="icon">📄</div>
       <p>좌측 목록에서 종목을 선택하세요</p>
     </div>
+    <div id="snapshot-panel"></div>
     <iframe id="report-frame" title="리포트"></iframe>
   </section>
 
@@ -657,26 +744,121 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     renderList(filtered);
   };
 
+  // ── 숫자 포맷 ──
+  function fmtNum(v, isKr) {
+    if (v == null || isNaN(v)) return '-';
+    if (isKr) return v >= 1000 ? v.toLocaleString('ko-KR') : v.toFixed(0);
+    return v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toFixed(2);
+  }
+
+  // ── 스냅샷 패널 렌더링 ──
+  function renderSnapshot(r) {
+    const adv  = r.advanced;
+    const ipp  = r.ipp;
+    const ki   = r.keyIndicators;
+    const isKr = r.isKr;
+
+    const actionColor = r.action === 'BUY' ? 'var(--green)' : r.action === 'SELL' ? 'var(--red)' : 'var(--yellow)';
+    const confPct = Math.round((r.confidence || 0) * 100);
+
+    // 고급 시그널 칩
+    const sigNameMap = { cs:'캔들스틱', ew:'엘리어트', ichi:'일목균형표', smc:'SMC', quant:'퀀트', wacc:'WACC', ipp:'변곡점(IPP)' };
+    const sigChips = adv ? Object.entries(adv.details).map(([k, v]) => {
+      const bg = v.score > 0 ? 'rgba(0,212,170,0.12)' : v.score < 0 ? 'rgba(255,75,110,0.12)' : 'rgba(128,128,128,0.08)';
+      const tc = v.score > 0 ? 'var(--green)' : v.score < 0 ? 'var(--red)' : 'var(--muted)';
+      return `<div class="snap-sig-chip" style="background:${bg}">
+        <div class="sig-name">${sigNameMap[k] || k}</div>
+        <div class="sig-val" style="color:${tc}">${v.label}</div>
+      </div>`;
+    }).join('') : '<div style="color:var(--muted);font-size:0.78rem">데이터 없음 (구버전 저장)</div>';
+
+    // IPP 섹션
+    const ippDirMap = { BULLISH_REVERSAL: '🟢 상승전환 임박', BEARISH_REVERSAL: '🔴 하락전환 임박', NEUTRAL: '🟡 중립' };
+    const ippSection = ipp ? `
+      <div class="snap-section">
+        <div class="snap-section-title">변곡점 예측 (IPP)</div>
+        <div class="snap-grid">
+          <div class="snap-kv"><span class="snap-kv-label">IPP 스코어</span><span class="snap-kv-val" style="color:${ipp.ipp_score>=20?'var(--green)':ipp.ipp_score<=-20?'var(--red)':'var(--yellow)'}">${ipp.ipp_score >= 0 ? '+' : ''}${ipp.ipp_score}</span></div>
+          <div class="snap-kv"><span class="snap-kv-label">방향</span><span class="snap-kv-val">${ippDirMap[ipp.direction] || ipp.direction}</span></div>
+          <div class="snap-kv"><span class="snap-kv-label">ETA / 신뢰도</span><span class="snap-kv-val">${ipp.eta_days}일 · ${ipp.confidence}%</span></div>
+        </div>
+        ${ipp.signals?.length ? `<div style="margin-top:10px;font-size:0.72rem;color:var(--muted2)">${ipp.signals.join(' · ')}</div>` : ''}
+      </div>` : '';
+
+    // 기술 지표
+    const kiSection = ki ? `
+      <div class="snap-section">
+        <div class="snap-section-title">주요 기술 지표</div>
+        <div class="snap-grid">
+          <div class="snap-kv"><span class="snap-kv-label">RSI</span><span class="snap-kv-val" style="color:${ki.rsi<30?'var(--green)':ki.rsi>70?'var(--red)':'var(--text2)'}">${ki.rsi?.toFixed(1) ?? '-'}</span></div>
+          <div class="snap-kv"><span class="snap-kv-label">MACD Hist</span><span class="snap-kv-val" style="color:${(ki.macd??0)>0?'var(--green)':'var(--red)'}">${ki.macd?.toFixed(3) ?? '-'}</span></div>
+          <div class="snap-kv"><span class="snap-kv-label">BB %B</span><span class="snap-kv-val">${ki.bbPct != null ? (ki.bbPct*100).toFixed(0)+'%' : '-'}</span></div>
+          <div class="snap-kv"><span class="snap-kv-label">Stoch %K</span><span class="snap-kv-val">${ki.stochK?.toFixed(1) ?? '-'}</span></div>
+          <div class="snap-kv"><span class="snap-kv-label">ATR</span><span class="snap-kv-val">${fmtNum(ki.atr, isKr)}</span></div>
+          <div class="snap-kv"><span class="snap-kv-label">거래량 비율</span><span class="snap-kv-val">${ki.volRatio?.toFixed(2) ?? '-'}x</span></div>
+        </div>
+      </div>` : '';
+
+    return `
+      <div class="snap-header">
+        <div>
+          <div class="snap-title">${flag(isKr, r.ticker)} ${r.companyName || r.ticker}</div>
+          <div class="snap-meta">${r.ticker} · ${fmtDate(r.savedAt)} 저장</div>
+        </div>
+        <button class="btn-reanalyze" onclick="reanalyze(${r.id})">🔄 현재 기준 재분석</button>
+      </div>
+
+      <div class="snap-action-row">
+        <span class="snap-badge ${r.action}">${r.action}</span>
+        <span style="font-size:0.82rem;color:var(--text2)">신뢰도 <b style="color:${actionColor}">${confPct}%</b></span>
+        <span style="font-size:0.82rem;color:var(--muted)">저장 가격 <b style="color:var(--text2)">${fmtNum(r.price, isKr)} ${r.currency}</b></span>
+        <span style="font-size:0.82rem;color:var(--muted)">복합점수 <b style="color:${actionColor}">${r.combined >= 0 ? '+' : ''}${(r.combined||0).toFixed(3)}</b></span>
+      </div>
+
+      ${adv ? `
+      <div class="snap-section">
+        <div class="snap-section-title">고급 분석 시그널 · 복합점수 ${adv.composite >= 0 ? '+' : ''}${adv.composite.toFixed(3)}</div>
+        <div class="snap-signal-grid">${sigChips}</div>
+      </div>` : ''}
+
+      ${ippSection}
+      ${kiSection}
+    `;
+  }
+
   // ── 리포트 선택 ──
   window.selectReport = function(id) {
     const r = allReports.find(x => x.id === id);
     if (!r) return;
     activeId = id;
 
-    const frame  = document.getElementById('report-frame');
-    const empty  = document.getElementById('viewer-empty');
-    const period = r.period || '6mo';
-    const style  = r.style  || 'balanced';
-    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
+    const snap  = document.getElementById('snapshot-panel');
+    const frame = document.getElementById('report-frame');
+    const empty = document.getElementById('viewer-empty');
 
-    empty.style.display  = 'none';
-    frame.style.display  = 'block';
-    frame.src            = url;
+    empty.style.display = 'none';
+    frame.style.display = 'none';
+    frame.src           = '';
+    snap.style.display  = 'flex';
+    snap.innerHTML      = renderSnapshot(r);
 
-    // 사이드바 active 표시 업데이트
     document.querySelectorAll('.report-item').forEach(el => {
       el.classList.toggle('active', Number(el.dataset.id) === id);
     });
+  };
+
+  // ── 재분석 (iframe 로드) ──
+  window.reanalyze = function(id) {
+    const r = allReports.find(x => x.id === id);
+    if (!r) return;
+    const snap   = document.getElementById('snapshot-panel');
+    const frame  = document.getElementById('report-frame');
+    const period = r.period || '6mo';
+    const style  = r.style  || 'balanced';
+    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
+    snap.style.display  = 'none';
+    frame.style.display = 'block';
+    frame.src           = url;
   };
 
   // ── 리포트 삭제 ──
@@ -689,6 +871,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       activeId = null;
       document.getElementById('report-frame').style.display = 'none';
       document.getElementById('report-frame').src = '';
+      document.getElementById('snapshot-panel').style.display = 'none';
       document.getElementById('viewer-empty').style.display = 'flex';
     }
     filterList();
