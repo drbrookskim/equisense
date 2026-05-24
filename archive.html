@@ -1090,9 +1090,13 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
           applyWidths();
         }
 
+        const frame = document.getElementById('report-frame');
+        if (frame) frame.style.pointerEvents = 'none';
+
         function onUp() {
           resizer.classList.remove('dragging');
           document.body.style.userSelect = '';
+          if (frame) frame.style.pointerEvents = '';
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup',   onUp);
         }
