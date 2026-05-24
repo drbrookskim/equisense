@@ -792,7 +792,13 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
   // 로그인 상태
   document.getElementById('topbar').style.display = 'flex';
-  document.getElementById('main-area').style.display = window.innerWidth <= 768 ? 'flex' : 'grid';
+  function syncLayout() {
+    const m = document.getElementById('main-area');
+    if (!m || m.style.display === 'none') return;
+    m.style.display = window.innerWidth <= 768 ? 'flex' : 'grid';
+  }
+  syncLayout();
+  window.addEventListener('resize', syncLayout);
   document.getElementById('user-email-display').textContent = email;
 
   // ── 리포트 불러오기 ──
