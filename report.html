@@ -1180,9 +1180,10 @@ function computeIPP(bars, ind) {
 // ind 마지막 값 헬퍼 (기존 last와 충돌 방지)
 function lastVal(arr) { if (!arr || arr.length === 0) return null; return arr[arr.length-1]; }
 
-function fuseAdvancedSignals(cs,ew,ichi,smc,quant){
-  const W={cs:1.5,ew:2.0,ichi:1.5,smc:1.5,quant:2.0};
-  const sigs={cs:cs.cs_signal,ew:ew.ew_signal,ichi:ichi.ichi_signal,smc:smc.smc_signal,quant:quant.quant_signal};
+function fuseAdvancedSignals(cs,ew,ichi,smc,quant,ipp){
+  const W={cs:1.5,ew:2.0,ichi:1.5,smc:1.5,quant:2.0,ipp:2.0};
+  const ippSig=ipp?.ipp_score>=20?1:ipp?.ipp_score<=-20?-1:0;
+  const sigs={cs:cs.cs_signal,ew:ew.ew_signal,ichi:ichi.ichi_signal,smc:smc.smc_signal,quant:quant.quant_signal,ipp:ippSig};
   let wsum=0,wtotal=0;const details={};
   for(const[key,w]of Object.entries(W)){const val=sigs[key]||0;wsum+=val*w;wtotal+=w;details[key]={score:val,weight:w,label:val>0?'▲ 매수':val<0?'▼ 매도':'— 관망'};}
   return{composite:wtotal>0?wsum/wtotal:0,details};
@@ -1320,7 +1321,7 @@ function renderReport(data) {
         lines.push(`<b>② 기술 지표</b>: RSI ${I.rsi?.toFixed(0)??'-'} ${rsiTag} &nbsp;·&nbsp; MACD ${macdTag} &nbsp;·&nbsp; BB %B ${((I.bbPct??0.5)*100).toFixed(0)}% ${bbTag} &nbsp;·&nbsp; 거래량 ${(I.volRatio??1).toFixed(2)}x ${volTag}`);
 
         // ③ 고급 분석 5개 레이어
-        const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'일목균형표',smc:'SMC',quant:'퀀트'};
+        const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'일목균형표',smc:'SMC',quant:'퀀트',ipp:'변곡점(IPP)'};
         const advLine = Object.entries(advanced.details).map(([k,v])=>{
           const c = v.score>0?'tag-buy':v.score<0?'tag-sell':'';
           return `${nm[k]||k}: <span class="${c}">${v.label}</span>`;
@@ -1882,7 +1883,7 @@ function renderReport(data) {
     const smc      = computeSMC(bars);
     const quant    = computeQuantFactors(bars, ind);
     const ipp      = computeIPP(bars, ind);
-    const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant);
+    const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant, ipp);
     const d        = makeDecision(tech, fund, style, price, advanced);
 
     // 종목명 우선순위: fundInfo → quote longName/shortName → KR_NAME_MAP → EN_TICKER_NAME_R → ticker

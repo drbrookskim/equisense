@@ -2785,7 +2785,7 @@ function computeIPP(bars, ind) {
 // ══════════════════════════════════════════════════════
 //  Layer 5: 시그널 통합 (가중 평균)
 // ══════════════════════════════════════════════════════
-const MASTER_WEIGHTS = { cs: 1.5, ew: 2.0, ichi: 1.5, smc: 1.5, quant: 2.0, wacc: 1.5 };
+const MASTER_WEIGHTS = { cs: 1.5, ew: 2.0, ichi: 1.5, smc: 1.5, quant: 2.0, wacc: 1.5, ipp: 2.0 };
 
 // WACC vs ROE 비교로 매매 시그널 산출
 // ROE > WACC × 1.2 → 가치창출(매수 +1)
@@ -2802,8 +2802,9 @@ function computeWACCSignal(waccResult, fundMetrics) {
   return 0;
 }
 
-function fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fundMetrics) {
+function fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fundMetrics, ipp) {
   const waccSig = computeWACCSignal(waccResult, fundMetrics);
+  const ippSig = ipp?.ipp_score >= 20 ? 1 : ipp?.ipp_score <= -20 ? -1 : 0;
   const signals = {
     cs:   cs.cs_signal,
     ew:   ew.ew_signal,
@@ -2811,6 +2812,7 @@ function fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fundMetrics) 
     smc:  smc.smc_signal,
     quant: quant.quant_signal,
     wacc: waccSig,
+    ipp:  ippSig,
   };
   let wsum = 0, wtotal = 0;
   const details = {};
@@ -3089,7 +3091,7 @@ async function runAnalysis() {
     const ipp      = computeIPP(bars, ind);
     // Layer 5: Signal fusion (waccResult 계산 후 전달)
     const waccResult = computeWACC(fundInfo, isKr);
-    const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fund.metrics);
+    const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant, waccResult, fund.metrics, ipp);
 
     const decision = makeDecision(tech, fund, style, price, advanced);
 
@@ -3479,7 +3481,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
   <!-- ── Row 2-A: 고급 분석 시그널 (full-width) ── -->
   <div class="row" style="margin-top:0;grid-template-columns:1fr">
     <div class="card">
-      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널 ${tip('6개 레이어를 가중 평균한 종합 매매 신호\n각 레이어의 w(가중치)가 높을수록\n최종 복합점수에 더 큰 영향을 미침\n+1=매수 / 0=중립 / -1=매도')}
+      <div class="card-header"><span class="dot" style="background:var(--orange)"></span>고급 분석 시그널 ${tip('7개 레이어를 가중 평균한 종합 매매 신호\n각 레이어의 w(가중치)가 높을수록\n최종 복합점수에 더 큰 영향을 미침\n+1=매수 / 0=중립 / -1=매도')}
         <span style="float:right;font-weight:800;font-size:1rem;color:${d.advancedComposite>0.2?'var(--up)':d.advancedComposite<-0.2?'var(--down)':'var(--yellow)'}">
           복합점수 ${d.advancedComposite>=0?'+':''}${d.advancedComposite.toFixed(3)}
           <span style="font-size:0.68rem;font-weight:400;color:var(--muted);margin-left:6px">${d.advancedComposite>0.3?'LONG':d.advancedComposite<-0.3?'SHORT':'STAND ASIDE'}</span>
@@ -3487,7 +3489,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         ${Object.entries(advanced.details).map(([key, v]) => {
-          const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'일목균형표', smc:'SMC', quant:'퀀트팩터', wacc:'WACC' };
+          const nameMap = { cs:'캔들스틱', ew:'엘리어트파동', ichi:'일목균형표', smc:'SMC', quant:'퀀트팩터', wacc:'WACC', ipp:'변곡점(IPP)' };
           const tipMap  = {
             cs:   '최근 봉 패턴으로 단기 방향 판단\n매수 패턴 수 - 매도 패턴 수 = cs_score\n+→매수 / -→매도 / 0→중립',
             ew:   '중장기 파동 구조 분석 (가중치 최고)\n5파 완성 → 조정 예상(매도)\nABC조정 완료 → 반등 예상(매수)',
@@ -3495,6 +3497,7 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
             smc:  '기관·세력 거래 흔적 분석\nBOS·FVG·OB 중 하나라도 매수 신호면 +1\n모두 없거나 반대면 0/-1',
             quant:'모멘텀·추세·RSI·MACD·BB %B 팩터\nZ-스코어 가중 평균 → -1~+1 스코어',
             wacc: 'WACC vs ROE 가치창출 분석\nROE > WACC×1.2 → 가치창출(매수)\nROE < WACC×0.8 → 가치훼손(매도)\n그 외 → 중립',
+            ipp:  'IPP 변곡점 예측\nRSI·OBV·BB수축·ATR수축·거래량 이상 규칙 기반\nIPP≥+20 → 상승전환 임박(매수)\nIPP≤-20 → 하락전환 임박(매도)',
           };
           const bg = v.score>0?'rgba(52,211,153,0.12)':v.score<0?'rgba(255,75,110,0.12)':'var(--border)';
           const tc = v.score>0?'var(--green)':v.score<0?'var(--red)':'var(--muted)';
