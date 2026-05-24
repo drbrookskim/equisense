@@ -317,8 +317,9 @@
   #report-frame {
     flex: 1;
     border: none;
+    border-top: 1px solid var(--border);
     width: 100%;
-    height: 100%;
+    min-height: 600px;
     display: none;
   }
 
@@ -327,9 +328,18 @@
     display: none;
     flex-direction: column;
     gap: 16px;
-    padding: 24px;
+    padding: 24px 28px;
     overflow-y: auto;
-    flex: 1;
+    flex-shrink: 0;
+    max-height: 55vh;
+  }
+  .snap-inner {
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
   }
   .snap-header {
     display: flex;
@@ -799,13 +809,13 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
         </div>
       </div>` : '';
 
-    return `
+    return `<div class="snap-inner">
       <div class="snap-header">
         <div>
           <div class="snap-title">${flag(isKr, r.ticker)} ${r.companyName || r.ticker}</div>
           <div class="snap-meta">${r.ticker} · ${fmtDate(r.savedAt)} 저장</div>
         </div>
-        <button class="btn-reanalyze" onclick="reanalyze(${r.id})">🔄 현재 기준 재분석</button>
+        <button class="btn-reanalyze" id="btn-reanalyze-${r.id}" onclick="reanalyze(${r.id})">🔄 현재 기준 재분석</button>
       </div>
 
       <div class="snap-action-row">
@@ -823,7 +833,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
       ${ippSection}
       ${kiSection}
-    `;
+    </div>`;
   }
 
   // ── 리포트 선택 ──
@@ -847,18 +857,28 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     });
   };
 
-  // ── 재분석 (iframe 로드) ──
+  // ── 재분석 (스냅샷 유지 + iframe 하단 펼침) ──
   window.reanalyze = function(id) {
     const r = allReports.find(x => x.id === id);
     if (!r) return;
-    const snap   = document.getElementById('snapshot-panel');
     const frame  = document.getElementById('report-frame');
+    const btn    = document.getElementById(`btn-reanalyze-${id}`);
     const period = r.period || '6mo';
     const style  = r.style  || 'balanced';
-    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
-    snap.style.display  = 'none';
+
+    if (frame.style.display === 'block') {
+      // 이미 열려 있으면 닫기 (토글)
+      frame.style.display = 'none';
+      frame.src           = '';
+      if (btn) btn.textContent = '🔄 현재 기준 재분석';
+      return;
+    }
+
+    const url = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
     frame.style.display = 'block';
     frame.src           = url;
+    if (btn) btn.textContent = '✕ 리포트 닫기';
+    frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   // ── 리포트 삭제 ──
