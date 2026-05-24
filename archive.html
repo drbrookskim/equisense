@@ -197,10 +197,10 @@
     backdrop-filter: blur(2px);
   }
 
-  /* ── Main layout: PC 3컬럼 ── */
+  /* ── Main layout: PC 5트랙 (사이드바 | 리사이저 | 스냅샷 | 리사이저 | 리포트) ── */
   .main {
     display: grid;
-    grid-template-columns: 220px 320px 1fr;
+    grid-template-columns: 220px 5px 320px 5px 1fr;
     grid-template-rows: 1fr;
     flex: 1;
     overflow: hidden;
@@ -432,6 +432,20 @@
   }
   .btn-reanalyze:hover { background: rgba(59,130,246,0.25); }
 
+  /* ── 컬럼 리사이저 ── */
+  .col-resizer {
+    width: 5px;
+    cursor: col-resize;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: background .15s;
+    position: relative;
+    z-index: 10;
+  }
+  .col-resizer:hover,
+  .col-resizer.dragging { background: var(--blue); }
+  @media (max-width: 768px) { .col-resizer { display: none; } }
+
   /* ── 리포트 컬럼 (PC 우측) ── */
   .report-col {
     display: flex;
@@ -606,6 +620,7 @@
   </aside>
 
   <!-- 스냅샷 컬럼 -->
+  <div class="col-resizer" id="resizer-left"></div>
   <section class="snapshot-col">
     <div class="col-empty" id="snap-empty">
       <div class="icon">📋</div>
@@ -615,6 +630,7 @@
   </section>
 
   <!-- 리포트 컬럼 -->
+  <div class="col-resizer" id="resizer-right"></div>
   <section class="report-col">
     <div class="col-empty" id="report-empty">
       <div class="icon">📈</div>
@@ -776,7 +792,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
   // 로그인 상태
   document.getElementById('topbar').style.display = 'flex';
-  document.getElementById('main-area').style.display = 'flex';
+  document.getElementById('main-area').style.display = window.innerWidth <= 768 ? 'flex' : 'grid';
   document.getElementById('user-email-display').textContent = email;
 
   // ── 리포트 불러오기 ──
@@ -1043,6 +1059,48 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     else              localStorage.removeItem(AUTH_SESSION_KEY);
     window.location.href = 'index.html';
   };
+
+  // ── 컬럼 리사이저 ──
+  // grid: 220px 5px 320px 5px 1fr
+  // resizerL → 트랙 0(사이드바) 너비 조절
+  // resizerR → 트랙 2(스냅샷) 너비 조절
+  (function initResizer() {
+    if (window.innerWidth <= 768) return;
+    const main = document.getElementById('main-area');
+
+    function getCols() {
+      return getComputedStyle(main).gridTemplateColumns.split(' ').map(v => parseFloat(v));
+    }
+
+    function attach(resizer, trackIdx) {
+      resizer.addEventListener('mousedown', e => {
+        e.preventDefault();
+        resizer.classList.add('dragging');
+        const startX = e.clientX;
+        const startW = getCols()[trackIdx];
+
+        function onMove(e) {
+          const cols = getCols();
+          const newW = Math.max(160, Math.min(520, startW + (e.clientX - startX)));
+          cols[trackIdx] = newW;
+          main.style.gridTemplateColumns =
+            `${cols[0]}px 5px ${cols[2]}px 5px 1fr`;
+        }
+
+        function onUp() {
+          resizer.classList.remove('dragging');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup',   onUp);
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onUp);
+      });
+    }
+
+    attach(document.getElementById('resizer-left'),  0);
+    attach(document.getElementById('resizer-right'), 2);
+  })();
 
   // ── 초기 로드 ──
   loadReports();
