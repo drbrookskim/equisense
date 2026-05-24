@@ -1,11 +1,6 @@
 import { Suspense } from 'react'
-import { readWatchlist } from '@/lib/watchlist'
 import Header from '@/components/layout/Header'
 import TabNav from '@/components/layout/TabNav'
-
-export function generateStaticParams() {
-  return readWatchlist().companies.map((c) => ({ ticker: c.ticker }))
-}
 
 export default async function CompanyLayout({
   children,

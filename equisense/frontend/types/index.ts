@@ -151,30 +151,15 @@ export interface TriggerQualitativeResponse {
 }
 
 // ──────────────────────────────────────────────
-// Watchlist
+// 공통 에러
 // ──────────────────────────────────────────────
 
-export interface WatchlistCompany {
-  ticker: string
-  market: Market
-  name: string
+export interface ApiError {
+  code: string
+  message: string
+  request_id: string
 }
 
-export interface Watchlist {
-  companies: WatchlistCompany[]
-}
-
-// ──────────────────────────────────────────────
-// Qualitative Index
-// ──────────────────────────────────────────────
-
-export interface QualitativeIndexEntry {
-  year: number
-  doc_type: DocType
-  file: string
-  analyzed_at: string
-}
-
-export interface QualitativeIndex {
-  analyses: QualitativeIndexEntry[]
+export interface ApiErrorResponse {
+  error: ApiError
 }
