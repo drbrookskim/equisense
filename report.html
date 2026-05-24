@@ -1113,6 +1113,73 @@ function computeQuantFactors(bars,ind){
   return{quant_signal:factor_score>0.3?1:factor_score<-0.3?-1:0,factor_score,mom1m:mom1m!=null?mom1m*100:null,mom3m:mom3m!=null?mom3m*100:null,mom6m:mom6m!=null?mom6m*100:null,vol20:vol20!=null?vol20*100:null,above_ma20,above_ma60};
 }
 
+function computeIPP(bars, ind) {
+  const n = bars.length;
+  if (n < 30) return { ipp_score: 0, direction: 'NEUTRAL', eta_days: 5, confidence: 0, signals: [] };
+  const C = bars.map(b => b.close), H = bars.map(b => b.high), L = bars.map(b => b.low), V = bars.map(b => b.volume || 0);
+  const li = n - 1;
+
+  // 규칙 기반 신호 탐지
+  const signals = [];
+  let rule_score = 0;
+
+  // RSI 과매도/과매수
+  const rsi = last(ind.rsi);
+  if (rsi != null && rsi < 30)  { rule_score += 20; signals.push('🔴 RSI 과매도 (' + rsi.toFixed(1) + ')'); }
+  if (rsi != null && rsi > 70)  { rule_score -= 20; signals.push('🔵 RSI 과매수 (' + rsi.toFixed(1) + ')'); }
+
+  // 연속 하락 4일+ + 긴 아래꼬리
+  let consec_down = 0;
+  for (let i = li; i >= Math.max(0, li-5); i--) { if (C[i] < C[i-1]) consec_down++; else break; }
+  const body = Math.abs(C[li] - bars[li].open);
+  const lower_shadow = Math.min(C[li], bars[li].open) - L[li];
+  if (consec_down >= 4 && lower_shadow > body * 1.5) { rule_score += 25; signals.push('🔨 ' + consec_down + '일 연속하락 + 긴 아래꼬리'); }
+
+  // 연속 상승 4일+ + 긴 윗꼬리
+  let consec_up = 0;
+  for (let i = li; i >= Math.max(0, li-5); i--) { if (C[i] > C[i-1]) consec_up++; else break; }
+  const upper_shadow = H[li] - Math.max(C[li], bars[li].open);
+  if (consec_up >= 4 && upper_shadow > body * 1.5) { rule_score -= 25; signals.push('⚡ ' + consec_up + '일 연속상승 + 긴 윗꼬리'); }
+
+  // OBV 다이버전스
+  let obv = 0; const obvArr = [];
+  for (let i = 0; i < n; i++) { obv += (i === 0 ? 0 : C[i] > C[i-1] ? V[i] : C[i] < C[i-1] ? -V[i] : 0); obvArr.push(obv); }
+  const obvSlope = n >= 10 ? obvArr[li] - obvArr[li-10] : 0;
+  const priceSlope = n >= 10 ? C[li] - C[li-10] : 0;
+  if (obvSlope > 0 && priceSlope < 0) { rule_score += 20; signals.push('📈 OBV↑ + 주가↓ (강세 다이버전스)'); }
+  if (obvSlope < 0 && priceSlope > 0) { rule_score -= 20; signals.push('📉 OBV↓ + 주가↑ (약세 다이버전스)'); }
+
+  // 거래량 수렴/급증
+  if (n >= 21) {
+    const vol20avg = V.slice(li-19, li+1).reduce((a,b) => a+b, 0) / 20;
+    const vol5avg  = V.slice(li-4,  li+1).reduce((a,b) => a+b, 0) / 5;
+    const volRatio = vol20avg > 0 ? vol5avg / vol20avg : 1;
+    if (volRatio < 0.5) { rule_score += 10; signals.push('📊 거래량 바닥 수렴 (' + volRatio.toFixed(2) + 'x)'); }
+    if (volRatio > 2.0 && Math.abs(priceSlope) / C[li-10] < 0.01) { rule_score -= 15; signals.push('💥 거래량 급증 + 가격 미반응'); }
+  }
+
+  // 볼린저밴드 수축 (밴드폭 / 중심선)
+  const bbUv = last(ind.bbU), bbLv = last(ind.bbL), sma20v = last(ind.sma20);
+  const bbW = (bbUv != null && bbLv != null && sma20v != null && sma20v > 0) ? (bbUv - bbLv) / sma20v : null;
+  if (bbW != null && bbW < 0.05) { rule_score += 12; signals.push('🎯 BB 수축 (에너지 축적)'); }
+
+  // ATR 수축
+  const atr = last(ind.atr);
+  const atrMA = n >= 30 ? ind.atr.slice(li-29, li+1).filter(v=>v!=null).reduce((a,b)=>a+b,0)/30 : null;
+  if (atr != null && atrMA != null && atr < atrMA * 0.7) { rule_score += 10; signals.push('🔇 ATR 수축 (<0.7배, 변동성 소진)'); }
+
+  // 앙상블: 규칙 기반만 사용 (ML·뉴스는 브라우저 환경 불가)
+  const ipp_score = Math.max(-100, Math.min(100, rule_score));
+  const direction = ipp_score >= 20 ? 'BULLISH_REVERSAL' : ipp_score <= -20 ? 'BEARISH_REVERSAL' : 'NEUTRAL';
+  const confidence = Math.min(100, Math.round(Math.abs(ipp_score)));
+  const eta_days = Math.abs(ipp_score) >= 40 ? 3 : Math.abs(ipp_score) >= 20 ? 5 : 7;
+
+  return { ipp_score, direction, eta_days, confidence, signals };
+}
+
+// ind 마지막 값 헬퍼 (기존 last와 충돌 방지)
+function lastVal(arr) { if (!arr || arr.length === 0) return null; return arr[arr.length-1]; }
+
 function fuseAdvancedSignals(cs,ew,ichi,smc,quant){
   const W={cs:1.5,ew:2.0,ichi:1.5,smc:1.5,quant:2.0};
   const sigs={cs:cs.cs_signal,ew:ew.ew_signal,ichi:ichi.ichi_signal,smc:smc.smc_signal,quant:quant.quant_signal};
@@ -1211,7 +1278,7 @@ function metricBlock({ subTitle, barPct, barScore, valueText, descLabel, descHtm
 // ══════════════════════════════════════════════════════
 function renderReport(data) {
   const { ticker, companyName, sector, price, prevClose, isKr, currency,
-          ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced, waccResult, exchangeName, bars } = data;
+          ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced, ipp, waccResult, exchangeName, bars } = data;
 
   const changeAmt = prevClose ? price - prevClose : null;
   const changePct = prevClose ? (price / prevClose - 1) * 100 : null;
@@ -1253,7 +1320,7 @@ function renderReport(data) {
         lines.push(`<b>② 기술 지표</b>: RSI ${I.rsi?.toFixed(0)??'-'} ${rsiTag} &nbsp;·&nbsp; MACD ${macdTag} &nbsp;·&nbsp; BB %B ${((I.bbPct??0.5)*100).toFixed(0)}% ${bbTag} &nbsp;·&nbsp; 거래량 ${(I.volRatio??1).toFixed(2)}x ${volTag}`);
 
         // ③ 고급 분석 5개 레이어
-        const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'이치모쿠',smc:'SMC',quant:'퀀트'};
+        const nm = {cs:'캔들스틱',ew:'엘리어트',ichi:'일목균형표',smc:'SMC',quant:'퀀트'};
         const advLine = Object.entries(advanced.details).map(([k,v])=>{
           const c = v.score>0?'tag-buy':v.score<0?'tag-sell':'';
           return `${nm[k]||k}: <span class="${c}">${v.label}</span>`;
@@ -1300,9 +1367,9 @@ function renderReport(data) {
       barPct: advPct,
       barScore: d.advancedComposite,
       valueText: (d.advancedComposite>=0?'+':'')+d.advancedComposite.toFixed(3),
-      descLabel: '5개 레이어 가중 평균 (캔들·엘리어트·이치모쿠·SMC·퀀트)',
+      descLabel: '5개 레이어 가중 평균 (캔들·엘리어트·일목균형표·SMC·퀀트)',
       descHtml: Object.entries(advanced.details).map(([k,v])=>{
-        const nm={cs:'캔들스틱',ew:'엘리어트파동',ichi:'이치모쿠',smc:'SMC',quant:'퀀트팩터'};
+        const nm={cs:'캔들스틱',ew:'엘리어트파동',ichi:'일목균형표',smc:'SMC',quant:'퀀트팩터'};
         const c=v.score>0?'tag-buy':v.score<0?'tag-sell':'';
         return `<b>${nm[k]||k}</b> (w=${v.weight}): <span class="${c}">${v.label}</span>`;
       }).join(' &nbsp;·&nbsp; ')
@@ -1404,11 +1471,11 @@ function renderReport(data) {
     })}
 
     ${metricBlock({
-      subTitle: '이치모쿠 균형표',
+      subTitle: '일목 균형표',
       barPct: scoreToPct(ichi.ichi_signal),
       barScore: ichi.ichi_signal,
       valueText: ichi.aboveCloud ? '구름 위' : ichi.belowCloud ? '구름 아래' : '구름 내',
-      descLabel: '이치모쿠 해석',
+      descLabel: '일목 균형표 해석',
       descHtml: `전환선: <b>${fmt(ichi.tenkan,isKr)}</b> / 기준선: <b>${fmt(ichi.kijun,isKr)}</b><br>선행스팬A: <b>${fmt(ichi.senkou_a,isKr)}</b> / 선행스팬B: <b>${fmt(ichi.senkou_b,isKr)}</b><br>${ichi.aboveCloud?'<span class="tag-buy">구름 위: 강세 추세</span>':ichi.belowCloud?'<span class="tag-sell">구름 아래: 약세 추세</span>':'<span class="tag-warn">구름 내: 방향성 불명확</span>'}`
     })}
 
@@ -1439,6 +1506,31 @@ function renderReport(data) {
         MA20 ${quant.above_ma20>0?'<span class="tag-buy">위</span>':'<span class="tag-sell">아래</span>'} &nbsp;·&nbsp;
         MA60 ${quant.above_ma60>0?'<span class="tag-buy">위</span>':'<span class="tag-sell">아래</span>'} &nbsp;·&nbsp;
         연환산 변동성: <b>${quant.vol20!=null?quant.vol20.toFixed(1)+'%':'-'}</b>`
+    })}
+  </div>`;
+
+  // ── 섹션 3-B: 변곡점 예측 (IPP) ──
+  const ippDirLabel = { BULLISH_REVERSAL: '🟢 상승전환 임박', BEARISH_REVERSAL: '🔴 하락전환 임박', NEUTRAL: '🟡 중립' };
+  const ippBarScore = Math.max(-1, Math.min(1, (ipp?.ipp_score ?? 0) / 100));
+  const sec3b = `
+  <div class="section-card">
+    <div class="section-title">🔮 변곡점 예측 (IPP)</div>
+    ${metricBlock({
+      subTitle: 'IPP Score — 방향 전환 가능성',
+      barPct: scoreToPct(ippBarScore),
+      barScore: ippBarScore,
+      valueText: (ipp.ipp_score >= 0 ? '+' : '') + ipp.ipp_score,
+      descLabel: '변곡점 예측 해석',
+      descHtml: `
+        <b>방향</b>: ${ippDirLabel[ipp.direction] ?? ipp.direction} &nbsp;·&nbsp;
+        <b>예상 ETA</b>: ${ipp.eta_days}일 이내 &nbsp;·&nbsp;
+        <b>신뢰도</b>: ${ipp.confidence}%<br>
+        RSI 다이버전스 · OBV · 볼린저밴드 수축 · ATR 수축 · 거래량 이상 · 캔들 패턴 등 규칙 기반 앙상블로 산출합니다.<br>
+        <span class="tag-buy">+20 이상</span> — 상승 반전 신호,
+        <span class="tag-sell">-20 이하</span> — 하락 반전 신호,
+        중간 — 방향성 불명확.
+        ${ipp.signals.length ? '<br><b>탐지 신호</b>: ' + ipp.signals.join(' &nbsp;·&nbsp; ') : ''}
+      `
     })}
   </div>`;
 
@@ -1662,6 +1754,7 @@ function renderReport(data) {
   ${sec2}
   ${sec2b}
   ${sec3}
+  ${sec3b}
   ${sec4}
   ${sec5}
   ${sec6}
@@ -1788,6 +1881,7 @@ function renderReport(data) {
     const ichi     = computeIchimoku(bars);
     const smc      = computeSMC(bars);
     const quant    = computeQuantFactors(bars, ind);
+    const ipp      = computeIPP(bars, ind);
     const advanced = fuseAdvancedSignals(cs, ew, ichi, smc, quant);
     const d        = makeDecision(tech, fund, style, price, advanced);
 
@@ -1806,7 +1900,7 @@ function renderReport(data) {
     // Exchange name for US stocks
     const exchangeName = isKr ? '' : (fundInfo.exchange || quote?.exchange || (ticker.includes('.') ? '' : (ticker.length <= 4 ? 'NYSE' : 'NASDAQ')));
     renderReport({
-      ticker, price, prevClose, isKr, currency, ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced,
+      ticker, price, prevClose, isKr, currency, ind, tech, fund, d, cs, ew, ichi, smc, quant, advanced, ipp,
       companyName, bars,
       sector: fundInfo.sector || '-',
       waccResult,
