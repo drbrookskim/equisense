@@ -209,9 +209,7 @@
     inset: 0;
     z-index: 200;
     background: rgba(0,0,0,0.5);
-    /* backdrop-filter 제거: iOS Safari에서 backdrop-filter가 있는 요소 위의
-       z-index 높은 요소(sidebar)에 터치 이벤트가 전달되지 않는 버그 방지 */
-    touch-action: manipulation;
+    pointer-events: none;  /* 순수 시각 효과만 — iOS Safari z-index 터치 라우팅 버그 방지 */
   }
 
   /* ── Main layout: PC 5트랙 (사이드바 | 리사이저 | 스냅샷 | 리사이저 | 리포트) ── */
@@ -973,19 +971,24 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     overlay.classList.toggle('open', !isOpen);
   };
 
-  // ── overlay 이벤트: 탭하면 드로어 닫기 ──
-  // touchend + preventDefault → iOS ghost tap(300ms 지연 클릭) 완전 차단
-  (function() {
-    const overlay = document.getElementById('drawer-overlay');
-    if (!overlay) return;
-    overlay.addEventListener('touchend', function(e) {
-      e.preventDefault();          // ghost tap 방지
-      window.closeDrawer();
-    }, { passive: false });
-    overlay.addEventListener('click', function() {
-      window.closeDrawer();        // PC·Android 마우스 클릭
-    });
-  })();
+  // ── 드로어 닫기: 사이드바 바깥 터치 감지 ──
+  // overlay는 pointer-events:none(시각 전용)이므로 document 레벨에서 처리
+  // iOS Safari: z-index 무시 버그 없이 사이드바 항목 터치가 바로 전달됨
+  document.addEventListener('touchstart', function(e) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar || !sidebar.classList.contains('open')) return;
+    if (sidebar.contains(e.target)) return;  // 사이드바 안 터치 → 무시
+    window.closeDrawer();
+  }, { passive: true });
+  // PC 마우스 클릭으로 바깥 클릭 시 닫기 (햄버거 버튼 제외)
+  document.addEventListener('click', function(e) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar || !sidebar.classList.contains('open')) return;
+    if (sidebar.contains(e.target)) return;
+    const hamburger = document.querySelector('.btn-hamburger');
+    if (hamburger && hamburger.contains(e.target)) return; // 햄버거 버튼은 toggleDrawer가 처리
+    window.closeDrawer();
+  });
 
   // ── 반응형 레이아웃 동기화 ──
   function syncLayout() {
@@ -1076,6 +1079,27 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       </div>
     `).join('');
   }
+
+  // ── 사이드바 항목 터치 이벤트 위임 (iOS 즉시 반응, 300ms 딜레이 제거) ──
+  (function() {
+    const list = document.getElementById('sidebar-list');
+    if (!list) return;
+    let touchStartY = 0;
+    list.addEventListener('touchstart', function(e) {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    list.addEventListener('touchend', function(e) {
+      const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+      if (dy > 8) return;                                    // 스크롤이면 무시
+      const item = e.target.closest('.report-item');
+      if (!item) return;
+      if (e.target.closest('.btn-delete-report')) return;   // 삭제 버튼은 onclick 사용
+      const id = Number(item.dataset.id);
+      if (!id) return;
+      e.preventDefault();    // 이후 발생하는 300ms ghost click 차단
+      window.selectReport(id);
+    }, { passive: false });
+  })();
 
   // ── 검색 필터 ──
   window.filterList = function() {
