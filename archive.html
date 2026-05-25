@@ -634,9 +634,12 @@
       padding-top: 0; /* safe area는 sidebar-header에서 직접 처리 */
     }
     /* position:fixed → Safe Area 자동 적용 안 됨
-       sidebar-header에 calc()로 직접 지정해야 확실하게 동작 */
+       CSS env() 파싱이 환경마다 다를 수 있어 constant()(구형) + env() 중첩 선언
+       최종 보장은 위쪽 JS applySidebarSafeArea()의 inline style */
     .sidebar-header {
-      padding-top: calc(16px + env(safe-area-inset-top, 0px));
+      padding-top: 16px;                                              /* 기본 fallback */
+      padding-top: calc(16px + constant(safe-area-inset-top));       /* iOS 11.0-11.1 */
+      padding-top: calc(16px + env(safe-area-inset-top, 0px));       /* iOS 11.2+     */
     }
     .sidebar.open { transform: translateX(0); }
     #drawer-overlay.open { display: block; }
@@ -981,6 +984,25 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     sidebar.classList.toggle('open', !isOpen);
     overlay.classList.toggle('open', !isOpen);
   };
+
+  // ── iOS Safe Area: JS 측정으로 CSS env() 파싱 불확실성 우회 ──
+  // height:calc(100px + env(safe-area-inset-top)) → getBoundingClientRect().height - 100 = 실제 safe area px
+  (function applySidebarSafeArea() {
+    if (window.innerWidth > 767) return;
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;top:0;left:0;width:0;pointer-events:none;visibility:hidden;' +
+      'height:calc(100px + env(safe-area-inset-top,0px));';
+    document.documentElement.appendChild(probe);
+    const sat = Math.round(probe.getBoundingClientRect().height) - 100;
+    probe.remove();
+    const safeTop = Math.max(0, sat);
+    // inline style은 CSS보다 우선 → env() 동작 여부와 무관하게 정확한 값 적용
+    const header = document.querySelector('.sidebar-header');
+    if (header) {
+      header.style.paddingTop = (safeTop + 16) + 'px';
+    }
+  })();
 
   // ── 드로어 닫기: 사이드바 바깥 터치 감지 ──
   // overlay는 pointer-events:none(시각 전용)이므로 document 레벨에서 처리
