@@ -1819,7 +1819,7 @@ function renderReport(data) {
 
     return `
   <div class="section-card" style="border:1px solid rgba(0,212,170,.25);background:linear-gradient(135deg,rgba(0,212,170,.04),rgba(59,130,246,.04))">
-    <div class="section-title">🎯 Action Item — 투자자 행동 가이드</div>
+    <div class="section-title">🎯 Action Item (투자자 행동 가이드)</div>
 
     <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;background:${isBuy?'rgba(0,212,170,.1)':isSell?'rgba(255,75,110,.1)':'rgba(251,191,36,.1)'};margin-bottom:16px;border:1px solid ${isBuy?'rgba(0,212,170,.3)':isSell?'rgba(255,75,110,.3)':'rgba(251,191,36,.3)'}">
       <div style="font-size:2rem">${isBuy?'📈':isSell?'📉':'⏸️'}</div>
@@ -1835,7 +1835,7 @@ function renderReport(data) {
     </div>
 
     <div style="font-size:0.7rem;font-weight:700;color:var(--muted2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">✅ 실행 단계</div>
-    <ol style="padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px">
+    <ol style="padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:0.82rem;line-height:1.55">
       ${steps.join('')}
     </ol>
 
