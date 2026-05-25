@@ -202,6 +202,7 @@
     z-index: 200;
     background: rgba(0,0,0,0.5);
     backdrop-filter: blur(2px);
+    pointer-events: none;  /* 터치 이벤트 통과 → document touchstart로 처리 (iOS 두 번 탭 방지) */
   }
 
   /* ── Main layout: PC 5트랙 (사이드바 | 리사이저 | 스냅샷 | 리사이저 | 리포트) ── */
@@ -274,6 +275,7 @@
     cursor: pointer;
     transition: background .12s;
     position: relative;
+    touch-action: manipulation;  /* 모바일 300ms 탭 딜레이 제거 */
   }
   .report-item:hover { background: var(--card); }
   .report-item.active { background: rgba(59,130,246,0.1); border-left: 2px solid var(--blue); }
@@ -355,14 +357,6 @@
     color: var(--muted);
     font-size: 0.7rem;
     font-weight: 600;
-  }
-  /* 모바일에서 topbar 아래에 sticky — 스크롤해도 항상 보임 */
-  @media (max-width: 767px) {
-    .snap-toggle-bar {
-      position: sticky;
-      top: 52px;   /* topbar 높이 */
-      z-index: 50;
-    }
   }
   .snap-toggle-bar:hover { background: var(--card); color: var(--text2); }
   .snap-toggle-bar .toggle-arrow { font-size: 0.85rem; transition: transform .25s; }
@@ -958,6 +952,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       m.style.gridTemplateColumns = '';
     } else if (w <= 1024) {
       // 태블릿 세로: 2컬럼 grid
+      closeDrawer();  // 모바일→태블릿 전환 시 드로어 닫기
       m.style.display = 'grid';
       m.style.gridTemplateColumns = '160px 1fr';
       // PC 접힘 상태 해제
@@ -965,6 +960,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       updatePcBtn(false);
     } else {
       // PC: snap-collapsed(모바일 접힘) 제거, pc-collapsed 상태 유지
+      closeDrawer();  // 모바일→PC 전환 시 드로어 닫기
       m.style.display = 'grid';
       m.style.gridTemplateColumns = '';
       if (col) col.classList.remove('snap-collapsed');
@@ -1144,18 +1140,22 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     document.getElementById('drawer-overlay').classList.remove('open');
   };
 
-  // iOS 호환: overlay 터치가 사이드바 영역 바깥일 때만 닫기
-  (function() {
-    const overlay = document.getElementById('drawer-overlay');
+  // iOS 호환: pointer-events:none인 overlay 대신 document 레벨에서 감지
+  // 사이드바 바깥 터치 → closeDrawer (두 번 탭 문제 완전 해결)
+  document.addEventListener('touchstart', function(e) {
     const sidebar = document.getElementById('sidebar');
-    function outsideClose(e) {
-      const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-      const sidebarW = sidebar.getBoundingClientRect().right;
-      if (x > sidebarW) closeDrawer();
-    }
-    overlay.addEventListener('touchend', outsideClose, { passive: true });
-    overlay.addEventListener('click',    outsideClose);
-  })();
+    if (!sidebar || !sidebar.classList.contains('open')) return;
+    if (sidebar.contains(e.target)) return;
+    closeDrawer();
+  }, { passive: true });
+  // PC·태블릿 마우스 클릭으로 overlay 배경 클릭 시에도 닫기
+  document.addEventListener('click', function(e) {
+    const sidebar  = document.getElementById('sidebar');
+    const overlay  = document.getElementById('drawer-overlay');
+    if (!sidebar || !sidebar.classList.contains('open')) return;
+    if (sidebar.contains(e.target))  return;
+    if (e.target === overlay || !sidebar.contains(e.target)) closeDrawer();
+  });
 
   // ── 리포트 선택 ──
   window.selectReport = function(id) {
