@@ -535,8 +535,8 @@
     .report-col { overflow: visible; }
     #report-frame {
       display: block;
-      height: 90vh;
-      min-height: 480px;
+      height: 60vh;      /* JS가 동적으로 덮어씀, fallback */
+      min-height: 320px;
       border-top: 1px solid var(--border);
       width: 100%;
       max-width: 680px;
@@ -1071,6 +1071,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
         frame.style.display       = 'block';
         frame.src                 = url;
         if (btn) btn.textContent  = '✕ 리포트 닫기';
+        fitMobileFrame();
         setTimeout(() => frame.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       }
     } else {
@@ -1082,6 +1083,20 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       frame.src                 = url;
     }
   };
+
+  // ── 모바일 iframe 높이 동적 조정 ──
+  function fitMobileFrame() {
+    if (window.innerWidth > 768) return;
+    const frame = document.getElementById('report-frame');
+    if (!frame || frame.style.display !== 'block') return;
+    const topbar   = document.getElementById('topbar');
+    const snapCol  = document.querySelector('.snapshot-col');
+    const topH     = topbar  ? topbar.offsetHeight  : 56;
+    const snapH    = snapCol ? snapCol.offsetHeight  : 0;
+    const available = window.innerHeight - topH - snapH - 8; // 8px 여백
+    frame.style.height = Math.max(320, available) + 'px';
+  }
+  window.addEventListener('resize', fitMobileFrame);
 
   // ── 리포트 삭제 ──
   window.deleteReport = function(e, id) {
