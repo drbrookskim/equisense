@@ -369,22 +369,20 @@
 </div>
 
 <script>
-(function() {
-  // ── 테마 ──
-  const saved = localStorage.getItem('signnith_theme');
-  if (saved === 'light') document.documentElement.classList.add('light');
-  const btnTheme = document.getElementById('btn-theme');
-  function applyTheme() {
-    const isLight = document.documentElement.classList.contains('light');
-    btnTheme.textContent = isLight ? '🌙' : '☀️';
-  }
-  applyTheme();
-  btnTheme.addEventListener('click', () => {
-    document.documentElement.classList.toggle('light');
-    localStorage.setItem('signnith_theme', document.documentElement.classList.contains('light') ? 'light' : 'dark');
-    applyTheme();
-  });
-})();
+// ── 테마 (report.html과 동일한 tsa_theme 키 사용) ──
+const THEME_KEY = 'tsa_theme';
+function applyThemeC(theme) {
+  const isLight = theme === 'light' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+  document.documentElement.classList.toggle('light', isLight);
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+}
+applyThemeC(localStorage.getItem(THEME_KEY) || 'dark');
+document.getElementById('btn-theme').addEventListener('click', () => {
+  const next = document.documentElement.classList.contains('light') ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
+  applyThemeC(next);
+});
 </script>
 
 <script>
@@ -474,13 +472,21 @@
 <script>
 // ── Main: load report data and render ──
 (function() {
-  // 이메일 (archive.html과 동일한 키 전략)
+  // 이메일 (archive.html과 동일: signnith_session 에서 추출)
   function getEmail() {
-    return localStorage.getItem('signnith_user_email') ||
-           localStorage.getItem('signnith_email') ||
-           'default';
+    try {
+      const s = JSON.parse(localStorage.getItem('signnith_session') || 'null');
+      return s?.email || null;
+    } catch { return null; }
   }
   const email = getEmail();
+  if (!email) {
+    document.getElementById('cmp-error').innerHTML = `
+      <div class="icon">🔒</div>
+      <div>로그인이 필요합니다.</div>
+      <a href="archive.html" class="btn-back" style="margin-top:8px">← 아카이브로 돌아가기</a>`;
+    return;
+  }
   const REPORTS_KEY = `signnith_reports_${email}`;
 
   // ── 유틸 ──
