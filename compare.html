@@ -18,10 +18,10 @@
 
   :root {
     --bg:       transparent;
-    --card:     #111827;
-    --card2:    #0f1320;
-    --border:   #1e2a40;
-    --border2:  #2d3f5a;
+    --card:     rgba(17,24,39,0.82);
+    --card2:    rgba(15,19,32,0.75);
+    --border:   rgba(255,255,255,0.08);
+    --border2:  rgba(255,255,255,0.14);
     --text:     #f1f5f9;
     --text2:    #e2e8f0;
     --muted:    #94a3b8;
@@ -38,8 +38,8 @@
     --bg:       transparent;
     --card:     rgba(255,255,255,0.72);
     --card2:    rgba(241,245,249,0.65);
-    --border:   #cbd5e1;
-    --border2:  #94a3b8;
+    --border:   rgba(180,160,140,0.20);
+    --border2:  rgba(180,160,140,0.30);
     --text:     #0f172a;
     --text2:    #1e293b;
     --muted:    #334155;
@@ -86,79 +86,84 @@
     box-sizing: border-box;
   }
 
-  /* Topbar */
+  /* ── Topbar (index.html 동일 스타일) ── */
   .topbar {
-    height: 52px;
     background: var(--topbar);
-    backdrop-filter: blur(20px) saturate(1.4);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px var(--shadow);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.35);
+    padding: 0 32px;
+    height: 56px;
     display: flex;
     align-items: center;
-    padding: 0 20px;
-    gap: 12px;
+    justify-content: space-between;
     flex-shrink: 0;
     z-index: 100;
     position: relative;
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
   }
   html.light .topbar {
-    background: rgba(255,255,255,0.75);
+    background: rgba(255,255,255,0.70);
     border-bottom: 1px solid rgba(180,160,140,0.18);
     box-shadow: 0 2px 24px rgba(120,90,70,0.10);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
   }
 
-  .topbar-logo {
-    display: flex; align-items: center; text-decoration: none;
-  }
-  .topbar-logo-img {
-    height: 26px; width: auto; border-radius: 5px;
+  .logo { display: flex; align-items: center; }
+  .logo-img {
+    height: 25px; width: auto; flex-shrink: 0;
+    border-radius: 6px;
     transition: filter 0.2s, opacity 0.2s;
   }
-  html:not(.light) .topbar-logo-img { filter: invert(1) brightness(0.92); opacity: 0.92; }
-  html.light .topbar-logo-img       { filter: none; opacity: 0.85; }
+  html:not(.light) .logo-img { filter: invert(1) brightness(0.92); opacity: 0.92; }
+  html.light .logo-img       { filter: none; opacity: 0.85; }
 
-  .topbar-divider {
-    width: 1px; height: 22px;
-    background: var(--border2);
+  .topbar-right {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .pill {
+    background: var(--border);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.72rem;
+    color: var(--text2);
+    white-space: nowrap;
     flex-shrink: 0;
   }
-
-  .topbar-title {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--muted);
-    white-space: nowrap;
+  html.light .pill {
+    background: rgba(255,255,255,0.55);
+    border-color: rgba(180,160,140,0.28);
   }
   .topbar-ticker-pill {
     display: flex; align-items: center; gap: 6px;
-    background: var(--card);
+    background: var(--border);
     border: 1px solid var(--border2);
     border-radius: 20px;
-    padding: 3px 12px;
-    font-size: 0.78rem;
+    padding: 4px 14px;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--text2);
+    white-space: nowrap;
   }
   .topbar-ticker-pill .vs {
-    color: var(--muted2); font-weight: 400; font-size: 0.7rem;
+    color: var(--muted2); font-weight: 400; font-size: 0.68rem;
   }
-
-  .topbar-spacer { flex: 1; }
-
   .btn-back {
-    height: 32px; padding: 0 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    border: 1px solid var(--border2);
-    background: transparent;
-    color: var(--muted);
+    padding: 6px 14px;
     font-size: 0.75rem; font-weight: 600;
     cursor: pointer; font-family: inherit;
-    transition: background .15s, color .15s;
+    color: var(--muted);
+    transition: background .15s, border-color .15s;
     display: flex; align-items: center; gap: 5px;
     text-decoration: none;
+    line-height: 1;
   }
-  .btn-back:hover { background: var(--card); color: var(--text2); }
+  .btn-back:hover { border-color: var(--blue); color: var(--text2); }
 
 
   /* Compare area */
@@ -296,20 +301,20 @@
 <canvas id="particle-canvas"></canvas>
 
 <div id="main-wrap">
-  <!-- Topbar -->
+  <!-- Topbar (index.html 구조 동일) -->
   <header class="topbar">
-    <a href="index.html" class="topbar-logo">
-      <img src="assets/signnith-logo-white.png" alt="SIGNNITH" class="topbar-logo-img"/>
-    </a>
-    <div class="topbar-divider"></div>
-    <span class="topbar-title">종목 비교</span>
-    <div class="topbar-ticker-pill" id="ticker-pill">
-      <span id="pill-a">—</span>
-      <span class="vs">vs</span>
-      <span id="pill-b">—</span>
+    <div class="logo">
+      <img class="logo-img" src="assets/signnith-logo-white.png" alt="Signnith"/>
     </div>
-    <div class="topbar-spacer"></div>
-    <button class="btn-back" onclick="window.close(); setTimeout(()=>{ if(!window.closed) location.href='archive.html'; }, 300)">← 아카이브</button>
+    <div class="topbar-right">
+      <span class="pill">종목 비교</span>
+      <div class="topbar-ticker-pill" id="ticker-pill">
+        <span id="pill-a">—</span>
+        <span class="vs">vs</span>
+        <span id="pill-b">—</span>
+      </div>
+      <button class="btn-back" onclick="window.close(); setTimeout(()=>{ if(!window.closed) location.href='archive.html'; }, 300)">← 아카이브</button>
+    </div>
   </header>
 
   <!-- Compare area -->
