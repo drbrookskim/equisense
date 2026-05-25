@@ -1362,6 +1362,15 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   window.showComparison = function() {
     if (compareSet.size < 2) return;
     const ids = [...compareSet];
+    // compareSet의 id가 실제 목록에 있는지 재확인 (재분석 후 id 교체 방어)
+    const missing = ids.filter(id => !allReports.find(r => r.id === id));
+    if (missing.length) {
+      alert('선택한 종목 중 일부가 재분석으로 교체됐습니다.\n목록에서 다시 선택해주세요.');
+      compareSet.clear();
+      updateCompareBar();
+      renderList(allReports);
+      return;
+    }
     window.open(`compare.html?a=${ids[0]}&b=${ids[1]}`, '_blank');
   };
 
