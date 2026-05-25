@@ -631,8 +631,12 @@
       transform: translateX(-100%);
       transition: transform .25s ease;
       border-right: 1px solid var(--border2);
-      /* position:fixed는 safe area 자동 적용 안 됨 → 직접 지정 */
-      padding-top: env(safe-area-inset-top, 0px);
+      padding-top: 0; /* safe area는 sidebar-header에서 직접 처리 */
+    }
+    /* position:fixed → Safe Area 자동 적용 안 됨
+       sidebar-header에 calc()로 직접 지정해야 확실하게 동작 */
+    .sidebar-header {
+      padding-top: calc(16px + env(safe-area-inset-top, 0px));
     }
     .sidebar.open { transform: translateX(0); }
     #drawer-overlay.open { display: block; }
