@@ -10,6 +10,14 @@
 <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
+  /* iOS Safari: body overflow:hidden만으로는 터치 스크롤을 막지 못함
+     html까지 함께 잠가야 body-level 스크롤이 완전히 차단됨 */
+  html {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   /* ── CSS 변수: 다크 모드 (기본) — report.html과 동일한 글라스모피즘 원칙 ── */
   :root {
     --bg:       transparent;
@@ -57,10 +65,11 @@
     font-family: 'Space Grotesk', 'Noto Sans KR', -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
-    height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    overscroll-behavior: none;
     transition: background .25s, color .25s;
   }
 
@@ -87,7 +96,7 @@
   #main-wrap {
     position: relative;
     z-index: 1;
-    height: 100vh;
+    height: 100%;          /* body가 100%이므로 결과적으로 100vh */
     display: flex;
     flex-direction: column;
   }
@@ -605,6 +614,8 @@
       flex-direction: column;
       overflow-y: auto;
       overflow-x: hidden;
+      overscroll-behavior: contain; /* 스크롤이 body로 전파되지 않도록 차단 */
+      -webkit-overflow-scrolling: touch; /* iOS 관성 스크롤 */
     }
     /* 사이드바 → 고정 드로어 */
     .sidebar {
@@ -643,7 +654,8 @@
       min-height: 320px;
     }
     #report-frame {
-      display: block;
+      /* display: block 제거 — JS(selectReport/reanalyze)가 inline style로 제어
+         CSS가 강제하면 frame.style.display가 ''이 되어 fitMobileFrame()이 오동작 */
       height: 60vh;      /* JS fitMobileFrame()이 덮어씀, fallback */
       min-height: 320px;
       border-top: 1px solid var(--border);
@@ -1232,10 +1244,12 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   function fitMobileFrame() {
     if (window.innerWidth > 767) return;
     const frame = document.getElementById('report-frame');
-    if (!frame || frame.style.display !== 'block') return;
+    // inline style 기준으로 체크 (CSS display:block 제거 후 JS가 inline으로 제어)
+    if (!frame || !frame.src || frame.src === window.location.href) return;
+    if (frame.style.display === 'none' || frame.style.display === '') return;
     const topbar   = document.getElementById('topbar');
     const snapCol  = document.querySelector('.snapshot-col');
-    const topH     = topbar  ? topbar.offsetHeight  : 56;
+    const topH     = topbar  ? topbar.offsetHeight  : 52;
     const snapH    = snapCol ? snapCol.offsetHeight  : 0;
     const available = window.innerHeight - topH - snapH - 8; // 8px 여백
     frame.style.height = Math.max(320, available) + 'px';
