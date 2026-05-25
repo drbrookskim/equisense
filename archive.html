@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>SIGNNITH · 아카이브</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -96,9 +96,12 @@
   #main-wrap {
     position: relative;
     z-index: 1;
-    height: 100%;          /* body가 100%이므로 결과적으로 100vh */
+    height: 100%;
     display: flex;
     flex-direction: column;
+    /* iOS Safe Area: viewport-fit=cover 시 노치/Dynamic Island 아래부터 콘텐츠 시작 */
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
   }
 
   /* ── Topbar ── */
@@ -628,6 +631,8 @@
       transform: translateX(-100%);
       transition: transform .25s ease;
       border-right: 1px solid var(--border2);
+      /* position:fixed는 safe area 자동 적용 안 됨 → 직접 지정 */
+      padding-top: env(safe-area-inset-top, 0px);
     }
     .sidebar.open { transform: translateX(0); }
     #drawer-overlay.open { display: block; }
