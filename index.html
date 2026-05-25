@@ -1122,7 +1122,7 @@
   <div class="fav-card" id="fav-card">
     <div class="fav-header">
       <span class="fav-title">⭐ 즐겨찾기</span>
-      <button class="fav-toggle" onclick="toggleFav()">접기 ▲</button>
+      <button class="fav-toggle" onclick="toggleFav()">접기 ↑</button>
     </div>
     <div id="fav-body">
       <!-- JS로 렌더링 -->
@@ -1770,7 +1770,7 @@ let favCollapsed = false;
 function toggleFav() {
   favCollapsed = !favCollapsed;
   document.getElementById('fav-body').style.display = favCollapsed ? 'none' : '';
-  document.querySelector('.fav-toggle').textContent = favCollapsed ? '펼치기 ▼' : '접기 ▲';
+  document.querySelector('.fav-toggle').textContent = favCollapsed ? '펼치기 ↓' : '접기 ↑';
 }
 
 function renderFavs() {
