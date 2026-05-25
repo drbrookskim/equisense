@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from .models import DimensionScore, MoatAnalysis, MoatDimension, MoatGrade, MoatScoreInput
 
@@ -74,5 +74,5 @@ def score_moat(input_data: MoatScoreInput) -> MoatAnalysis:
         composite_score=composite,
         grade=determine_grade(composite),
         analyst_note=input_data.analyst_note,
-        scored_at=datetime.now(UTC).isoformat(),
+        scored_at=datetime.now(timezone.utc).isoformat(),
     )

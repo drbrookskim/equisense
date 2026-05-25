@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>EquiSense</title>
+  <script>
+    // GitHub Pages SPA 라우팅 트릭
+    // 직접 URL 접근 시 GitHub Pages가 404.html을 서빙합니다.
+    // 현재 경로를 sessionStorage에 저장한 뒤 루트(/)로 리다이렉트합니다.
+    // 루트 페이지의 스크립트가 경로를 복원하여 React가 올바른 페이지를 렌더링합니다.
+    var base = '/equisense'; // basePath와 동일하게 설정 (커스텀 도메인이면 '')
+    var path = window.location.pathname.replace(base, '') || '/';
+    var search = window.location.search;
+    sessionStorage.setItem('spa_redirect', path + search);
+    window.location.replace(base + '/');
+  </script>
+</head>
+<body></body>
+</html>

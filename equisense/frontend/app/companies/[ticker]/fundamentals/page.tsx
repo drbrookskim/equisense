@@ -1,32 +1,37 @@
-import { getFundamentals } from '@/lib/api'
-import type { Market } from '@/types'
+'use client'
+
+import { Suspense, useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { getFundamentals } from '@/lib/api-client'
+import type { FundamentalAnalysis, Market } from '@/types'
 import FundamentalsCharts from '@/components/charts/FundamentalsCharts'
 
-export default async function FundamentalsPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ ticker: string }>
-  searchParams: Promise<{ market?: string }>
-}) {
-  const { ticker } = await params
-  const { market = 'US' } = await searchParams
-  const validMarket = (market === 'KR' ? 'KR' : 'US') as Market
+function FundamentalsContent() {
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const ticker = (params.ticker as string).toUpperCase()
+  const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
 
-  let data = null
-  let errorMsg: string | null = null
+  const [data, setData] = useState<FundamentalAnalysis | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  try {
-    data = await getFundamentals(ticker, validMarket)
-  } catch (err: unknown) {
-    const e = err as { status?: number; message?: string }
-    if (e?.status === 404) {
-      errorMsg = `${ticker} 종목의 재무 데이터를 찾을 수 없습니다.`
-    } else {
-      errorMsg = '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
-    }
-  }
+  useEffect(() => {
+    setIsLoading(true)
+    setErrorMsg(null)
+    getFundamentals(ticker, market)
+      .then(setData)
+      .catch((err: { status?: number }) => {
+        setErrorMsg(
+          err?.status === 404
+            ? `${ticker} 종목의 재무 데이터를 찾을 수 없습니다.`
+            : '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+        )
+      })
+      .finally(() => setIsLoading(false))
+  }, [ticker, market])
 
+  if (isLoading) return <LoadingSkeleton />
   if (errorMsg) {
     return (
       <div className="flex h-60 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800">
@@ -34,7 +39,6 @@ export default async function FundamentalsPage({
       </div>
     )
   }
-
   if (!data) return null
 
   return (
@@ -47,5 +51,22 @@ export default async function FundamentalsPage({
       </div>
       <FundamentalsCharts data={data} />
     </div>
+  )
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-8 w-48 rounded bg-zinc-100 dark:bg-zinc-800" />
+      <div className="h-60 rounded bg-zinc-100 dark:bg-zinc-800" />
+    </div>
+  )
+}
+
+export default function FundamentalsPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <FundamentalsContent />
+    </Suspense>
   )
 }

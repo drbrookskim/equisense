@@ -34,6 +34,8 @@ provider:
     # Phase 4 환경변수
     WS_ENDPOINT_URL: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
     PRICE_WATCHLIST: ${ssm:/equisense/${sls:stage}/price-watchlist, "AAPL,MSFT,AMZN,005930,035720"}
+    COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+    COGNITO_APP_CLIENT_ID: !Ref CognitoUserPoolClient
 
   # 최소 권한 IAM
   iam:
@@ -124,10 +126,9 @@ functions:
           path: /companies/{ticker}/fundamentals
           method: GET
           cors: true
-          # Cognito 인증은 Phase 2에서 추가 예정
-          # authorizer:
-          #   type: COGNITO_USER_POOLS
-          #   authorizerId: !Ref CognitoAuthorizer
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoRestAuthorizer
           request:
             parameters:
               paths:
@@ -148,12 +149,33 @@ functions:
           path: /companies/{ticker}/moat
           method: GET
           cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoRestAuthorizer
           request:
             parameters:
               paths:
                 ticker: true
               querystrings:
                 market: true
+
+  # ── 실시간 주가 (클라이언트 직접 호출 — Redis 접속 정보 보호) ────────────
+  GetPrice:
+    handler: lambdas/get_price/handler.lambda_handler
+    description: "Redis 캐시에서 실시간 주가 반환 — 인증 불필요, 공개 엔드포인트"
+    memorySize: 128
+    timeout: 5
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - http:
+          path: /prices/{ticker}
+          method: GET
+          cors: true
+          request:
+            parameters:
+              paths:
+                ticker: true
 
   # ── 헬스 체크 ────────────────────────────────────────────────────────
   HealthCheck:
@@ -182,6 +204,9 @@ functions:
           path: /companies/{ticker}/technical
           method: GET
           cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoRestAuthorizer
           request:
             parameters:
               paths:
@@ -203,6 +228,9 @@ functions:
           path: /companies/{ticker}/qualitative
           method: POST
           cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoRestAuthorizer
           request:
             parameters:
               paths:
@@ -220,6 +248,9 @@ functions:
           path: /jobs/{job_id}
           method: GET
           cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoRestAuthorizer
           request:
             parameters:
               paths:
@@ -313,6 +344,27 @@ functions:
       - schedule:
           rate: cron(0 16 * * ? *)       # 장 마감 직후 UTC 16:00
           description: "Daily technical screener"
+
+  NewsIngestionWorker:
+    handler: lambdas/news_ingestion_worker/handler.lambda_handler
+    description: "일별 뉴스·공시 수집 — Alpha Vantage(US) + DART(KR) → Redis + DB (Phase 4)"
+    memorySize: 256
+    timeout: 840
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - schedule:
+          rate: cron(0 9 * * ? *)        # 매일 KST 18:00 (UTC 09:00)
+          description: "Daily news and disclosure ingestion"
+
+  # ── Phase 4: WebSocket Cognito JWT Authorizer ─────────────────────────────
+  CognitoWsAuthorizer:
+    handler: lambdas/cognito_ws_authorizer/handler.lambda_handler
+    description: "WebSocket $connect Cognito JWT Lambda Authorizer (Phase 4)"
+    memorySize: 256
+    timeout: 10
+    layers:
+      - !Ref PythonRequirementsLambdaLayer
 
   # ── Phase 4: WebSocket Lambda 트리오 ───────────────────────────────────────
   WsConnect:

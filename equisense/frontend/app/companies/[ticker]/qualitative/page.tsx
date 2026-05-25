@@ -1,17 +1,23 @@
+'use client'
+
+import { Suspense } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
 import type { Market } from '@/types'
 import QualitativeAnalysisView from '@/components/qualitative/QualitativeAnalysisView'
 
-export default async function QualitativePage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ ticker: string }>
-  searchParams: Promise<{ market?: string }>
-}) {
-  const { ticker } = await params
-  const { market = 'US' } = await searchParams
+function QualitativeContent() {
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const ticker = (params.ticker as string).toUpperCase()
+  const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
 
-  const validMarket = (market === 'KR' ? 'KR' : 'US') as Market
+  return <QualitativeAnalysisView ticker={ticker} market={market} />
+}
 
-  return <QualitativeAnalysisView ticker={ticker} market={validMarket} />
+export default function QualitativePage() {
+  return (
+    <Suspense fallback={<div className="h-60 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />}>
+      <QualitativeContent />
+    </Suspense>
+  )
 }

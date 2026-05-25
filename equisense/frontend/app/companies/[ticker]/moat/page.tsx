@@ -1,5 +1,9 @@
-import { getMoatScore } from '@/lib/api'
-import type { Market } from '@/types'
+'use client'
+
+import { Suspense, useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { getMoatScore } from '@/lib/api-client'
+import type { Market, MoatAnalysis } from '@/types'
 import MoatCharts from '@/components/charts/MoatCharts'
 
 const GRADE_LABEL: Record<string, string> = {
@@ -14,31 +18,32 @@ const GRADE_COLOR: Record<string, string> = {
   none: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
 }
 
-export default async function MoatPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ ticker: string }>
-  searchParams: Promise<{ market?: string }>
-}) {
-  const { ticker } = await params
-  const { market = 'US' } = await searchParams
-  const validMarket = (market === 'KR' ? 'KR' : 'US') as Market
+function MoatContent() {
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const ticker = (params.ticker as string).toUpperCase()
+  const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
 
-  let data = null
-  let errorMsg: string | null = null
+  const [data, setData] = useState<MoatAnalysis | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  try {
-    data = await getMoatScore(ticker, validMarket)
-  } catch (err: unknown) {
-    const e = err as { status?: number; message?: string }
-    if (e?.status === 404) {
-      errorMsg = `${ticker} 종목의 해자 점수가 아직 입력되지 않았습니다. 분석가가 점수를 입력한 후 확인할 수 있습니다.`
-    } else {
-      errorMsg = '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
-    }
-  }
+  useEffect(() => {
+    setIsLoading(true)
+    setErrorMsg(null)
+    getMoatScore(ticker, market)
+      .then(setData)
+      .catch((err: { status?: number }) => {
+        setErrorMsg(
+          err?.status === 404
+            ? `${ticker} 종목의 해자 점수가 아직 입력되지 않았습니다. 분석가가 점수를 입력한 후 확인할 수 있습니다.`
+            : '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+        )
+      })
+      .finally(() => setIsLoading(false))
+  }, [ticker, market])
 
+  if (isLoading) return <LoadingSkeleton />
   if (errorMsg) {
     return (
       <div className="flex h-60 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800">
@@ -46,7 +51,6 @@ export default async function MoatPage({
       </div>
     )
   }
-
   if (!data) return null
 
   return (
@@ -56,21 +60,34 @@ export default async function MoatPage({
           {data.ticker}
           <span className="ml-2 text-base font-normal text-zinc-500">({data.market})</span>
         </h2>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${GRADE_COLOR[data.grade]}`}
-        >
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GRADE_COLOR[data.grade]}`}>
           {GRADE_LABEL[data.grade]}
         </span>
         <span className="text-sm text-zinc-500">
           종합 {data.composite_score.toFixed(1)}점 / 10점
         </span>
       </div>
-
       {data.analyst_note && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{data.analyst_note}</p>
       )}
-
       <MoatCharts data={data} />
     </div>
+  )
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-8 w-64 rounded bg-zinc-100 dark:bg-zinc-800" />
+      <div className="h-60 rounded bg-zinc-100 dark:bg-zinc-800" />
+    </div>
+  )
+}
+
+export default function MoatPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <MoatContent />
+    </Suspense>
   )
 }

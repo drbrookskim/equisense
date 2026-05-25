@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import AuthProvider from '@/components/layout/AuthProvider'
+import SpaRedirectScript from '@/components/layout/SpaRedirectScript'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -17,7 +19,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
-        {children}
+        <SpaRedirectScript />
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   )
