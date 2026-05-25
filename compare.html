@@ -14,6 +14,10 @@
     height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
+    background: #08061a; /* aurora/파티클 로딩 전 기본 다크 배경 */
+  }
+  html.light {
+    background: #f0ede8;
   }
 
   :root {
@@ -108,10 +112,6 @@
     box-shadow: 0 2px 24px rgba(120,90,70,0.10);
     backdrop-filter: blur(24px) saturate(1.6);
     -webkit-backdrop-filter: blur(24px) saturate(1.6);
-  }
-  html.light .pill {
-    background: rgba(255,255,255,0.55);
-    border-color: rgba(180,160,140,0.28);
   }
 
   .logo { display: flex; align-items: center; }
