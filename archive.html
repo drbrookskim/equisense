@@ -714,7 +714,13 @@
       box-sizing: border-box;
     }
     .col-empty { min-height: 120px; flex: unset; }
-    .report-item-name { max-width: 200px; }
+    .report-item-name { max-width: 140px; }
+    /* 모바일: 비교 버튼 항상 표시 (hover 없음) */
+    .btn-compare-add {
+      opacity: 1 !important;
+      right: 46px;  /* 삭제 버튼(✕)과 겹치지 않도록 */
+    }
+    .btn-delete-report { opacity: 1 !important; }
   }
 
   /* ── Not logged in overlay ── */
@@ -1113,6 +1119,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       const item = e.target.closest('.report-item');
       if (!item) return;
       if (e.target.closest('.btn-delete-report')) return;   // 삭제 버튼은 onclick 사용
+      if (e.target.closest('.btn-compare-add'))  return;   // 비교 버튼은 onclick 사용
       const id = Number(item.dataset.id);
       if (!id) return;
       e.preventDefault();    // 이후 발생하는 300ms ghost click 차단
