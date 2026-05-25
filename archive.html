@@ -209,8 +209,9 @@
     inset: 0;
     z-index: 200;
     background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(2px);
-    touch-action: manipulation; /* 300ms 탭 딜레이 제거 — pointer-events는 살려서 overlay가 직접 닫기 처리 */
+    /* backdrop-filter 제거: iOS Safari에서 backdrop-filter가 있는 요소 위의
+       z-index 높은 요소(sidebar)에 터치 이벤트가 전달되지 않는 버그 방지 */
+    touch-action: manipulation;
   }
 
   /* ── Main layout: PC 5트랙 (사이드바 | 리사이저 | 스냅샷 | 리사이저 | 리포트) ── */
