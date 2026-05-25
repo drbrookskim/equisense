@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SIGNNITH · 보관함</title>
+<title>SIGNNITH · 아카이브</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -200,7 +200,7 @@
   /* ── Main layout: PC 5트랙 (사이드바 | 리사이저 | 스냅샷 | 리사이저 | 리포트) ── */
   .main {
     display: grid;
-    grid-template-columns: 220px 5px 320px 5px 1fr;
+    grid-template-columns: 220px 5px 380px 5px 1fr;
     grid-template-rows: 1fr;
     flex: 1;
     overflow: hidden;
@@ -450,7 +450,7 @@
   }
   .col-resizer:hover,
   .col-resizer.dragging { background: var(--blue); }
-  @media (max-width: 768px) { .col-resizer { display: none; } }
+  @media (max-width: 767px) { .col-resizer { display: none; } }
 
   /* ── 리포트 컬럼 (PC 우측) ── */
   .report-col {
@@ -467,7 +467,7 @@
   }
 
   /* ── 반응형: 태블릿 세로 (769px ~ 1024px) ── */
-  @media (min-width: 769px) and (max-width: 1024px) {
+  @media (min-width: 768px) and (max-width: 1024px) {
     /* 2컬럼: 사이드바(160px) | 콘텐츠(1fr), 스냅샷+리포트 상하 배치 */
     .main {
       grid-template-columns: 160px 1fr !important;
@@ -513,7 +513,7 @@
   }
 
   /* ── 반응형: 모바일 (768px 이하) ── */
-  @media (max-width: 768px) {
+  @media (max-width: 767px) {
     /* 햄버거 표시 */
     .btn-hamburger { display: flex; }
     .col-resizer { display: none; }
@@ -636,7 +636,7 @@
 <div id="not-logged-in" style="display:none">
   <div class="icon">🔒</div>
   <div style="font-size:1.1rem;font-weight:700;color:var(--text)">로그인이 필요합니다</div>
-  <p>보관함은 로그인 후 이용할 수 있습니다.</p>
+  <p>아카이브는 로그인 후 이용할 수 있습니다.</p>
   <a href="index.html" class="btn-go-main">← 메인으로 돌아가기</a>
 </div>
 
@@ -650,7 +650,7 @@
     <img class="topbar-logo-img" src="assets/signnith-logo-white.png" alt="Signnith" />
   </a>
   <div class="topbar-sep-bar"></div>
-  <span class="topbar-title">📂 보관함</span>
+  <span class="topbar-title">📂 아카이브</span>
   <div class="topbar-sep"></div>
   <div class="topbar-user">
     <span id="user-email-display"></span>
@@ -664,7 +664,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-header-title">저장된 리포트</div>
+      <div class="sidebar-header-title">아카이브</div>
       <input class="sidebar-search" id="sidebar-search" type="text" placeholder="종목명·티커 검색…" oninput="filterList()">
     </div>
     <div class="sidebar-count" id="sidebar-count"></div>
@@ -851,7 +851,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     if (w <= 768) {
       m.style.display = 'flex';
       m.style.gridTemplateColumns = '';
-    } else if (w <= 1024) {
+    } else if (w >= 768 && w <= 1024) {
       // 태블릿 세로: 2컬럼 grid (사이드바 | 스냅샷+리포트 상하)
       m.style.display = 'grid';
       m.style.gridTemplateColumns = '160px 1fr';
@@ -1049,7 +1049,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     snap.innerHTML          = renderSnapshot(r);
 
     // PC: 리포트 자동 로드 / 모바일: 플레이스홀더 유지 (재분석 버튼으로 로드)
-    const isMobile = window.innerWidth <= 768;
+    const isMobile = window.innerWidth <= 767;
     if (!isMobile) {
       const period = r.period || '6mo';
       const style  = r.style  || 'balanced';
@@ -1079,7 +1079,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     const style  = r.style  || 'balanced';
     const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
 
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 767) {
       const frame       = document.getElementById('report-frame');
       const reportEmpty = document.getElementById('report-empty');
       const btn         = document.getElementById(`btn-reanalyze-${id}`);
@@ -1152,7 +1152,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
     // JS 변수로 너비 직접 관리 (getComputedStyle 의존 X)
     let sidebarW  = 220;
-    let snapshotW = 320;
+    let snapshotW = 380;
 
     function applyWidths() {
       main.style.gridTemplateColumns =
