@@ -468,23 +468,39 @@
 
   /* ── 반응형: 태블릿 세로 (769px ~ 1024px) ── */
   @media (min-width: 769px) and (max-width: 1024px) {
-    /* 사이드바 좁게 고정, 스냅샷+리포트 2트랙 */
+    /* 2컬럼: 사이드바(160px) | 콘텐츠(1fr), 스냅샷+리포트 상하 배치 */
     .main {
-      grid-template-columns: 160px 5px 1fr !important;
+      grid-template-columns: 160px 1fr !important;
+      grid-template-rows: auto 1fr;
     }
-    /* 리사이저-right 숨김 (2트랙만 사용) */
-    #resizer-right { display: none; }
-    .report-col {
+    .col-resizer { display: none; }
+    /* 사이드바: 1열, 두 행 모두 차지 */
+    .sidebar {
+      grid-column: 1;
+      grid-row: 1 / span 2;
       overflow-y: auto;
+    }
+    /* 스냅샷: 2열 1행 */
+    .snapshot-col {
+      grid-column: 2;
+      grid-row: 1;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      overflow-y: auto;
+    }
+    #snapshot-panel {
+      max-width: none;
+    }
+    /* 리포트: 2열 2행 */
+    .report-col {
+      grid-column: 2;
+      grid-row: 2;
+      overflow: hidden;
     }
     #report-frame {
       flex: 1;
       min-height: 0;
       height: 100%;
-    }
-    .snapshot-col {
-      border-right: 1px solid var(--border);
-      overflow-y: auto;
     }
   }
 
@@ -836,9 +852,9 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       m.style.display = 'flex';
       m.style.gridTemplateColumns = '';
     } else if (w <= 1024) {
-      // 태블릿 세로: 2트랙 grid (CSS !important가 덮음, display만 grid로 보장)
+      // 태블릿 세로: 2컬럼 grid (사이드바 | 스냅샷+리포트 상하)
       m.style.display = 'grid';
-      m.style.gridTemplateColumns = '160px 5px 1fr';
+      m.style.gridTemplateColumns = '160px 1fr';
     } else {
       // PC / 태블릿 가로: CSS 및 initResizer가 columns 관리
       m.style.display = 'grid';
