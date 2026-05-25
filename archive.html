@@ -733,7 +733,7 @@
 
 <!-- Topbar -->
 <header class="topbar" id="topbar" style="display:none">
-  <button class="btn-hamburger" onclick="toggleDrawer()">☰</button>
+  <button class="btn-hamburger" onclick="toggleDrawer(event)">☰</button>
   <a href="index.html" class="topbar-logo">
     <img class="topbar-logo-img" src="assets/signnith-logo-white.png" alt="Signnith" />
   </a>
@@ -1128,7 +1128,8 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   }
 
   // ── 드로어 (모바일 사이드바) ──
-  window.toggleDrawer = function() {
+  window.toggleDrawer = function(e) {
+    if (e) e.stopPropagation();  // document click 리스너로 버블링 방지 (즉시 닫힘 방지)
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('drawer-overlay');
     const isOpen  = sidebar.classList.contains('open');
