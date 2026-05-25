@@ -328,6 +328,7 @@
     flex-direction: column;
     border-right: 1px solid var(--border);
     overflow: hidden;
+    position: relative;
   }
 
   /* ── 상/하 레이아웃 접기 토글 바 (모바일·태블릿 전용) ── */
@@ -472,6 +473,37 @@
   }
   .btn-reanalyze:hover { background: rgba(59,130,246,0.25); }
 
+  /* ── PC 스냅샷 접기/펼치기 버튼 (좌/우 전용) ── */
+  .btn-snap-pc {
+    display: none; /* 기본 숨김, PC에서만 표시 */
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 48px;
+    background: var(--card2);
+    border: 1px solid var(--border2);
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.75rem;
+    transition: background .15s, color .15s;
+    position: absolute;
+    right: -18px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    writing-mode: horizontal-tb;
+  }
+  .btn-snap-pc:hover { background: var(--card); color: var(--blue); }
+  @media (min-width: 1025px) { .btn-snap-pc { display: flex; } }
+
+  /* PC 접힌 상태 */
+  .snapshot-col.pc-collapsed {
+    overflow: visible !important;
+  }
+  .snapshot-col.pc-collapsed .snap-body,
+  .snapshot-col.pc-collapsed .snap-toggle-bar { display: none !important; }
+
   /* ── 컬럼 리사이저 ── */
   .col-resizer {
     width: 5px;
@@ -505,7 +537,7 @@
     /* 2컬럼: 사이드바(160px) | 콘텐츠(1fr), 스냅샷+리포트 상하 배치 */
     .main {
       grid-template-columns: 160px 1fr !important;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto minmax(460px, 1fr) !important;
     }
     .col-resizer { display: none; }
     /* 사이드바: 1열, 두 행 모두 차지 */
@@ -522,19 +554,19 @@
       border-bottom: 1px solid var(--border);
       overflow-y: auto;
     }
-    #snapshot-panel {
-      max-width: none;
-    }
-    /* 리포트: 2열 2행 */
+    #snapshot-panel { max-width: none; }
+    /* 리포트: 2열 2행 — 최소 460px 확보 */
     .report-col {
       grid-column: 2;
       grid-row: 2;
       overflow: hidden;
+      min-height: 460px;
     }
     #report-frame {
       flex: 1;
       min-height: 0;
       height: 100%;
+      display: block;          /* 태블릿에서 항상 표시 영역 확보 */
     }
   }
 
@@ -712,6 +744,8 @@
   <!-- 스냅샷 컬럼 -->
   <div class="col-resizer" id="resizer-left"></div>
   <section class="snapshot-col" id="snapshot-col">
+    <!-- PC 전용 접기/펼치기 버튼 -->
+    <button class="btn-snap-pc" id="btn-snap-pc" onclick="toggleSnapshotPC()" title="스냅샷 접기/펼치기">◀</button>
     <!-- 상/하 레이아웃 전용 토글 바 -->
     <div class="snap-toggle-bar" id="snap-toggle-bar" onclick="toggleSnapshotCollapse()">
       <span class="toggle-arrow">↑</span>
@@ -891,20 +925,28 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   // 로그인 상태
   document.getElementById('topbar').style.display = 'flex';
   function syncLayout() {
-    const m = document.getElementById('main-area');
+    const m   = document.getElementById('main-area');
+    const col = document.getElementById('snapshot-col');
     if (!m) return;
     const w = window.innerWidth;
-    if (w <= 768) {
+    if (w <= 767) {
       m.style.display = 'flex';
       m.style.gridTemplateColumns = '';
-    } else if (w >= 768 && w <= 1024) {
-      // 태블릿 세로: 2컬럼 grid (사이드바 | 스냅샷+리포트 상하)
+    } else if (w <= 1024) {
+      // 태블릿 세로: 2컬럼 grid
       m.style.display = 'grid';
       m.style.gridTemplateColumns = '160px 1fr';
+      // PC 접힘 상태 해제
+      if (col) { col.classList.remove('pc-collapsed'); }
+      updatePcBtn(false);
     } else {
-      // PC / 태블릿 가로: CSS 및 initResizer가 columns 관리
+      // PC: snap-collapsed(모바일 접힘) 제거, pc-collapsed 상태 유지
       m.style.display = 'grid';
       m.style.gridTemplateColumns = '';
+      if (col) col.classList.remove('snap-collapsed');
+      // snap-toggle-bar 라벨 초기화
+      const lbl = document.getElementById('snap-toggle-label');
+      if (lbl) lbl.textContent = '스냅샷 접기';
     }
   }
   syncLayout();
@@ -1199,6 +1241,30 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     if (label) label.textContent = collapsed ? '스냅샷 펼치기' : '스냅샷 접기';
   };
 
+  // ── 스냅샷 접기/펼치기 (PC 좌/우 전용) ──
+  function updatePcBtn(collapsed) {
+    const btn = document.getElementById('btn-snap-pc');
+    if (btn) btn.textContent = collapsed ? '▶' : '◀';
+    if (btn) btn.title = collapsed ? '스냅샷 펼치기' : '스냅샷 접기';
+  }
+  window.toggleSnapshotPC = function() {
+    const col   = document.getElementById('snapshot-col');
+    const main  = document.getElementById('main-area');
+    const collapsed = col.classList.toggle('pc-collapsed');
+    updatePcBtn(collapsed);
+    if (collapsed) {
+      // 접힘: 스냅샷 컬럼을 버튼 너비(18px)만큼만 남김
+      const sw = window._resizerState?.sidebarW ?? 220;
+      main.style.gridTemplateColumns = `${sw}px 5px 18px 5px 1fr`;
+    } else {
+      // 펼침: 이전 너비 복원
+      const sw   = window._resizerState?.sidebarW    ?? 220;
+      const snap = window._resizerState?.snapshotPrevW ?? 520;
+      if (window._resizerState) window._resizerState.snapshotW = snap;
+      main.style.gridTemplateColumns = `${sw}px 5px ${snap}px 5px 1fr`;
+    }
+  };
+
   // ── 컬럼 리사이저 ──
   (function initResizer() {
     if (window.innerWidth <= 1024) return;   // 모바일·태블릿 세로는 CSS가 레이아웃 담당
@@ -1215,7 +1281,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
     function applyWidths() {
       const col = document.getElementById('snapshot-col');
-      if (col && col.classList.contains('collapsed')) return; // 접힌 상태면 스킵
+      if (col && col.classList.contains('pc-collapsed')) return; // 접힌 상태면 스킵
       window._resizerState.snapshotPrevW = snapshotW;
       main.style.gridTemplateColumns =
         `${sidebarW}px 5px ${snapshotW}px 5px 1fr`;
