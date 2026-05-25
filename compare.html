@@ -573,10 +573,19 @@
   const r2 = allReports.find(r => r.id === id2);
 
   if (!r1 || !r2) {
+    // 디버그: 실제 저장된 키·id 목록 출력
+    const allKeys = Object.keys(localStorage).filter(k => k.startsWith('signnith_reports'));
+    const idList  = allReports.map(r => r.id).join(', ') || '(없음)';
     document.getElementById('cmp-error').innerHTML = `
       <div class="icon">⚠️</div>
-      <div>리포트 데이터를 찾을 수 없습니다.<br>아카이브에서 다시 선택해주세요.</div>
-      <button class="btn-back" style="margin-top:8px" onclick="window.close(); setTimeout(()=>{ if(!window.closed) location.href='archive.html'; }, 300)">← 아카이브로 돌아가기</button>`;
+      <div>리포트 데이터를 찾을 수 없습니다.</div>
+      <div style="margin-top:12px;font-size:0.7rem;color:var(--muted);text-align:left;max-width:480px;line-height:1.8">
+        <b>KEY:</b> ${REPORTS_KEY}<br>
+        <b>URL id:</b> a=${id1}, b=${id2}<br>
+        <b>저장된 id 목록:</b> ${idList}<br>
+        <b>localStorage 리포트 키:</b> ${allKeys.join(', ') || '(없음)'}
+      </div>
+      <button class="btn-back" style="margin-top:12px" onclick="window.close(); setTimeout(()=>{ if(!window.closed) location.href='archive.html'; }, 300)">← 아카이브로 돌아가기</button>`;
     return;
   }
 
