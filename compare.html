@@ -179,38 +179,6 @@
   }
   .cmp-col:last-child { border-right: none; }
 
-  /* Col header */
-  .cmp-col-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    background: var(--card2);
-    border-bottom: 1px solid var(--border2);
-    flex-shrink: 0;
-    gap: 8px;
-  }
-  .cmp-col-name {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .cmp-col-meta {
-    font-size: 0.68rem;
-    color: var(--muted);
-    white-space: nowrap;
-  }
-  .badge-action {
-    font-size: 0.62rem; font-weight: 700;
-    padding: 2px 9px; border-radius: 5px; flex-shrink: 0;
-  }
-  .badge-BUY  { background: rgba(0,212,170,0.15); color: var(--green); }
-  .badge-SELL { background: rgba(255,75,110,0.15); color: var(--red); }
-  .badge-HOLD { background: rgba(251,191,36,0.15); color: var(--yellow); }
-
   /* Snapshot area */
   .cmp-snap-area {
     overflow-y: auto;
@@ -577,13 +545,6 @@
     };
     return `
       <div class="cmp-col" id="cmp-col-${idx}">
-        <div class="cmp-col-header">
-          <div>
-            <div class="cmp-col-name">${flag(r.isKr, r.ticker)} ${r.companyName || r.ticker}</div>
-            <div class="cmp-col-meta">${r.ticker} · ${fmtDate(r.savedAt)} 저장</div>
-          </div>
-          <span class="badge-action badge-${r.action}">${r.action}</span>
-        </div>
         <div class="cmp-snap-area">
           <div class="snapshot-panel">${renderSnapshot(r)}</div>
         </div>
