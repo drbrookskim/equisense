@@ -328,7 +328,71 @@
     flex-direction: column;
     border-right: 1px solid var(--border);
     overflow: hidden;
+    transition: min-width .25s ease, max-width .25s ease;
   }
+
+  /* ── 스냅샷 접기/펼치기 버튼 ── */
+  .snapshot-col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 8px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    min-height: 36px;
+  }
+  .snapshot-col-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .btn-collapse-snap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+    font-family: inherit;
+  }
+  .btn-collapse-snap:hover { background: var(--card); color: var(--text2); }
+
+  /* 접힌 상태 */
+  .snapshot-col.collapsed {
+    min-width: 36px !important;
+    max-width: 36px !important;
+    width: 36px !important;
+    border-right: 1px solid var(--border);
+  }
+  .snapshot-col.collapsed .snapshot-col-header {
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 10px 0;
+    align-items: center;
+    gap: 6px;
+    border-bottom: none;
+  }
+  .snapshot-col.collapsed .snapshot-col-title { display: none; }
+  .snapshot-col.collapsed .btn-collapse-snap {
+    writing-mode: vertical-rl;
+    border: none;
+    padding: 6px 2px;
+    font-size: 1rem;
+    gap: 0;
+  }
+  .snapshot-col.collapsed .btn-collapse-snap .collapse-text { display: none; }
+  .snapshot-col.collapsed #snap-empty,
+  .snapshot-col.collapsed #snapshot-panel { display: none !important; }
   .col-empty {
     flex: 1;
     display: flex;
@@ -504,6 +568,9 @@
     }
   }
 
+  /* 태블릿·모바일에서 접기 버튼 숨김 */
+  @media (max-width: 1024px) { .btn-collapse-snap { display: none; } }
+
   /* ── 반응형: 태블릿 가로 (1025px ~ 1280px) ── */
   @media (min-width: 1025px) and (max-width: 1280px) {
     /* 3컬럼 유지, 사이드바·스냅샷 조금 좁게 */
@@ -673,7 +740,14 @@
 
   <!-- 스냅샷 컬럼 -->
   <div class="col-resizer" id="resizer-left"></div>
-  <section class="snapshot-col">
+  <section class="snapshot-col" id="snapshot-col">
+    <div class="snapshot-col-header">
+      <span class="snapshot-col-title">스냅샷</span>
+      <button class="btn-collapse-snap" id="btn-collapse-snap" onclick="toggleSnapshotCollapse()">
+        <span class="collapse-icon">◀</span>
+        <span class="collapse-text">접기</span>
+      </button>
+    </div>
     <div class="col-empty" id="snap-empty">
       <div class="icon">📋</div>
       <p>종목을 선택하면<br>저장된 분석이 표시됩니다</p>
@@ -1145,6 +1219,32 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     window.location.href = 'index.html';
   };
 
+  // ── 스냅샷 접기/펼치기 ──
+  window.toggleSnapshotCollapse = function() {
+    const col  = document.getElementById('snapshot-col');
+    const btn  = document.getElementById('btn-collapse-snap');
+    const icon = btn.querySelector('.collapse-icon');
+    const text = btn.querySelector('.collapse-text');
+    const main = document.getElementById('main-area');
+    const collapsed = col.classList.toggle('collapsed');
+
+    if (collapsed) {
+      icon.textContent = '▶';
+      if (text) text.textContent = '';
+      // JS 변수도 동기화 (리사이저가 36px로 인식하게)
+      if (window._resizerState) window._resizerState.snapshotW = 36;
+      if (main) main.style.gridTemplateColumns =
+        `${window._resizerState?.sidebarW ?? 220}px 5px 36px 5px 1fr`;
+    } else {
+      icon.textContent = '◀';
+      if (text) text.textContent = '접기';
+      const prevW = window._resizerState?.snapshotPrevW ?? 380;
+      if (window._resizerState) window._resizerState.snapshotW = prevW;
+      if (main) main.style.gridTemplateColumns =
+        `${window._resizerState?.sidebarW ?? 220}px 5px ${prevW}px 5px 1fr`;
+    }
+  };
+
   // ── 컬럼 리사이저 ──
   (function initResizer() {
     if (window.innerWidth <= 1024) return;   // 모바일·태블릿 세로는 CSS가 레이아웃 담당
@@ -1154,7 +1254,15 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     let sidebarW  = 220;
     let snapshotW = 380;
 
+    // 접기/펼치기 함수와 상태 공유
+    window._resizerState = { get sidebarW(){ return sidebarW; }, set sidebarW(v){ sidebarW=v; },
+                              get snapshotW(){ return snapshotW; }, set snapshotW(v){ snapshotW=v; },
+                              snapshotPrevW: 380 };
+
     function applyWidths() {
+      const col = document.getElementById('snapshot-col');
+      if (col && col.classList.contains('collapsed')) return; // 접힌 상태면 스킵
+      window._resizerState.snapshotPrevW = snapshotW;
       main.style.gridTemplateColumns =
         `${sidebarW}px 5px ${snapshotW}px 5px 1fr`;
     }
