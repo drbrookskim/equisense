@@ -679,6 +679,10 @@
       flex-shrink: 0;
       transition: max-height .3s ease;
     }
+    /* compare-bar 표시 시 사이드바 높이 추가 확보 */
+    .sidebar:has(#compare-bar[style*="flex"]) {
+      max-height: 296px;   /* 252 + compare-bar ~44px */
+    }
     /* 접힌 상태 */
     .sidebar.sidebar-collapsed {
       max-height: 32px;

@@ -287,15 +287,51 @@
   }
   .cmp-error .icon { font-size: 2.5rem; }
 
-  /* Mobile: stack vertically */
+  /* Mobile: tab layout */
+  .cmp-tabs {
+    display: none;
+  }
   @media (max-width: 767px) {
+    .cmp-tabs {
+      display: flex;
+      flex-shrink: 0;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .cmp-tab-btn {
+      flex: 1;
+      padding: 10px 8px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color .2s, border-color .2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cmp-tab-btn.active {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
     .compare-area {
       grid-template-columns: 1fr;
-      grid-template-rows: 1fr 1fr;
+      grid-template-rows: 1fr;
       overflow-y: auto;
     }
-    .cmp-col { border-right: none; border-bottom: 1px solid var(--border); min-height: 0; }
-    .cmp-col:last-child { border-bottom: none; }
+    .cmp-col {
+      border-right: none;
+      min-height: 0;
+      display: none;
+    }
+    .cmp-col.tab-active {
+      display: flex;
+    }
   }
 </style>
 </head>
@@ -320,6 +356,12 @@
       <button class="btn-back" onclick="window.close(); setTimeout(()=>{ if(!window.closed) location.href='archive.html'; }, 300)">← 아카이브</button>
     </div>
   </header>
+
+  <!-- Mobile tabs (hidden on desktop) -->
+  <div class="cmp-tabs" id="cmp-tabs">
+    <button class="cmp-tab-btn active" id="tab-btn-0" onclick="switchCmpTab(0)">종목 A</button>
+    <button class="cmp-tab-btn" id="tab-btn-1" onclick="switchCmpTab(1)">종목 B</button>
+  </div>
 
   <!-- Compare area -->
   <div class="compare-area" id="compare-area">
@@ -597,6 +639,42 @@
   // 비교 영역 렌더
   const area = document.getElementById('compare-area');
   area.innerHTML = buildColHTML(r1, 1) + buildColHTML(r2, 2);
+
+  // ── 모바일 탭 초기화 ──
+  const nameA = `${flag(r1.isKr, r1.ticker)} ${r1.companyName || r1.ticker}`;
+  const nameB = `${flag(r2.isKr, r2.ticker)} ${r2.companyName || r2.ticker}`;
+  document.getElementById('tab-btn-0').textContent = nameA;
+  document.getElementById('tab-btn-1').textContent = nameB;
+
+  // 모바일에서 첫 번째 컬럼만 표시
+  function applyTabActive(idx) {
+    area.querySelectorAll('.cmp-col').forEach((c, i) => {
+      c.classList.toggle('tab-active', i === idx);
+    });
+    document.querySelectorAll('.cmp-tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === idx);
+    });
+  }
+
+  // 초기 상태: 탭 0 활성
+  applyTabActive(0);
+
+  // 탭 전환 함수 (전역 노출)
+  window.switchCmpTab = function(idx) {
+    applyTabActive(idx);
+  };
+
+  // 데스크톱에서는 항상 모두 표시 (resize 대응)
+  function onResize() {
+    if (window.innerWidth > 767) {
+      area.querySelectorAll('.cmp-col').forEach(c => c.classList.add('tab-active'));
+    } else {
+      const active = [...document.querySelectorAll('.cmp-tab-btn')].findIndex(b => b.classList.contains('active'));
+      applyTabActive(active >= 0 ? active : 0);
+    }
+  }
+  window.addEventListener('resize', onResize);
+  onResize();
 
   // ── 스냅샷 높이 동기화: 두 컬럼 중 더 큰 쪽에 맞춤 ──
   requestAnimationFrame(() => {
