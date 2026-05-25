@@ -341,65 +341,6 @@
   }
   .btn-clear-compare:hover { background: var(--card); }
 
-  /* ── 비교 패널 ── */
-  #compare-panel {
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-    flex: 1;
-    min-width: 0;
-  }
-  .cmp-topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .cmp-title { font-size: 0.9rem; font-weight: 700; color: var(--text); }
-  .btn-close-cmp {
-    height: 28px; padding: 0 12px;
-    border-radius: 8px; border: 1px solid var(--border2);
-    background: transparent; color: var(--muted);
-    font-size: 0.72rem; font-weight: 600; cursor: pointer;
-    font-family: inherit; transition: background .15s;
-  }
-  .btn-close-cmp:hover { background: var(--card); }
-  .cmp-cols {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    flex: 1;
-    overflow: hidden;
-  }
-  .cmp-col {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-right: 1px solid var(--border);
-  }
-  .cmp-col:last-child { border-right: none; }
-  .cmp-snap-area {
-    overflow-y: auto;
-    flex-shrink: 0;
-    max-height: 44%;
-    border-bottom: 1px solid var(--border2);
-  }
-  .cmp-snap-area .snapshot-panel {
-    display: flex !important;
-    flex-direction: column;
-    border-radius: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
-  .cmp-report-frame {
-    flex: 1;
-    border: none;
-    width: 100%;
-    min-height: 0;
-    background: var(--bg);
-  }
-  .cmp-worse  { color: var(--red);   font-weight: 600; }
-
   .report-item-top {
     display: flex;
     align-items: center;
@@ -884,9 +825,6 @@
       <button class="btn-clear-compare" onclick="clearCompare()" title="선택 초기화">✕</button>
     </div>
   </aside>
-
-  <!-- 비교 패널 (스냅샷+리포트 대신 표시) -->
-  <div id="compare-panel"></div>
 
   <!-- 스냅샷 컬럼 -->
   <div class="col-resizer" id="resizer-left"></div>
@@ -1418,71 +1356,14 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   window.clearCompare = function() {
     compareSet.clear();
     updateCompareBar();
-    // 비교 패널 닫기
-    closeComparison();
     renderList(allReports);
   };
-
-  function closeComparison() {
-    document.getElementById('compare-panel').style.display = 'none';
-    document.getElementById('snapshot-col').style.display  = '';
-    const rc = document.getElementById('report-col');
-    if (rc) rc.style.display = '';
-    const rl = document.getElementById('resizer-left');
-    const rr = document.getElementById('resizer-right');
-    if (rl) rl.style.display = '';
-    if (rr) rr.style.display = '';
-  }
 
   window.showComparison = function() {
     if (compareSet.size < 2) return;
     const ids = [...compareSet];
-    const r1  = allReports.find(r => r.id === ids[0]);
-    const r2  = allReports.find(r => r.id === ids[1]);
-    if (!r1 || !r2) return;
-
-    // 스냅샷·리포트 컬럼 숨기고 비교 패널 표시
-    document.getElementById('snapshot-col').style.display  = 'none';
-    const rc = document.getElementById('report-col');
-    const rl = document.getElementById('resizer-left');
-    const rr = document.getElementById('resizer-right');
-    if (rc) rc.style.display = 'none';
-    if (rl) rl.style.display = 'none';
-    if (rr) rr.style.display = 'none';
-
-    const panel = document.getElementById('compare-panel');
-    panel.style.display = 'flex';
-    panel.innerHTML = buildComparisonHTML(r1, r2);
-
-    // iframe srcs (set after innerHTML so elements exist)
-    const mkUrl = r => {
-      const period = r.period || '6mo';
-      const style  = r.style  || 'balanced';
-      return `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
-    };
-    document.getElementById('cmp-frame-1').src = mkUrl(r1);
-    document.getElementById('cmp-frame-2').src = mkUrl(r2);
+    window.open(`compare.html?a=${ids[0]}&b=${ids[1]}`, '_blank');
   };
-
-  function buildComparisonHTML(r1, r2) {
-    const colHTML = (r, idx) => `
-      <div class="cmp-col">
-        <div class="cmp-snap-area">
-          <div class="snapshot-panel" style="display:flex">${renderSnapshot(r)}</div>
-        </div>
-        <iframe id="cmp-frame-${idx}" class="cmp-report-frame" src="about:blank"></iframe>
-      </div>`;
-
-    return `
-    <div class="cmp-topbar">
-      <span class="cmp-title">📊 종목 비교 &nbsp;<span style="font-size:0.75rem;font-weight:400;color:var(--muted)">${flag(r1.isKr, r1.ticker)} ${r1.companyName || r1.ticker} &nbsp;vs&nbsp; ${flag(r2.isKr, r2.ticker)} ${r2.companyName || r2.ticker}</span></span>
-      <button class="btn-close-cmp" onclick="clearCompare()">✕ 비교 종료</button>
-    </div>
-    <div class="cmp-cols">
-      ${colHTML(r1, 1)}
-      ${colHTML(r2, 2)}
-    </div>`;
-  }
 
   // ── 사이드바 접기/펼치기 (모바일 전용) ──
   window.toggleSidebarCollapse = function() {
