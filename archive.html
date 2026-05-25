@@ -407,8 +407,14 @@
   .snap-kv-val   { font-size: 0.82rem; font-weight: 600; color: var(--text2); }
   .snap-signal-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
+  }
+  /* 홀수 개일 때 마지막 칩이 혼자 남으면 가운데 정렬 */
+  .snap-signal-grid > .snap-sig-chip:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: 50%;
   }
   .snap-sig-chip {
     border-radius: 8px;
