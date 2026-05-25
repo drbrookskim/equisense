@@ -396,10 +396,10 @@
     text-transform: uppercase;
     margin-bottom: 10px;
   }
-  /* PC 중간 컬럼(320px)에서 2열 */
+  /* 스냅샷 타일: 최소 120px 유지, 공간에 따라 자동 리플로우 */
   .snap-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
   }
   .snap-kv { display: flex; flex-direction: column; gap: 2px; }
@@ -407,7 +407,7 @@
   .snap-kv-val   { font-size: 0.82rem; font-weight: 600; color: var(--text2); }
   .snap-signal-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
     gap: 6px;
   }
   .snap-sig-chip {
@@ -460,12 +460,43 @@
     display: none;
   }
 
-  /* ── 반응형: 모바일 (768px 미만) ── */
-  @media (max-width: 768px) {
-    /* 햄버거 표시, 3컬럼 → 단일 컬럼 */
-    .btn-hamburger { display: flex; }
+  /* ── 반응형: 태블릿 세로 (769px ~ 1024px) ── */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    /* 사이드바 좁게 고정, 스냅샷+리포트 2트랙 */
     .main {
-      display: flex;
+      grid-template-columns: 160px 5px 1fr !important;
+    }
+    /* 리사이저-right 숨김 (2트랙만 사용) */
+    #resizer-right { display: none; }
+    .report-col {
+      overflow-y: auto;
+    }
+    #report-frame {
+      flex: 1;
+      min-height: 0;
+      height: 100%;
+    }
+    .snapshot-col {
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+    }
+  }
+
+  /* ── 반응형: 태블릿 가로 (1025px ~ 1280px) ── */
+  @media (min-width: 1025px) and (max-width: 1280px) {
+    /* 3컬럼 유지, 사이드바·스냅샷 조금 좁게 */
+    .main {
+      grid-template-columns: 180px 5px 260px 5px 1fr !important;
+    }
+  }
+
+  /* ── 반응형: 모바일 (768px 이하) ── */
+  @media (max-width: 768px) {
+    /* 햄버거 표시 */
+    .btn-hamburger { display: flex; }
+    .col-resizer { display: none; }
+    .main {
+      display: flex !important;
       flex-direction: column;
       overflow-y: auto;
       overflow-x: hidden;
@@ -494,24 +525,23 @@
       overflow-y: visible;
       flex: unset;
       padding: 20px 16px;
-      max-width: 700px;
+      max-width: 680px;
       margin: 0 auto;
       width: 100%;
+      box-sizing: border-box;
     }
-    /* 모바일에서 그리드 3열로 확장 (공간 충분) */
-    .snap-grid        { grid-template-columns: repeat(3, 1fr); }
-    .snap-signal-grid { grid-template-columns: repeat(3, 1fr); }
 
-    /* 리포트 컬럼: 전체 너비 */
+    /* 리포트 컬럼: 전체 너비, iframe 높이 동적 조정 */
     .report-col { overflow: visible; }
     #report-frame {
       display: block;
-      height: 85vh;
-      min-height: 500px;
+      height: 90vh;
+      min-height: 480px;
       border-top: 1px solid var(--border);
-      max-width: 700px;
-      margin: 0 auto;
       width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+      box-sizing: border-box;
     }
     .col-empty { min-height: 120px; flex: unset; }
     .report-item-name { max-width: 200px; }
@@ -795,7 +825,19 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   function syncLayout() {
     const m = document.getElementById('main-area');
     if (!m) return;
-    m.style.display = window.innerWidth <= 768 ? 'flex' : 'grid';
+    const w = window.innerWidth;
+    if (w <= 768) {
+      m.style.display = 'flex';
+      m.style.gridTemplateColumns = '';
+    } else if (w <= 1024) {
+      // 태블릿 세로: 2트랙 grid (CSS !important가 덮음, display만 grid로 보장)
+      m.style.display = 'grid';
+      m.style.gridTemplateColumns = '160px 5px 1fr';
+    } else {
+      // PC / 태블릿 가로: CSS 및 initResizer가 columns 관리
+      m.style.display = 'grid';
+      m.style.gridTemplateColumns = '';
+    }
   }
   syncLayout();
   window.addEventListener('resize', syncLayout);
@@ -1068,7 +1110,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
   // ── 컬럼 리사이저 ──
   (function initResizer() {
-    if (window.innerWidth <= 768) return;
+    if (window.innerWidth <= 1024) return;   // 모바일·태블릿 세로는 CSS가 레이아웃 담당
     const main = document.getElementById('main-area');
 
     // JS 변수로 너비 직접 관리 (getComputedStyle 의존 X)
