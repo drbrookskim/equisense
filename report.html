@@ -1275,6 +1275,124 @@ function metricBlock({ subTitle, barPct, barScore, valueText, descLabel, descHtm
 }
 
 // ══════════════════════════════════════════════════════
+//  백테스트 — 슬라이딩 윈도우로 과거 신호 적중률 계산
+// ══════════════════════════════════════════════════════
+function computeBacktest(bars) {
+  const MIN_BARS  = 60;   // 지표 안정화 최소 구간
+  const HORIZONS  = [5, 10, 20]; // 보유 기간(거래일)
+  const MAX_HOLD  = 20;
+  const STEP      = 3;    // 매 3일마다 샘플 (성능/표본 균형)
+
+  if (bars.length < MIN_BARS + MAX_HOLD + 10) return null;
+
+  const buckets = { BUY: [], SELL: [], HOLD: [] };
+
+  for (let t = MIN_BARS; t < bars.length - MAX_HOLD; t += STEP) {
+    try {
+      const ind   = computeIndicators(bars.slice(0, t + 1));
+      const tech  = scoreTechnical(ind, bars[t].close);
+      // 기술적 점수만으로 신호 판정 (기본적 분석은 과거 시점 재현 불가)
+      const sig   = tech.score > 0.15 ? 'BUY' : tech.score < -0.15 ? 'SELL' : 'HOLD';
+      const entry = bars[t].close;
+      const outcomes = {};
+      HORIZONS.forEach(h => {
+        if (t + h < bars.length) outcomes[h] = (bars[t + h].close - entry) / entry;
+      });
+      buckets[sig].push({ outcomes });
+    } catch(_) { /* 슬라이스 데이터 부족 시 skip */ }
+  }
+
+  const stats = {};
+  ['BUY', 'SELL', 'HOLD'].forEach(sig => {
+    const arr = buckets[sig];
+    if (!arr.length) { stats[sig] = null; return; }
+    const hStats = {};
+    HORIZONS.forEach(h => {
+      const valid = arr.filter(s => s.outcomes[h] != null);
+      if (!valid.length) { hStats[h] = null; return; }
+      const rets  = valid.map(s => s.outcomes[h]);
+      const avg   = rets.reduce((a, b) => a + b, 0) / rets.length;
+      // 적중: BUY→양전환, SELL→음전환, HOLD→±2% 이내 횡보
+      const hits  = valid.filter(s => {
+        const r = s.outcomes[h];
+        if (sig === 'BUY')  return r > 0;
+        if (sig === 'SELL') return r < 0;
+        return Math.abs(r) < 0.02;
+      }).length;
+      hStats[h] = {
+        n:       valid.length,
+        hitRate: Math.round(hits / valid.length * 100),
+        avgRet:  Math.round(avg * 1000) / 10,   // % 단위, 소수 1자리
+      };
+    });
+    stats[sig] = { count: arr.length, h: hStats };
+  });
+  return stats;
+}
+
+function renderBacktest(stats, bars) {
+  if (!stats) return `
+    <div style="color:var(--muted2);font-size:0.75rem;text-align:center;padding:10px 0">
+      📉 데이터 부족 — 백테스트 최소 80거래일 필요
+    </div>`;
+
+  const months   = Math.round(bars.length / 21);
+  const HORIZONS = [5, 10, 20];
+
+  const rows = ['BUY', 'SELL'].map(sig => {
+    const s = stats[sig];
+    const isBuy  = sig === 'BUY';
+    const color  = isBuy ? 'var(--green)' : 'var(--red)';
+    const label  = isBuy ? '▲ 매수신호' : '▼ 매도신호';
+
+    const cells = HORIZONS.map(h => {
+      const hs = s?.h[h];
+      if (!hs) return `<td style="text-align:center;padding:5px 4px;font-size:0.68rem;color:var(--muted2)">-</td>`;
+      const rateColor = hs.hitRate >= 60 ? 'var(--green)' : hs.hitRate >= 45 ? 'var(--yellow)' : 'var(--red)';
+      const retSign   = hs.avgRet >= 0 ? '+' : '';
+      const retColor  = (isBuy && hs.avgRet > 0) || (!isBuy && hs.avgRet < 0) ? 'var(--green)' : 'var(--red)';
+      return `<td style="text-align:center;padding:5px 4px">
+        <div style="font-size:0.76rem;font-weight:700;color:${rateColor}">${hs.hitRate}%</div>
+        <div style="font-size:0.62rem;color:${retColor};margin-top:1px">${retSign}${hs.avgRet}%</div>
+      </td>`;
+    }).join('');
+
+    const count = s ? `<td style="text-align:center;padding:5px 4px;font-size:0.68rem;color:var(--muted)">${s.count}회</td>` :
+                      `<td style="text-align:center;padding:5px 4px;font-size:0.68rem;color:var(--muted2)">-</td>`;
+
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 8px;font-size:0.75rem;font-weight:700;color:${color};white-space:nowrap">${label}</td>
+      ${count}${cells}
+    </tr>`;
+  }).join('');
+
+  return `
+  <div style="margin-top:16px">
+    <div style="font-size:0.68rem;font-weight:700;color:var(--muted2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">
+      📊 과거 신호 적중률 — 최근 ${months}개월 백테스트
+    </div>
+    <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border)">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--card2);border-bottom:1px solid var(--border)">
+            <th style="padding:5px 8px;text-align:left;font-size:0.62rem;color:var(--muted2);font-weight:600">신호</th>
+            <th style="padding:5px 4px;text-align:center;font-size:0.62rem;color:var(--muted2);font-weight:600">횟수</th>
+            <th style="padding:5px 4px;text-align:center;font-size:0.62rem;color:var(--muted2);font-weight:600">5일<br>적중·수익</th>
+            <th style="padding:5px 4px;text-align:center;font-size:0.62rem;color:var(--muted2);font-weight:600">10일<br>적중·수익</th>
+            <th style="padding:5px 4px;text-align:center;font-size:0.62rem;color:var(--muted2);font-weight:600">20일<br>적중·수익</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:6px;font-size:0.61rem;color:var(--muted2);line-height:1.6">
+      적중률 = 신호 방향대로 가격이 움직인 비율 &nbsp;·&nbsp; 수익률 = 해당 기간 평균 등락률<br>
+      기술적 신호 기반 · 3거래일 간격 샘플링 · 기본적 분석 미포함
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
 //  메인 렌더
 // ══════════════════════════════════════════════════════
 function renderReport(data) {
@@ -1289,6 +1407,9 @@ function renderReport(data) {
 
   const actionMap = { BUY:'badge-buy', SELL:'badge-sell', HOLD:'badge-hold' };
   const actionLabel = { BUY:'매수 추천', SELL:'매도 추천', HOLD:'관망' };
+
+  // 백테스트 — 과거 신호 적중률 (시간 소요 방지: 렌더 직전 1회 계산)
+  const btStats = computeBacktest(bars);
 
   // ── 섹션 1: 종합 판단 ──
   const confPct = Math.round(d.confidence * 100);
@@ -1838,6 +1959,8 @@ function renderReport(data) {
     <ol style="padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:0.82rem;line-height:1.55">
       ${steps.join('')}
     </ol>
+
+    ${renderBacktest(btStats, bars)}
 
     <div style="margin-top:14px;font-size:0.68rem;color:var(--muted);padding:8px 12px;background:rgba(251,191,36,.06);border-radius:6px;border-left:3px solid var(--yellow);line-height:1.7">
       ⚠️ 본 리포트는 <b>참고용 정보</b>로, 투자 결정의 최종 책임은 본인에게 있습니다. 과거 신호가 미래 수익을 보장하지 않으며, 항상 분산투자 및 리스크 관리를 병행하세요.
