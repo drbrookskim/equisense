@@ -181,7 +181,7 @@
 
   /* Snapshot area */
   .cmp-snap-area {
-    overflow-y: auto;
+    overflow: hidden;
     flex-shrink: 0;
     border-bottom: 1px solid var(--border2);
     background: var(--card2);
@@ -591,13 +591,10 @@
   requestAnimationFrame(() => {
     const snaps = area.querySelectorAll('.cmp-snap-area');
     if (snaps.length === 2) {
-      // max-height 해제 후 자연 높이 측정
-      snaps.forEach(s => s.style.maxHeight = 'none');
+      // 자연 높이 측정 후 더 큰 쪽에 맞춰 동일하게
+      snaps.forEach(s => { s.style.height = 'auto'; s.style.maxHeight = 'none'; });
       const h = Math.max(snaps[0].scrollHeight, snaps[1].scrollHeight);
-      // 전체 높이의 50%를 넘지 않도록 cap
-      const cap = Math.floor(window.innerHeight * 0.48);
-      const final = Math.min(h, cap);
-      snaps.forEach(s => { s.style.height = final + 'px'; s.style.maxHeight = final + 'px'; });
+      snaps.forEach(s => { s.style.height = h + 'px'; s.style.flexShrink = '0'; });
     }
   });
 })();
