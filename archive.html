@@ -345,58 +345,59 @@
   #compare-panel {
     display: none;
     flex-direction: column;
-    overflow-y: auto;
-    padding: 24px 20px;
-    gap: 0;
+    overflow: hidden;
     flex: 1;
+    min-width: 0;
   }
-  .cmp-header {
+  .cmp-topbar {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 20px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
-  .cmp-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+  .cmp-title { font-size: 0.9rem; font-weight: 700; color: var(--text); }
   .btn-close-cmp {
-    height: 30px; padding: 0 12px;
+    height: 28px; padding: 0 12px;
     border-radius: 8px; border: 1px solid var(--border2);
     background: transparent; color: var(--muted);
-    font-size: 0.75rem; font-weight: 600; cursor: pointer;
+    font-size: 0.72rem; font-weight: 600; cursor: pointer;
     font-family: inherit; transition: background .15s;
   }
   .btn-close-cmp:hover { background: var(--card); }
-  .cmp-grid {
+  .cmp-cols {
     display: grid;
-    grid-template-columns: 140px 1fr 1fr;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    flex: 1;
     overflow: hidden;
   }
-  .cmp-cell {
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.78rem;
-    color: var(--text2);
+  .cmp-col {
     display: flex;
-    align-items: center;
-  }
-  .cmp-cell.label {
-    background: var(--card2);
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: var(--muted2);
-    letter-spacing: .04em;
-  }
-  .cmp-cell.header-cell {
-    background: var(--card2);
     flex-direction: column;
-    align-items: flex-start;
-    gap: 3px;
-    padding: 12px;
-    border-bottom: 2px solid var(--border2);
+    overflow: hidden;
+    border-right: 1px solid var(--border);
   }
-  .cmp-cell:last-child, .cmp-cell:nth-last-child(2), .cmp-cell:nth-last-child(3) {
-    border-bottom: none;
+  .cmp-col:last-child { border-right: none; }
+  .cmp-snap-area {
+    overflow-y: auto;
+    flex-shrink: 0;
+    max-height: 44%;
+    border-bottom: 1px solid var(--border2);
   }
-  .cmp-better { color: var(--green); font-weight: 700; }
+  .cmp-snap-area .snapshot-panel {
+    display: flex !important;
+    flex-direction: column;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .cmp-report-frame {
+    flex: 1;
+    border: none;
+    width: 100%;
+    min-height: 0;
+    background: var(--bg);
+  }
   .cmp-worse  { color: var(--red);   font-weight: 600; }
 
   .report-item-top {
@@ -1452,100 +1453,34 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     const panel = document.getElementById('compare-panel');
     panel.style.display = 'flex';
     panel.innerHTML = buildComparisonHTML(r1, r2);
+
+    // iframe srcs (set after innerHTML so elements exist)
+    const mkUrl = r => {
+      const period = r.period || '6mo';
+      const style  = r.style  || 'balanced';
+      return `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
+    };
+    document.getElementById('cmp-frame-1').src = mkUrl(r1);
+    document.getElementById('cmp-frame-2').src = mkUrl(r2);
   };
 
   function buildComparisonHTML(r1, r2) {
-    const fmt2 = (v, isKr) => fmtNum(v, isKr);
-    const pct  = v => v != null ? Math.round(v * 100) + '%' : '-';
-    const sc   = v => v != null ? (v >= 0 ? '+' : '') + Number(v).toFixed(3) : '-';
-    const n1   = v => v != null ? Number(v).toFixed(1) : '-';
-
-    // 색상 비교 헬퍼 (높을수록 좋은 값)
-    const betterHigh = (a, b) => {
-      if (a == null || b == null) return ['', ''];
-      return a >= b ? ['cmp-better', ''] : ['', 'cmp-better'];
-    };
-    const betterLow = (a, b) => {
-      if (a == null || b == null) return ['', ''];
-      return a <= b ? ['cmp-better', ''] : ['', 'cmp-better'];
-    };
-    const actionOrder = { BUY: 2, HOLD: 1, SELL: 0 };
-    const [ac1, ac2] = betterHigh(actionOrder[r1.action], actionOrder[r2.action]);
-    const [cc1, cc2] = betterHigh(r1.confidence, r2.confidence);
-    const [tc1, tc2] = betterHigh(r1.techScore, r2.techScore);
-    const [fc1, fc2] = betterHigh(r1.fundScore, r2.fundScore);
-    const [cb1, cb2] = betterHigh(r1.combined, r2.combined);
-    const [ip1, ip2] = betterHigh(r1.ipp?.ipp_score, r2.ipp?.ipp_score);
-
-    // RSI: 30~70 중립이 좋음, 극단값은 나쁨(과매수/과매도)
-    const rsiScore = r => r.keyIndicators?.rsi != null ? -Math.abs(r.keyIndicators.rsi - 50) : null;
-    const [rc1, rc2] = betterHigh(rsiScore(r1), rsiScore(r2));
-
-    const actionBadge = r => {
-      const c = r.action === 'BUY' ? 'var(--green)' : r.action === 'SELL' ? 'var(--red)' : 'var(--yellow)';
-      const lbl = r.action === 'BUY' ? '매수' : r.action === 'SELL' ? '매도' : '관망';
-      return `<b style="color:${c};font-size:0.9rem">${r.action}</b> <span style="font-size:0.72rem;color:var(--muted)">(${lbl})</span>`;
-    };
-
-    const ippDir = d => ({ BULLISH_REVERSAL:'상승 전환', BEARISH_REVERSAL:'하락 전환', NEUTRAL:'중립' }[d] || d || '-');
-
-    const rows = [
-      // [레이블, 값1, 값2, 클래스1, 클래스2]
-      ['종목', `${flag(r1.isKr, r1.ticker)} ${r1.companyName || r1.ticker}`, `${flag(r2.isKr, r2.ticker)} ${r2.companyName || r2.ticker}`, '', ''],
-      ['티커', r1.ticker, r2.ticker, '', ''],
-      ['저장일', fmtDate(r1.savedAt), fmtDate(r2.savedAt), '', ''],
-      ['저장가', `${fmt2(r1.price, r1.isKr)} ${r1.currency||''}`, `${fmt2(r2.price, r2.isKr)} ${r2.currency||''}`, '', ''],
-      null, // 구분선
-      ['판단', actionBadge(r1), actionBadge(r2), ac1, ac2],
-      ['신뢰도', pct(r1.confidence), pct(r2.confidence), cc1, cc2],
-      ['통합점수', sc(r1.combined), sc(r2.combined), cb1, cb2],
-      ['기술점수', sc(r1.techScore), sc(r2.techScore), tc1, tc2],
-      ['기본점수', sc(r1.fundScore), sc(r2.fundScore), fc1, fc2],
-      ['고급분석', sc(r1.advancedComposite), sc(r2.advancedComposite), ...betterHigh(r1.advancedComposite, r2.advancedComposite)],
-      null,
-      ['RSI', n1(r1.keyIndicators?.rsi), n1(r2.keyIndicators?.rsi), rc1, rc2],
-      ['MACD Hist', n1(r1.keyIndicators?.macd), n1(r2.keyIndicators?.macd), ...betterHigh(r1.keyIndicators?.macd, r2.keyIndicators?.macd)],
-      ['BB %B', r1.keyIndicators?.bbPct != null ? Math.round(r1.keyIndicators.bbPct*100)+'%' : '-',
-               r2.keyIndicators?.bbPct != null ? Math.round(r2.keyIndicators.bbPct*100)+'%' : '-', ...betterLow(r1.keyIndicators?.bbPct, r2.keyIndicators?.bbPct)],
-      ['거래량 비율', r1.keyIndicators?.volRatio != null ? r1.keyIndicators.volRatio.toFixed(2)+'x' : '-',
-                     r2.keyIndicators?.volRatio != null ? r2.keyIndicators.volRatio.toFixed(2)+'x' : '-', '', ''],
-      null,
-      ['IPP 스코어', r1.ipp?.ipp_score != null ? (r1.ipp.ipp_score >= 0 ? '+' : '') + r1.ipp.ipp_score : '-',
-                    r2.ipp?.ipp_score != null ? (r2.ipp.ipp_score >= 0 ? '+' : '') + r2.ipp.ipp_score : '-', ip1, ip2],
-      ['IPP 방향', ippDir(r1.ipp?.direction), ippDir(r2.ipp?.direction), '', ''],
-      ['IPP ETA', r1.ipp?.eta_days != null ? r1.ipp.eta_days + '일' : '-',
-                  r2.ipp?.eta_days != null ? r2.ipp.eta_days + '일' : '-', '', ''],
-    ];
-
-    const rowsHTML = rows.map(row => {
-      if (!row) return `
-        <div class="cmp-cell label" style="grid-column:1/-1;height:6px;padding:0;background:var(--card2);border-bottom:1px solid var(--border2)"></div>`;
-      const [lbl, v1, v2, c1, c2] = row;
-      return `
-        <div class="cmp-cell label">${lbl}</div>
-        <div class="cmp-cell ${c1}">${v1}</div>
-        <div class="cmp-cell ${c2}">${v2}</div>`;
-    }).join('');
+    const colHTML = (r, idx) => `
+      <div class="cmp-col">
+        <div class="cmp-snap-area">
+          <div class="snapshot-panel" style="display:flex">${renderSnapshot(r)}</div>
+        </div>
+        <iframe id="cmp-frame-${idx}" class="cmp-report-frame" src="about:blank"></iframe>
+      </div>`;
 
     return `
-    <div class="cmp-header">
-      <span class="cmp-title">📊 종목 비교</span>
+    <div class="cmp-topbar">
+      <span class="cmp-title">📊 종목 비교 &nbsp;<span style="font-size:0.75rem;font-weight:400;color:var(--muted)">${flag(r1.isKr, r1.ticker)} ${r1.companyName || r1.ticker} &nbsp;vs&nbsp; ${flag(r2.isKr, r2.ticker)} ${r2.companyName || r2.ticker}</span></span>
       <button class="btn-close-cmp" onclick="clearCompare()">✕ 비교 종료</button>
     </div>
-    <div class="cmp-grid">
-      <div class="cmp-cell header-cell label" style="font-size:0.68rem;color:var(--muted2)">항목</div>
-      <div class="cmp-cell header-cell">
-        <span style="font-size:0.82rem;font-weight:700;color:var(--text)">${flag(r1.isKr, r1.ticker)} ${r1.companyName || r1.ticker}</span>
-        <span style="font-size:0.68rem;color:var(--muted)">${r1.ticker}</span>
-      </div>
-      <div class="cmp-cell header-cell">
-        <span style="font-size:0.82rem;font-weight:700;color:var(--text)">${flag(r2.isKr, r2.ticker)} ${r2.companyName || r2.ticker}</span>
-        <span style="font-size:0.68rem;color:var(--muted)">${r2.ticker}</span>
-      </div>
-      ${rowsHTML}
-    </div>
-    <div style="margin-top:10px;font-size:0.65rem;color:var(--muted2);line-height:1.6">
-      🟢 초록색 = 해당 항목에서 상대적으로 유리한 종목 &nbsp;·&nbsp; 저장 시점 기준 스냅샷 비교
+    <div class="cmp-cols">
+      ${colHTML(r1, 1)}
+      ${colHTML(r2, 2)}
     </div>`;
   }
 
