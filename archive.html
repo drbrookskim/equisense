@@ -208,8 +208,10 @@
     position: fixed;
     inset: 0;
     z-index: 450;          /* 상단바(400)보다 위, 사이드바(500)보다 아래 */
-    background: rgba(0,0,0,0.5);
-    pointer-events: none;  /* 순수 시각 효과만 — iOS Safari z-index 터치 라우팅 버그 방지 */
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(4px);            /* pointer-events:none이므로 터치 라우팅 영향 없음 */
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: none;  /* 순수 시각 효과 — 터치는 사이드바(z-index:500)로 직접 전달 */
   }
 
   /* ── Main layout: PC 5트랙 (사이드바 | 리사이저 | 스냅샷 | 리사이저 | 리포트) ── */
