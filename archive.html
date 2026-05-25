@@ -356,6 +356,14 @@
     font-size: 0.7rem;
     font-weight: 600;
   }
+  /* 모바일에서 topbar 아래에 sticky — 스크롤해도 항상 보임 */
+  @media (max-width: 767px) {
+    .snap-toggle-bar {
+      position: sticky;
+      top: 52px;   /* topbar 높이 */
+      z-index: 50;
+    }
+  }
   .snap-toggle-bar:hover { background: var(--card); color: var(--text2); }
   .snap-toggle-bar .toggle-arrow { font-size: 0.85rem; transition: transform .25s; }
 
@@ -1178,9 +1186,10 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       // 재분석 버튼 텍스트 동기화
       const btn = document.getElementById(`btn-reanalyze-${id}`);
       if (btn) btn.textContent = '🔄 리포트 새로고침';
+      // 드로어 먼저 닫기 → transition(250ms) 완료 후 스크롤
       closeDrawer();
       fitMobileFrame();
-      setTimeout(() => snap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+      setTimeout(() => snap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     }
 
     document.querySelectorAll('.report-item').forEach(el => {
