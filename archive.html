@@ -623,11 +623,15 @@
       box-sizing: border-box;
     }
 
-    /* 리포트 컬럼: 전체 너비, iframe 높이 동적 조정 */
-    .report-col { overflow: visible; }
+    /* 리포트 컬럼: flex:1로 스냅샷 접힌 공간 자동 채움 */
+    .report-col {
+      overflow: visible;
+      flex: 1;
+      min-height: 320px;
+    }
     #report-frame {
       display: block;
-      height: 60vh;      /* JS가 동적으로 덮어씀, fallback */
+      height: 60vh;      /* JS fitMobileFrame()이 덮어씀, fallback */
       min-height: 320px;
       border-top: 1px solid var(--border);
       width: 100%;
@@ -1136,22 +1140,22 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     snap.style.display      = 'flex';
     snap.innerHTML          = renderSnapshot(r);
 
-    // PC: 리포트 자동 로드 / 모바일: 플레이스홀더 유지 (재분석 버튼으로 로드)
+    // 모바일/PC 모두 리포트 자동 로드
+    const period = r.period || '6mo';
+    const style  = r.style  || 'balanced';
+    const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
+    reportEmpty.style.display = 'none';
+    frame.style.display       = 'block';
+    frame.src                 = url;
+
     const isMobile = window.innerWidth <= 767;
-    if (!isMobile) {
-      const period = r.period || '6mo';
-      const style  = r.style  || 'balanced';
-      const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
-      reportEmpty.style.display = 'none';
-      frame.style.display       = 'block';
-      frame.src                 = url;
-    } else {
-      // 모바일: 기존 리포트 초기화, 드로어 닫고 스냅샷으로 스크롤
-      frame.style.display       = 'none';
-      frame.src                 = '';
-      reportEmpty.style.display = 'flex';
+    if (isMobile) {
+      // 재분석 버튼 텍스트 동기화
+      const btn = document.getElementById(`btn-reanalyze-${id}`);
+      if (btn) btn.textContent = '🔄 리포트 새로고침';
       closeDrawer();
-      setTimeout(() => snap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      fitMobileFrame();
+      setTimeout(() => snap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     }
 
     document.querySelectorAll('.report-item').forEach(el => {
@@ -1168,22 +1172,16 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     const url    = `report.html?ticker=${encodeURIComponent(r.ticker)}&period=${encodeURIComponent(period)}&style=${encodeURIComponent(style)}&embedded=1`;
 
     if (window.innerWidth <= 767) {
+      // 모바일: 항상 새로고침 (토글 없음)
       const frame       = document.getElementById('report-frame');
       const reportEmpty = document.getElementById('report-empty');
       const btn         = document.getElementById(`btn-reanalyze-${id}`);
-      if (frame.style.display === 'block') {
-        frame.style.display       = 'none';
-        frame.src                 = '';
-        reportEmpty.style.display = 'flex';
-        if (btn) btn.textContent  = '🔄 현재 기준 재분석';
-      } else {
-        reportEmpty.style.display = 'none';
-        frame.style.display       = 'block';
-        frame.src                 = url;
-        if (btn) btn.textContent  = '✕ 리포트 닫기';
-        fitMobileFrame();
-        setTimeout(() => frame.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-      }
+      reportEmpty.style.display = 'none';
+      frame.style.display       = 'block';
+      frame.src                 = url;
+      if (btn) btn.textContent  = '🔄 리포트 새로고침';
+      fitMobileFrame();
+      setTimeout(() => frame.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } else {
       // PC: 리포트 컬럼에 이미 표시 중 — 새로고침
       const frame       = document.getElementById('report-frame');
@@ -1196,7 +1194,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
   // ── 모바일 iframe 높이 동적 조정 ──
   function fitMobileFrame() {
-    if (window.innerWidth > 768) return;
+    if (window.innerWidth > 767) return;
     const frame = document.getElementById('report-frame');
     if (!frame || frame.style.display !== 'block') return;
     const topbar   = document.getElementById('topbar');
@@ -1235,10 +1233,12 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
 
   // ── 스냅샷 접기/펼치기 (상/하 레이아웃 전용) ──
   window.toggleSnapshotCollapse = function() {
-    const col     = document.getElementById('snapshot-col');
-    const label   = document.getElementById('snap-toggle-label');
+    const col       = document.getElementById('snapshot-col');
+    const label     = document.getElementById('snap-toggle-label');
     const collapsed = col.classList.toggle('snap-collapsed');
     if (label) label.textContent = collapsed ? '스냅샷 펼치기' : '스냅샷 접기';
+    // 트랜지션(300ms) 완료 후 iframe 높이 재계산
+    setTimeout(fitMobileFrame, 320);
   };
 
   // ── 스냅샷 접기/펼치기 (PC 좌/우 전용) ──
