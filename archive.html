@@ -106,7 +106,8 @@
     gap: 14px;
     flex-shrink: 0;
     z-index: 400;  /* 드로어(300)보다 위 */
-    position: relative;
+    position: sticky;
+    top: 0;
   }
   html.light .topbar {
     background: rgba(255,255,255,0.75);
@@ -726,7 +727,7 @@
 </div>
 
 <!-- Drawer overlay -->
-<div id="drawer-overlay" onclick="closeDrawer()"></div>
+<div id="drawer-overlay"></div>
 
 <!-- Topbar -->
 <header class="topbar" id="topbar" style="display:none">
@@ -1129,15 +1130,24 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     const isOpen  = sidebar.classList.contains('open');
     sidebar.classList.toggle('open', !isOpen);
     overlay.classList.toggle('open', !isOpen);
-    // iOS: 사이드바 영역(280px)은 터치 통과, 나머지만 오버레이
-    overlay.style.left = !isOpen ? '280px' : '0';
   };
   window.closeDrawer = function() {
-    const overlay = document.getElementById('drawer-overlay');
     document.getElementById('sidebar').classList.remove('open');
-    overlay.classList.remove('open');
-    overlay.style.left = '0';
+    document.getElementById('drawer-overlay').classList.remove('open');
   };
+
+  // iOS 호환: overlay 터치가 사이드바 영역 바깥일 때만 닫기
+  (function() {
+    const overlay = document.getElementById('drawer-overlay');
+    const sidebar = document.getElementById('sidebar');
+    function outsideClose(e) {
+      const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+      const sidebarW = sidebar.getBoundingClientRect().right;
+      if (x > sidebarW) closeDrawer();
+    }
+    overlay.addEventListener('touchend', outsideClose, { passive: true });
+    overlay.addEventListener('click',    outsideClose);
+  })();
 
   // ── 리포트 선택 ──
   window.selectReport = function(id) {
