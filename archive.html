@@ -104,10 +104,9 @@
     align-items: center;
     padding: 0 20px;
     gap: 14px;
-    flex-shrink: 0;
-    z-index: 400;  /* 드로어(300)보다 위 */
-    position: sticky;
-    top: 0;
+    flex-shrink: 0;       /* flex 구조가 상단 고정을 담당 */
+    z-index: 400;         /* 드로어(300)보다 위 */
+    position: relative;   /* sticky 제거: body{overflow:hidden}에서 iOS sticky 오동작 방지 */
   }
   html.light .topbar {
     background: rgba(255,255,255,0.75);
@@ -202,7 +201,7 @@
     z-index: 200;
     background: rgba(0,0,0,0.5);
     backdrop-filter: blur(2px);
-    pointer-events: none;  /* 터치 이벤트 통과 → document touchstart로 처리 (iOS 두 번 탭 방지) */
+    touch-action: manipulation; /* 300ms 탭 딜레이 제거 — pointer-events는 살려서 overlay가 직접 닫기 처리 */
   }
 
   /* ── Main layout: PC 5트랙 (사이드바 | 리사이저 | 스냅샷 | 리사이저 | 리포트) ── */
@@ -940,8 +939,42 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     return;
   }
 
-  // 로그인 상태
+  // ── 로그인 상태: topbar / main 노출 ──
   document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('user-email-display').textContent = email;
+
+  // ── 드로어 함수 — syncLayout보다 먼저 정의 (순서 중요) ──
+  window.closeDrawer = function() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('drawer-overlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+  };
+  window.toggleDrawer = function(e) {
+    if (e) e.stopPropagation(); // document 버블링 차단
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('drawer-overlay');
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', !isOpen);
+    overlay.classList.toggle('open', !isOpen);
+  };
+
+  // ── overlay 이벤트: 탭하면 드로어 닫기 ──
+  // touchend + preventDefault → iOS ghost tap(300ms 지연 클릭) 완전 차단
+  (function() {
+    const overlay = document.getElementById('drawer-overlay');
+    if (!overlay) return;
+    overlay.addEventListener('touchend', function(e) {
+      e.preventDefault();          // ghost tap 방지
+      window.closeDrawer();
+    }, { passive: false });
+    overlay.addEventListener('click', function() {
+      window.closeDrawer();        // PC·Android 마우스 클릭
+    });
+  })();
+
+  // ── 반응형 레이아웃 동기화 ──
   function syncLayout() {
     const m   = document.getElementById('main-area');
     const col = document.getElementById('snapshot-col');
@@ -952,26 +985,23 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
       m.style.gridTemplateColumns = '';
     } else if (w <= 1024) {
       // 태블릿 세로: 2컬럼 grid
-      closeDrawer();  // 모바일→태블릿 전환 시 드로어 닫기
+      window.closeDrawer(); // 모바일→태블릿 전환 시 드로어 닫기
       m.style.display = 'grid';
       m.style.gridTemplateColumns = '160px 1fr';
-      // PC 접힘 상태 해제
-      if (col) { col.classList.remove('pc-collapsed'); }
+      if (col) col.classList.remove('pc-collapsed');
       updatePcBtn(false);
     } else {
-      // PC: snap-collapsed(모바일 접힘) 제거, pc-collapsed 상태 유지
-      closeDrawer();  // 모바일→PC 전환 시 드로어 닫기
+      // PC: snap-collapsed 제거, pc-collapsed 상태 유지
+      window.closeDrawer(); // 모바일→PC 전환 시 드로어 닫기
       m.style.display = 'grid';
       m.style.gridTemplateColumns = '';
       if (col) col.classList.remove('snap-collapsed');
-      // snap-toggle-bar 라벨 초기화
       const lbl = document.getElementById('snap-toggle-label');
       if (lbl) lbl.textContent = '스냅샷 접기';
     }
   }
   syncLayout();
   window.addEventListener('resize', syncLayout);
-  document.getElementById('user-email-display').textContent = email;
 
   // ── 리포트 불러오기 ──
   const REPORTS_KEY = `signnith_reports_${email}`;
@@ -1127,36 +1157,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     </div>`;
   }
 
-  // ── 드로어 (모바일 사이드바) ──
-  window.toggleDrawer = function(e) {
-    if (e) e.stopPropagation();  // document click 리스너로 버블링 방지 (즉시 닫힘 방지)
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('drawer-overlay');
-    const isOpen  = sidebar.classList.contains('open');
-    sidebar.classList.toggle('open', !isOpen);
-    overlay.classList.toggle('open', !isOpen);
-  };
-  window.closeDrawer = function() {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('drawer-overlay').classList.remove('open');
-  };
-
-  // iOS 호환: pointer-events:none인 overlay 대신 document 레벨에서 감지
-  // 사이드바 바깥 터치 → closeDrawer (두 번 탭 문제 완전 해결)
-  document.addEventListener('touchstart', function(e) {
-    const sidebar = document.getElementById('sidebar');
-    if (!sidebar || !sidebar.classList.contains('open')) return;
-    if (sidebar.contains(e.target)) return;
-    closeDrawer();
-  }, { passive: true });
-  // PC·태블릿 마우스 클릭으로 overlay 배경 클릭 시에도 닫기
-  document.addEventListener('click', function(e) {
-    const sidebar  = document.getElementById('sidebar');
-    const overlay  = document.getElementById('drawer-overlay');
-    if (!sidebar || !sidebar.classList.contains('open')) return;
-    if (sidebar.contains(e.target))  return;
-    if (e.target === overlay || !sidebar.contains(e.target)) closeDrawer();
-  });
+  // ── 드로어 함수: 위에서 이미 정의됨 (closeDrawer / toggleDrawer) ──
 
   // ── 리포트 선택 ──
   window.selectReport = function(id) {
