@@ -105,7 +105,8 @@
     padding: 0 20px;
     gap: 14px;
     flex-shrink: 0;
-    z-index: 100;
+    z-index: 400;  /* 드로어(300)보다 위 */
+    position: relative;
   }
   html.light .topbar {
     background: rgba(255,255,255,0.75);
@@ -144,14 +145,19 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .topbar-sep { flex: 1; }
+  .topbar-sep { flex: 1; min-width: 0; }
   .topbar-user {
     font-size: 0.75rem;
     color: var(--muted);
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
   .topbar-user span { color: var(--text2); font-weight: 600; }
   .btn-logout {
@@ -587,6 +593,11 @@
     /* 햄버거 표시 */
     .btn-hamburger { display: flex; }
     .col-resizer { display: none; }
+    /* topbar: 이메일 숨김, 제목 축소 */
+    #user-email-display { display: none; }
+    .topbar-sep-bar { display: none; }
+    .topbar-title { font-size: 0.75rem; }
+    .topbar { padding: 0 12px; gap: 8px; }
     .main {
       display: flex !important;
       flex-direction: column;
@@ -1118,10 +1129,14 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     const isOpen  = sidebar.classList.contains('open');
     sidebar.classList.toggle('open', !isOpen);
     overlay.classList.toggle('open', !isOpen);
+    // iOS: 사이드바 영역(280px)은 터치 통과, 나머지만 오버레이
+    overlay.style.left = !isOpen ? '280px' : '0';
   };
   window.closeDrawer = function() {
+    const overlay = document.getElementById('drawer-overlay');
     document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('drawer-overlay').classList.remove('open');
+    overlay.classList.remove('open');
+    overlay.style.left = '0';
   };
 
   // ── 리포트 선택 ──

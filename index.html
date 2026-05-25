@@ -219,6 +219,8 @@
     padding: 4px 12px;
     font-size: 0.72rem;
     color: var(--text2);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .btn-gh {
     background: var(--green);
@@ -758,6 +760,10 @@
   }
   @media (max-width: 600px) {
     .rsi-macd-grid { grid-template-columns: 1fr; }
+    /* topbar: 모바일에서 pill 숨김, 여백 축소 */
+    .pill { display: none; }
+    .topbar { padding: 0 16px; }
+    .topbar-right { gap: 8px; }
   }
   /* ── 말풍선 아이콘 ── */
   .tip {
