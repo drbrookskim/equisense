@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { getMoatScore } from '@/lib/api-client'
 import type { Market, MoatAnalysis } from '@/types'
 import MoatCharts from '@/components/charts/MoatCharts'
@@ -19,9 +19,8 @@ const GRADE_COLOR: Record<string, string> = {
 }
 
 function MoatContent() {
-  const params = useParams()
   const searchParams = useSearchParams()
-  const ticker = (params.ticker as string).toUpperCase()
+  const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
 
   const [data, setData] = useState<MoatAnalysis | null>(null)
@@ -29,18 +28,20 @@ function MoatContent() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     setIsLoading(true)
     setErrorMsg(null)
     getMoatScore(ticker, market)
-      .then(setData)
+      .then(data => { if (!cancelled) setData(data) })
       .catch((err: { status?: number }) => {
-        setErrorMsg(
+        if (!cancelled) setErrorMsg(
           err?.status === 404
             ? `${ticker} 종목의 해자 점수가 아직 입력되지 않았습니다. 분석가가 점수를 입력한 후 확인할 수 있습니다.`
             : '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
         )
       })
-      .finally(() => setIsLoading(false))
+      .finally(() => { if (!cancelled) setIsLoading(false) })
+    return () => { cancelled = true }
   }, [ticker, market])
 
   if (isLoading) return <LoadingSkeleton />

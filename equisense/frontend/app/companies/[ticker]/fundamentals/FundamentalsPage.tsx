@@ -1,15 +1,14 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { getFundamentals } from '@/lib/api-client'
 import type { FundamentalAnalysis, Market } from '@/types'
 import FundamentalsCharts from '@/components/charts/FundamentalsCharts'
 
 function FundamentalsContent() {
-  const params = useParams()
   const searchParams = useSearchParams()
-  const ticker = (params.ticker as string).toUpperCase()
+  const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
 
   const [data, setData] = useState<FundamentalAnalysis | null>(null)
@@ -17,18 +16,20 @@ function FundamentalsContent() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     setIsLoading(true)
     setErrorMsg(null)
     getFundamentals(ticker, market)
-      .then(setData)
+      .then(data => { if (!cancelled) setData(data) })
       .catch((err: { status?: number }) => {
-        setErrorMsg(
+        if (!cancelled) setErrorMsg(
           err?.status === 404
             ? `${ticker} 종목의 재무 데이터를 찾을 수 없습니다.`
             : '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
         )
       })
-      .finally(() => setIsLoading(false))
+      .finally(() => { if (!cancelled) setIsLoading(false) })
+    return () => { cancelled = true }
   }, [ticker, market])
 
   if (isLoading) return <LoadingSkeleton />
