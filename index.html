@@ -200,6 +200,9 @@
     filter: none;
     opacity: 0.85;
   }
+  /* 로그인 모달: 투명 없는 솔리드 배경 */
+  #auth-modal-inner { background: #111827; }
+  html.light #auth-modal-inner { background: #ffffff; }
   .welcome-logo {
     height: 53px;
     width: auto;
@@ -1051,7 +1054,7 @@
 
 <!-- ── 로그인 모달 ── -->
 <div id="auth-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);align-items:center;justify-content:center">
-  <div style="background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:40px 36px;width:100%;max-width:360px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,0.5);text-align:center">
+  <div id="auth-modal-inner" style="border:1px solid var(--border2);border-radius:20px;padding:40px 36px;width:100%;max-width:360px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,0.5);text-align:center">
     <button onclick="closeAuthModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
 
     <!-- 로고 + 타이틀 -->
