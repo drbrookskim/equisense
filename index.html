@@ -1164,6 +1164,33 @@
 // ══════════════════════════════════════════════════════
 const THEME_KEY = 'tsa_theme';
 
+// ══════════════════════════════════════════════════════
+//  보관함 Auth (Supabase 기반) — currentUser() 사용 전 최우선 초기화
+// ══════════════════════════════════════════════════════
+const _SB_URL = 'https://anvgqeyghquwrvsjmivj.supabase.co';
+const _SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFudmdxZXlnaHF1d3J2c2ptaXZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mjg4MzcsImV4cCI6MjA4NzQwNDgzN30.Lwr3BWTRDyaxN9kEGdj26i-P82Aw_h052e_Ia31WBk0';
+const _sb = supabase.createClient(_SB_URL, _SB_KEY);
+
+// localStorage 호환 키로 즉시 동기 초기화
+let _sbSession = (() => {
+  try {
+    const e = JSON.parse(localStorage.getItem('signnith_session')||'null')?.email;
+    return e ? { user: { email: e } } : null;
+  } catch { return null; }
+})();
+
+_sb.auth.getSession().then(({ data }) => {
+  _sbSession = data.session;
+  updateTopbarUser(); renderFavs(); renderHistory();
+});
+_sb.auth.onAuthStateChange((_event, session) => {
+  _sbSession = session;
+  updateTopbarUser(); renderFavs(); renderHistory();
+});
+
+function isLoggedIn()  { return !!_sbSession?.user; }
+function currentUser() { return _sbSession?.user?.email || null; }
+
 // ── 환경설정 (유저별) ──────────────────────────────────────
 function prefsKey() { return currentUser() ? `signnith_prefs_${currentUser()}` : null; }
 function loadPrefs() {
@@ -5336,35 +5363,6 @@ renderHistory();
 })();
 
 // ── 리포트 페이지 열기 ──
-// ══════════════════════════════════════════════════════
-//  보관함 Auth (Supabase 기반)
-// ══════════════════════════════════════════════════════
-const _SB_URL  = 'https://anvgqeyghquwrvsjmivj.supabase.co';
-const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFudmdxZXlnaHF1d3J2c2ptaXZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mjg4MzcsImV4cCI6MjA4NzQwNDgzN30.Lwr3BWTRDyaxN9kEGdj26i-P82Aw_h052e_Ia31WBk0';
-const _sb      = supabase.createClient(_SB_URL, _SB_KEY);
-
-// ── 세션 캐시 (동기 접근용) ──
-// localStorage 호환 키에서 즉시 초기화 → 비동기 완료 전 currentUser() 호출 대비
-const _sbSessionFallbackEmail = (() => {
-  try { return JSON.parse(localStorage.getItem('signnith_session')||'null')?.email || null; } catch{ return null; }
-})();
-let _sbSession = _sbSessionFallbackEmail ? { user: { email: _sbSessionFallbackEmail } } : null;
-
-_sb.auth.getSession().then(({ data }) => {
-  _sbSession = data.session;
-  updateTopbarUser();
-  renderFavs();
-  renderHistory();
-});
-_sb.auth.onAuthStateChange((_event, session) => {
-  _sbSession = session;
-  updateTopbarUser();
-  renderFavs();
-  renderHistory();
-});
-
-function isLoggedIn()  { return !!_sbSession?.user; }
-function currentUser() { return _sbSession?.user?.email || null; }
 
 // ── 로딩 상태 헬퍼 ──
 function _setBtnLoading(id, loading, label) {
