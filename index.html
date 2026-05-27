@@ -1068,8 +1068,24 @@
       <button onclick="authLogin()" id="btn-login"
         style="width:100%;height:42px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s"
         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">로그인</button>
+
+      <!-- 구분선 -->
+      <div style="display:flex;align-items:center;gap:10px;margin:18px 0">
+        <div style="flex:1;height:1px;background:var(--border2)"></div>
+        <span style="font-size:0.72rem;color:var(--muted2)">또는</span>
+        <div style="flex:1;height:1px;background:var(--border2)"></div>
+      </div>
+
+      <!-- Google 로그인 -->
+      <button onclick="authGoogleLogin()" id="btn-google"
+        style="width:100%;height:42px;border-radius:10px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s"
+        onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='var(--card2)'">
+        <svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+        Google로 계속하기
+      </button>
+
       <div style="display:flex;justify-content:center;gap:20px;margin-top:16px;font-size:0.76rem">
-        <span style="color:var(--blue);cursor:pointer" onclick="showAuthView('signup')">회원가입</span>
+        <span style="color:var(--blue);cursor:pointer" onclick="showAuthView('signup')">이메일 회원가입</span>
         <span style="color:var(--muted)">|</span>
         <span style="color:var(--muted);cursor:pointer" onclick="showAuthView('reset')">비밀번호 재설정</span>
       </div>
@@ -1093,6 +1109,17 @@
       <button onclick="authSignup()" id="btn-signup"
         style="width:100%;height:42px;border-radius:10px;border:none;background:var(--green);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s"
         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">가입하기</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:18px 0">
+        <div style="flex:1;height:1px;background:var(--border2)"></div>
+        <span style="font-size:0.72rem;color:var(--muted2)">또는</span>
+        <div style="flex:1;height:1px;background:var(--border2)"></div>
+      </div>
+      <button onclick="authGoogleLogin()"
+        style="width:100%;height:42px;border-radius:10px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s"
+        onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='var(--card2)'">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+        Google로 계속하기
+      </button>
       <div style="text-align:center;margin-top:14px;font-size:0.76rem">
         <span style="color:var(--blue);cursor:pointer" onclick="showAuthView('login')">← 로그인으로</span>
       </div>
@@ -1188,9 +1215,17 @@ if (_sb) {
     // updateTopbarUser/renderFavs/renderHistory 는 파일 후반 정의 → setTimeout으로 안전 호출
     setTimeout(() => { updateTopbarUser(); renderFavs(); renderHistory(); }, 0);
   });
-  _sb.auth.onAuthStateChange((_event, session) => {
+  _sb.auth.onAuthStateChange((event, session) => {
     _sbSession = session;
     setTimeout(() => { updateTopbarUser(); renderFavs(); renderHistory(); }, 0);
+    // Google OAuth 콜백으로 돌아온 경우 아카이브 자동 오픈
+    if (event === 'SIGNED_IN' && session?.user?.email) {
+      const url = new URL(location.href);
+      if (url.hash.includes('access_token') || url.searchParams.has('code')) {
+        localStorage.setItem('signnith_session', JSON.stringify({ email: session.user.email, loginAt: Date.now() }));
+        setTimeout(() => window.open('archive.html', '_blank'), 300);
+      }
+    }
   });
 }
 
@@ -5391,6 +5426,15 @@ function _showOk(id, msg) {
   el.style.color = 'var(--green)';
   el.style.background = 'rgba(0,212,170,0.08)';
   el.style.borderColor = 'rgba(0,212,170,0.25)';
+}
+
+async function authGoogleLogin() {
+  if (!_sb) { alert('인증 서비스 연결 실패. 잠시 후 다시 시도해주세요.'); return; }
+  const { error } = await _sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: 'https://drbrookskim.github.io/signnith/' }
+  });
+  if (error) { _showErr('auth-error-login', 'Google 로그인 실패: ' + error.message); }
 }
 
 async function authLogin() {
