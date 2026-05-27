@@ -5423,10 +5423,7 @@ async function authSignup() {
   const email = document.getElementById('signup-email').value.trim().toLowerCase();
   const pw    = document.getElementById('signup-pw').value;
   const pw2   = document.getElementById('signup-pw2').value;
-  errEl_ref: {
-    const errEl = document.getElementById('auth-error-signup');
-    errEl.style.display = 'none';
-  }
+  document.getElementById('auth-error-signup').style.display = 'none';
 
   if (!email || !pw) { _showErr('auth-error-signup', '이메일과 비밀번호를 입력하세요.'); return; }
   if (pw.length < 8) { _showErr('auth-error-signup', '비밀번호는 8자 이상이어야 합니다.'); return; }
