@@ -1165,13 +1165,16 @@
 const THEME_KEY = 'tsa_theme';
 
 // ══════════════════════════════════════════════════════
-//  보관함 Auth (Supabase 기반) — currentUser() 사용 전 최우선 초기화
+//  보관함 Auth (Supabase 기반) — 앱 크래시 방지 try-catch 래핑
 // ══════════════════════════════════════════════════════
 const _SB_URL = 'https://anvgqeyghquwrvsjmivj.supabase.co';
 const _SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFudmdxZXlnaHF1d3J2c2ptaXZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mjg4MzcsImV4cCI6MjA4NzQwNDgzN30.Lwr3BWTRDyaxN9kEGdj26i-P82Aw_h052e_Ia31WBk0';
-const _sb = supabase.createClient(_SB_URL, _SB_KEY);
 
-// localStorage 호환 키로 즉시 동기 초기화
+// Supabase 클라이언트 — CDN 미로드 시에도 앱이 정상 동작하도록 null 폴백
+let _sb = null;
+try { _sb = supabase.createClient(_SB_URL, _SB_KEY); } catch(e) { console.warn('Supabase CDN not loaded:', e); }
+
+// 세션: localStorage 호환 키로 즉시 동기 초기화 (getSession 비동기 완료 전 대비)
 let _sbSession = (() => {
   try {
     const e = JSON.parse(localStorage.getItem('signnith_session')||'null')?.email;
@@ -1179,14 +1182,17 @@ let _sbSession = (() => {
   } catch { return null; }
 })();
 
-_sb.auth.getSession().then(({ data }) => {
-  _sbSession = data.session;
-  updateTopbarUser(); renderFavs(); renderHistory();
-});
-_sb.auth.onAuthStateChange((_event, session) => {
-  _sbSession = session;
-  updateTopbarUser(); renderFavs(); renderHistory();
-});
+if (_sb) {
+  _sb.auth.getSession().then(({ data }) => {
+    _sbSession = data.session;
+    // updateTopbarUser/renderFavs/renderHistory 는 파일 후반 정의 → setTimeout으로 안전 호출
+    setTimeout(() => { updateTopbarUser(); renderFavs(); renderHistory(); }, 0);
+  });
+  _sb.auth.onAuthStateChange((_event, session) => {
+    _sbSession = session;
+    setTimeout(() => { updateTopbarUser(); renderFavs(); renderHistory(); }, 0);
+  });
+}
 
 function isLoggedIn()  { return !!_sbSession?.user; }
 function currentUser() { return _sbSession?.user?.email || null; }
@@ -5388,6 +5394,7 @@ function _showOk(id, msg) {
 }
 
 async function authLogin() {
+  if (!_sb) { _showErr('auth-error-login', '인증 서비스 연결 실패. 잠시 후 다시 시도해주세요.'); return; }
   const email = document.getElementById('auth-email').value.trim().toLowerCase();
   const pw    = document.getElementById('auth-pw').value;
   const errEl = document.getElementById('auth-error-login');
