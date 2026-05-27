@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <style>
@@ -1052,33 +1053,30 @@
       <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">🗂️ 아카이브 로그인</div>
       <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">분석 리포트를 저장하고 언제든 꺼내보세요.</div>
       <div id="auth-error-login" style="display:none;font-size:0.76rem;color:var(--red);background:rgba(255,75,110,0.08);border:1px solid rgba(255,75,110,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px"></div>
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">아이디</label>
-      <input id="auth-email" type="text" placeholder="아이디 입력" autocomplete="username"
+      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">이메일</label>
+      <input id="auth-email" type="email" placeholder="이메일 입력" autocomplete="email"
         style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:12px;outline:none">
       <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">비밀번호</label>
       <input id="auth-pw" type="password" placeholder="비밀번호" autocomplete="current-password"
-        style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:14px;outline:none"
+        style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:20px;outline:none"
         onkeydown="if(event.key==='Enter')authLogin()">
-      <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--muted);margin-bottom:20px;cursor:pointer">
-        <input type="checkbox" id="auth-remember" style="width:15px;height:15px;accent-color:var(--blue)"> 로그인 유지하기
-      </label>
-      <button onclick="authLogin()"
+      <button onclick="authLogin()" id="btn-login"
         style="width:100%;height:42px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s"
         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">로그인</button>
       <div style="display:flex;justify-content:center;gap:20px;margin-top:16px;font-size:0.76rem">
         <span style="color:var(--blue);cursor:pointer" onclick="showAuthView('signup')">회원가입</span>
         <span style="color:var(--muted)">|</span>
-        <span style="color:var(--muted);cursor:pointer" onclick="showAuthView('reset')">비밀번호 초기화</span>
+        <span style="color:var(--muted);cursor:pointer" onclick="showAuthView('reset')">비밀번호 재설정</span>
       </div>
     </div>
 
     <!-- 회원가입 뷰 -->
     <div id="auth-view-signup" style="display:none">
       <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">📝 회원가입</div>
-      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">아이디와 비밀번호로 계정을 만듭니다.</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">이메일과 비밀번호로 계정을 만듭니다.</div>
       <div id="auth-error-signup" style="display:none;font-size:0.76rem;color:var(--red);background:rgba(255,75,110,0.08);border:1px solid rgba(255,75,110,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px"></div>
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">아이디</label>
-      <input id="signup-email" type="text" placeholder="아이디 입력 (영문·숫자)"
+      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">이메일</label>
+      <input id="signup-email" type="email" placeholder="이메일 입력"
         style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:12px;outline:none">
       <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">비밀번호 <span style="color:var(--muted2)">(8자 이상)</span></label>
       <input id="signup-pw" type="password" placeholder="비밀번호"
@@ -1087,7 +1085,7 @@
       <input id="signup-pw2" type="password" placeholder="비밀번호 재입력"
         style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:20px;outline:none"
         onkeydown="if(event.key==='Enter')authSignup()">
-      <button onclick="authSignup()"
+      <button onclick="authSignup()" id="btn-signup"
         style="width:100%;height:42px;border-radius:10px;border:none;background:var(--green);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s"
         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">가입하기</button>
       <div style="text-align:center;margin-top:14px;font-size:0.76rem">
@@ -1095,24 +1093,18 @@
       </div>
     </div>
 
-    <!-- 비밀번호 초기화 뷰 -->
+    <!-- 비밀번호 재설정 뷰 -->
     <div id="auth-view-reset" style="display:none">
-      <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">🔑 비밀번호 초기화</div>
-      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">현재 비밀번호 확인 후 새 비밀번호로 변경합니다.</div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">🔑 비밀번호 재설정</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:24px">가입한 이메일로 재설정 링크를 보내드립니다.</div>
       <div id="auth-error-reset" style="display:none;font-size:0.76rem;color:var(--red);background:rgba(255,75,110,0.08);border:1px solid rgba(255,75,110,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px"></div>
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">아이디</label>
-      <input id="reset-email" type="text" placeholder="아이디 입력"
-        style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:12px;outline:none">
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">현재 비밀번호</label>
-      <input id="reset-pw-old" type="password" placeholder="현재 비밀번호"
-        style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:12px;outline:none">
-      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">새 비밀번호 <span style="color:var(--muted2)">(8자 이상)</span></label>
-      <input id="reset-pw-new" type="password" placeholder="새 비밀번호"
+      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">이메일</label>
+      <input id="reset-email" type="email" placeholder="이메일 입력"
         style="width:100%;height:42px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:14px;padding:0 12px;box-sizing:border-box;margin-bottom:20px;outline:none"
         onkeydown="if(event.key==='Enter')authReset()">
-      <button onclick="authReset()"
+      <button onclick="authReset()" id="btn-reset"
         style="width:100%;height:42px;border-radius:10px;border:none;background:var(--yellow);color:#000;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s"
-        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">비밀번호 변경</button>
+        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">재설정 링크 전송</button>
       <div style="text-align:center;margin-top:14px;font-size:0.76rem">
         <span style="color:var(--blue);cursor:pointer" onclick="showAuthView('login')">← 로그인으로</span>
       </div>
@@ -5340,51 +5332,80 @@ renderHistory();
 
 // ── 리포트 페이지 열기 ──
 // ══════════════════════════════════════════════════════
-//  보관함 Auth (localStorage 기반)
+//  보관함 Auth (Supabase 기반)
 // ══════════════════════════════════════════════════════
-const AUTH_USERS_KEY   = 'signnith_users';
-const AUTH_SESSION_KEY = 'signnith_session';
+const _SB_URL  = 'https://anvgqeyghquwrvsjmivj.supabase.co';
+const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFudmdxZXlnaHF1d3J2c2ptaXZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mjg4MzcsImV4cCI6MjA4NzQwNDgzN30.Lwr3BWTRDyaxN9kEGdj26i-P82Aw_h052e_Ia31WBk0';
+const _sb      = supabase.createClient(_SB_URL, _SB_KEY);
 
-async function hashPassword(pw) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
+// ── 세션 캐시 (동기 접근용) ──
+let _sbSession = null;
+_sb.auth.getSession().then(({ data }) => {
+  _sbSession = data.session;
+  updateTopbarUser();
+  renderFavs();
+  renderHistory();
+});
+_sb.auth.onAuthStateChange((_event, session) => {
+  _sbSession = session;
+  updateTopbarUser();
+  renderFavs();
+  renderHistory();
+});
 
-function getUsers()  { return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '{}'); }
-function saveUsers(u){ localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(u)); }
+function isLoggedIn()  { return !!_sbSession?.user; }
+function currentUser() { return _sbSession?.user?.email || null; }
 
-function getSession() {
-  try { return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null'); } catch{ return null; }
+// ── 로딩 상태 헬퍼 ──
+function _setBtnLoading(id, loading, label) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.disabled    = loading;
+  btn.textContent = loading ? '처리 중…' : label;
+  btn.style.opacity = loading ? '0.6' : '1';
 }
-function isLoggedIn() {
-  const s = getSession();
-  return s && s.email;
+function _showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.style.display = 'block';
+  el.style.color = ''; el.style.background = ''; el.style.borderColor = '';
 }
-function currentUser() {
-  const s = getSession();
-  return s?.email || null;
+function _showOk(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.style.display = 'block';
+  el.style.color = 'var(--green)';
+  el.style.background = 'rgba(0,212,170,0.08)';
+  el.style.borderColor = 'rgba(0,212,170,0.25)';
 }
 
 async function authLogin() {
-  const email    = document.getElementById('auth-email').value.trim().toLowerCase();
-  const pw       = document.getElementById('auth-pw').value;
-  const remember = document.getElementById('auth-remember').checked;
-  const errEl    = document.getElementById('auth-error-login');
+  const email = document.getElementById('auth-email').value.trim().toLowerCase();
+  const pw    = document.getElementById('auth-pw').value;
+  const errEl = document.getElementById('auth-error-login');
   errEl.style.display = 'none';
 
-  if (!email || !pw) { errEl.textContent='아이디와 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
+  if (!email || !pw) { _showErr('auth-error-login', '이메일과 비밀번호를 입력하세요.'); return; }
 
-  // ★ 팝업 차단 우회: await 이전에 동기적으로 창을 먼저 열어둠
+  // 팝업 차단 우회: await 전에 미리 창 열기
   const archiveWin = window.open('', '_blank');
+  _setBtnLoading('btn-login', true, '로그인');
 
-  const users = getUsers();
-  const hash  = await hashPassword(pw);
-  if (!users[email] || users[email].hash !== hash) {
+  const { error } = await _sb.auth.signInWithPassword({ email, password: pw });
+  _setBtnLoading('btn-login', false, '로그인');
+
+  if (error) {
     archiveWin && archiveWin.close();
-    errEl.textContent = '아이디 또는 비밀번호가 올바르지 않습니다.'; errEl.style.display='block'; return;
+    _showErr('auth-error-login', '이메일 또는 비밀번호가 올바르지 않습니다.');
+    return;
   }
-  const session = { email, remember, loginAt: Date.now() };
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+
+  // signnith_session 호환 키 기록 (archive/compare.html 동기 접근용)
+  const { data: { session } } = await _sb.auth.getSession();
+  if (session?.user?.email) {
+    localStorage.setItem('signnith_session', JSON.stringify({ email: session.user.email, loginAt: Date.now() }));
+  }
+
   closeAuthModal();
   applyPrefs();
   renderFavs();
@@ -5397,66 +5418,62 @@ async function authSignup() {
   const email = document.getElementById('signup-email').value.trim().toLowerCase();
   const pw    = document.getElementById('signup-pw').value;
   const pw2   = document.getElementById('signup-pw2').value;
-  const errEl = document.getElementById('auth-error-signup');
-  errEl.style.display = 'none';
+  errEl_ref: {
+    const errEl = document.getElementById('auth-error-signup');
+    errEl.style.display = 'none';
+  }
 
-  if (!email || !pw) { errEl.textContent='아이디와 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
-  if (email.length < 3) { errEl.textContent='아이디는 3자 이상이어야 합니다.'; errEl.style.display='block'; return; }
-  if (pw.length < 8) { errEl.textContent='비밀번호는 8자 이상이어야 합니다.'; errEl.style.display='block'; return; }
-  if (pw !== pw2)    { errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.style.display='block'; return; }
+  if (!email || !pw) { _showErr('auth-error-signup', '이메일과 비밀번호를 입력하세요.'); return; }
+  if (pw.length < 8) { _showErr('auth-error-signup', '비밀번호는 8자 이상이어야 합니다.'); return; }
+  if (pw !== pw2)    { _showErr('auth-error-signup', '비밀번호가 일치하지 않습니다.'); return; }
 
-  const users = getUsers();
-  if (users[email]) { errEl.textContent='이미 사용 중인 아이디입니다.'; errEl.style.display='block'; return; }
-
-  // ★ 팝업 차단 우회: await 이전에 동기적으로 창을 먼저 열어둠
   const archiveWin = window.open('', '_blank');
+  _setBtnLoading('btn-signup', true, '가입하기');
 
-  const hash = await hashPassword(pw);
-  users[email] = { hash, createdAt: Date.now() };
-  saveUsers(users);
+  const { data, error } = await _sb.auth.signUp({
+    email, password: pw,
+    options: { emailRedirectTo: 'https://drbrookskim.github.io/signnith/' }
+  });
+  _setBtnLoading('btn-signup', false, '가입하기');
 
-  // 가입 후 자동 로그인
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ email, remember: false, loginAt: Date.now() }));
-  closeAuthModal();
-  applyPrefs();
-  renderFavs();
-  renderHistory();
-  if (archiveWin) archiveWin.location.href = 'archive.html';
-  else window.open('archive.html', '_blank');
+  if (error) {
+    archiveWin && archiveWin.close();
+    _showErr('auth-error-signup', error.message.includes('already') ? '이미 가입된 이메일입니다.' : '가입 중 오류가 발생했습니다.');
+    return;
+  }
+
+  // 이메일 확인 불필요(Supabase 대시보드에서 비활성화) 시 즉시 세션 생성
+  if (data.session) {
+    localStorage.setItem('signnith_session', JSON.stringify({ email, loginAt: Date.now() }));
+    closeAuthModal(); applyPrefs(); renderFavs(); renderHistory();
+    if (archiveWin) archiveWin.location.href = 'archive.html';
+    else window.open('archive.html', '_blank');
+  } else {
+    // 이메일 확인 필요한 경우
+    archiveWin && archiveWin.close();
+    document.getElementById('auth-error-signup').style.display = 'none';
+    _showOk('auth-error-signup', '가입 확인 이메일을 보냈습니다. 메일함을 확인해주세요.');
+  }
 }
 
 async function authReset() {
-  const email  = document.getElementById('reset-email').value.trim().toLowerCase();
-  const oldPw  = document.getElementById('reset-pw-old').value;
-  const newPw  = document.getElementById('reset-pw-new').value;
-  const errEl  = document.getElementById('auth-error-reset');
-  errEl.style.display = 'none';
+  const email = document.getElementById('reset-email').value.trim().toLowerCase();
+  if (!email) { _showErr('auth-error-reset', '이메일을 입력하세요.'); return; }
 
-  if (!email || !oldPw || !newPw) { errEl.textContent='모든 항목을 입력하세요.'; errEl.style.display='block'; return; }
-  if (newPw.length < 8) { errEl.textContent='새 비밀번호는 8자 이상이어야 합니다.'; errEl.style.display='block'; return; }
+  _setBtnLoading('btn-reset', true, '재설정 링크 전송');
+  const { error } = await _sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://drbrookskim.github.io/signnith/'
+  });
+  _setBtnLoading('btn-reset', false, '재설정 링크 전송');
 
-  const users   = getUsers();
-  const oldHash = await hashPassword(oldPw);
-  if (!users[email] || users[email].hash !== oldHash) {
-    errEl.textContent='아이디 또는 현재 비밀번호가 올바르지 않습니다.'; errEl.style.display='block'; return;
-  }
-  users[email].hash = await hashPassword(newPw);
-  saveUsers(users);
-
-  const successEl = document.getElementById('auth-error-reset');
-  successEl.style.color = 'var(--green)';
-  successEl.style.background = 'rgba(0,212,170,0.08)';
-  successEl.style.borderColor = 'rgba(0,212,170,0.25)';
-  successEl.textContent = '비밀번호가 변경됐습니다. 로그인해 주세요.';
-  successEl.style.display = 'block';
-  setTimeout(() => showAuthView('login'), 1800);
+  if (error) { _showErr('auth-error-reset', '전송 실패: ' + error.message); return; }
+  _showOk('auth-error-reset', '재설정 링크를 이메일로 보냈습니다. 메일함을 확인해주세요.');
 }
 
 function showAuthView(view) {
   ['login','signup','reset'].forEach(v => {
     document.getElementById(`auth-view-${v}`).style.display = v===view ? 'block' : 'none';
   });
-  // 에러 초기화
   ['auth-error-login','auth-error-signup','auth-error-reset'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.style.display='none'; el.style.color=''; el.style.background=''; el.style.borderColor=''; }
@@ -5479,8 +5496,9 @@ function closeAuthModal() {
   updateTopbarUser();
 }
 
-function authLogout() {
-  localStorage.removeItem(AUTH_SESSION_KEY);
+async function authLogout() {
+  await _sb.auth.signOut();
+  localStorage.removeItem('signnith_session');
   closeSettings();
   updateTopbarUser();
   renderFavs();
@@ -5492,10 +5510,10 @@ function updateTopbarUser() {
   const chip  = document.getElementById('topbar-user-chip');
   const label = document.getElementById('topbar-user-id');
   if (chip)  chip.style.display  = uid ? 'flex' : 'none';
-  if (label) label.textContent   = uid || '';
+  if (label) label.textContent   = uid ? uid.split('@')[0] : '';
 }
 
-// 페이지 로드 시 아이디 칩 반영
+// 페이지 로드 시 칩 초기 반영 (세션 로드 전 숨김)
 updateTopbarUser();
 
 // 모달 바깥 클릭 시 닫기

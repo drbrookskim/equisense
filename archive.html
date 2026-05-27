@@ -868,6 +868,7 @@
 
 </div><!-- /#main-wrap -->
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // ── 테마 동기화 (report.html과 동일한 key) ──
 const THEME_KEY = 'tsa_theme';
@@ -996,30 +997,31 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   requestAnimationFrame(draw);
 })();
 
-(() => {
+// ── Supabase 초기화 ──
+const _SB_URL = 'https://anvgqeyghquwrvsjmivj.supabase.co';
+const _SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFudmdxZXlnaHF1d3J2c2ptaXZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mjg4MzcsImV4cCI6MjA4NzQwNDgzN30.Lwr3BWTRDyaxN9kEGdj26i-P82Aw_h052e_Ia31WBk0';
+const _sb = supabase.createClient(_SB_URL, _SB_KEY);
+
+(async () => {
   'use strict';
 
-  const AUTH_SESSION_KEY = 'signnith_session';
-
-  // ── 세션 확인 ──
-  function getSession() {
-    try { return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null'); } catch { return null; }
-  }
-  function currentUser() {
-    const s = getSession();
-    return s?.email || null;
-  }
-
-  const email = currentUser();
+  // ── Supabase 세션에서 이메일 획득 ──
+  const { data: { session } } = await _sb.auth.getSession();
+  const email = session?.user?.email
+    // fallback: index.html이 기록한 호환 키
+    || (() => { try { return JSON.parse(localStorage.getItem('signnith_session')||'null')?.email; } catch{ return null; } })();
 
   if (!email) {
     document.getElementById('not-logged-in').style.display = 'flex';
     return;
   }
 
+  // signnith_session 호환 키 갱신 (compare.html 동기 접근 대비)
+  localStorage.setItem('signnith_session', JSON.stringify({ email, loginAt: Date.now() }));
+
   // ── 로그인 상태: topbar / main 노출 ──
   document.getElementById('topbar').style.display = 'flex';
-  document.getElementById('user-email-display').textContent = email;
+  document.getElementById('user-email-display').textContent = email.split('@')[0];
 
   // ── 반응형 레이아웃 동기화 ──
   function syncLayout() {
@@ -1322,10 +1324,9 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
   };
 
   // ── 로그아웃 ──
-  window.logout = function() {
-    const s = getSession();
-    if (!s?.remember) localStorage.removeItem(AUTH_SESSION_KEY);
-    else              localStorage.removeItem(AUTH_SESSION_KEY);
+  window.logout = async function() {
+    await _sb.auth.signOut();
+    localStorage.removeItem('signnith_session');
     window.location.href = 'index.html';
   };
 
@@ -1496,7 +1497,7 @@ applyThemeA(localStorage.getItem(THEME_KEY) || 'dark');
     }
   });
 
-})();
+})(); // async IIFE end
 </script>
 </body>
 </html>
