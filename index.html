@@ -5344,7 +5344,12 @@ const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const _sb      = supabase.createClient(_SB_URL, _SB_KEY);
 
 // ── 세션 캐시 (동기 접근용) ──
-let _sbSession = null;
+// localStorage 호환 키에서 즉시 초기화 → 비동기 완료 전 currentUser() 호출 대비
+const _sbSessionFallbackEmail = (() => {
+  try { return JSON.parse(localStorage.getItem('signnith_session')||'null')?.email || null; } catch{ return null; }
+})();
+let _sbSession = _sbSessionFallbackEmail ? { user: { email: _sbSessionFallbackEmail } } : null;
+
 _sb.auth.getSession().then(({ data }) => {
   _sbSession = data.session;
   updateTopbarUser();
