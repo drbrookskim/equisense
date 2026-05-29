@@ -1742,6 +1742,7 @@ const DEFAULT_FAVS = {
 
 // 메모리 캐시 — renderFavs는 동기, DB 조회는 비동기이므로 캐시로 브리지
 let _favsCache = JSON.parse(JSON.stringify(DEFAULT_FAVS));
+let _favsRefreshing = false; // 동시 호출 방지 락
 
 function loadFavs() { return _favsCache; }
 
@@ -1751,10 +1752,14 @@ function isFaved(ticker) {
 
 // DB → 캐시 갱신 후 렌더
 async function refreshFavsFromDB() {
-  if (!_sb || !currentUser()) {
+  // 진짜 Supabase 세션(user.id 있음)일 때만 DB 조회
+  // localStorage fallback은 user.id가 없으므로 제외
+  if (!_sb || !_sbSession?.user?.id) {
     _favsCache = JSON.parse(JSON.stringify(DEFAULT_FAVS));
     renderFavs(); return;
   }
+  if (_favsRefreshing) return; // 동시 호출 방지
+  _favsRefreshing = true;
   try {
     const { data, error } = await _sb
       .from('favorites')
@@ -1780,13 +1785,16 @@ async function refreshFavsFromDB() {
         }
       } catch(e) { console.warn('fav migration error', e); }
       localStorage.removeItem(oldKey);
-      renderFavs(); return;
+      renderFavs();
+      _favsRefreshing = false; return;
     }
 
     buildCache(data || []);
   } catch(e) {
     console.warn('refreshFavsFromDB error', e);
     _favsCache = JSON.parse(JSON.stringify(DEFAULT_FAVS));
+  } finally {
+    _favsRefreshing = false;
   }
   renderFavs();
 }
