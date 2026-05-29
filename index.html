@@ -1753,6 +1753,10 @@ function isFaved(ticker) {
 }
 
 function addFav(ticker, name, exchange) {
+  if (!currentUser()) {
+    openAuthModal();
+    return;
+  }
   const f = loadFavs();
   // 중복 방지
   if ([...f.us, ...f.kr].some(x => x.ticker === ticker)) return;
@@ -3313,8 +3317,8 @@ function toggleFavFromResult(ticker, name, exchange) {
     removeFav(ticker);
   } else {
     addFav(ticker, name, exchange);
-    updateFavBtn(ticker);
   }
+  updateFavBtn(ticker);
 }
 
 // 미국 주요 NYSE 종목 티커 목록 (간이 판별)
