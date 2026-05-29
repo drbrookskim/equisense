@@ -1774,8 +1774,8 @@ async function refreshFavsFromDB() {
       try {
         const old = JSON.parse(oldRaw);
         const rows = [
-          ...(old.us||[]).map(x => ({ ticker:x.ticker, name:x.name||'', market:x.market||'', group_type:'us' })),
-          ...(old.kr||[]).map(x => ({ ticker:x.ticker, name:x.name||'', market:x.market||'', group_type:'kr' })),
+          ...(old.us||[]).map(x => ({ ticker:x.ticker, name:x.name||'', market:x.market||'', group_type:'us', user_id: _sbSession.user.id })),
+          ...(old.kr||[]).map(x => ({ ticker:x.ticker, name:x.name||'', market:x.market||'', group_type:'kr', user_id: _sbSession.user.id })),
         ];
         if (rows.length) {
           await _sb.from('favorites').upsert(rows, { onConflict: 'user_id,ticker' });
@@ -1829,7 +1829,7 @@ async function addFav(ticker, name, exchange) {
 
   if (_sb) {
     const { error } = await _sb.from('favorites')
-      .insert({ ticker, name: resolvedName, market, group_type });
+      .insert({ ticker, name: resolvedName, market, group_type, user_id: _sbSession.user.id });
     if (error) {
       console.warn('addFav DB error', error);
       await refreshFavsFromDB(); // 실패 시 DB 기준으로 복구
