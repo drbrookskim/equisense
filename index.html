@@ -1800,10 +1800,18 @@ async function refreshFavsFromDB() {
 }
 
 function buildCache(rows) {
-  _favsCache = { us: [], kr: [] };
+  // 기본값을 베이스로 시작
+  _favsCache = {
+    us: JSON.parse(JSON.stringify(DEFAULT_FAVS.us)),
+    kr: JSON.parse(JSON.stringify(DEFAULT_FAVS.kr))
+  };
+  // DB 항목 중 기본값에 없는 것만 추가
   rows.forEach(r => {
     const g = r.group_type === 'kr' ? 'kr' : 'us';
-    _favsCache[g].push({ ticker: r.ticker, name: r.name||r.ticker, market: r.market||'' });
+    const exists = _favsCache[g].some(x => x.ticker === r.ticker);
+    if (!exists) {
+      _favsCache[g].push({ ticker: r.ticker, name: r.name||r.ticker, market: r.market||'' });
+    }
   });
 }
 
