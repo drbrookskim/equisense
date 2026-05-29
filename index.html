@@ -1155,12 +1155,19 @@ let _sbSession = (() => {
 if (_sb) {
   _sb.auth.getSession().then(({ data }) => {
     _sbSession = data.session;
-    // updateTopbarUser/renderFavs/renderHistory 는 파일 후반 정의 → setTimeout으로 안전 호출
-    setTimeout(() => { updateTopbarUser(); renderFavs(); renderHistory(); }, 0);
+    setTimeout(() => {
+      updateTopbarUser();
+      refreshFavsFromDB();
+      renderHistory();
+    }, 0);
   });
   _sb.auth.onAuthStateChange((event, session) => {
     _sbSession = session;
-    setTimeout(() => { updateTopbarUser(); renderFavs(); renderHistory(); }, 0);
+    setTimeout(() => {
+      updateTopbarUser();
+      refreshFavsFromDB(); // DB에서 최신 즐겨찾기 로드 (renderFavs 포함)
+      renderHistory();
+    }, 0);
     // Google OAuth 콜백으로 돌아온 경우 아카이브로 이동
     if (event === 'SIGNED_IN' && session?.user?.email) {
       const h = location.hash;
@@ -1709,81 +1716,133 @@ function setTicker(t, el) {
 // ══════════════════════════════════════════════════════
 //  즐겨찾기
 // ══════════════════════════════════════════════════════
-function favKey() { return currentUser() ? `signnith_favorites_${currentUser()}` : null; }
+// ══════════════════════════════════════════════════════
+//  즐겨찾기 — Supabase DB 기반 (기기 간 동기화)
+// ══════════════════════════════════════════════════════
 const DEFAULT_FAVS = {
   us:  [
-    { ticker:'AAPL',    name:'Apple',     market:'NASDAQ' },
-    { ticker:'MSFT',    name:'Microsoft', market:'NASDAQ' },
-    { ticker:'NVDA',    name:'NVIDIA',    market:'NASDAQ' },
-    { ticker:'TSLA',    name:'Tesla',     market:'NASDAQ' },
-    { ticker:'META',    name:'Meta',      market:'NASDAQ' },
-    { ticker:'GOOGL',   name:'Alphabet',  market:'NASDAQ' },
-    { ticker:'SPY',     name:'S&P 500 ETF', market:'NYSE' },
-    { ticker:'QQQ',     name:'NASDAQ 100 ETF', market:'NASDAQ' },
+    { ticker:'AAPL',    name:'Apple',           market:'NASDAQ' },
+    { ticker:'MSFT',    name:'Microsoft',        market:'NASDAQ' },
+    { ticker:'NVDA',    name:'NVIDIA',           market:'NASDAQ' },
+    { ticker:'TSLA',    name:'Tesla',            market:'NASDAQ' },
+    { ticker:'META',    name:'Meta',             market:'NASDAQ' },
+    { ticker:'GOOGL',   name:'Alphabet',         market:'NASDAQ' },
+    { ticker:'SPY',     name:'S&P 500 ETF',      market:'NYSE'   },
+    { ticker:'QQQ',     name:'NASDAQ 100 ETF',   market:'NASDAQ' },
   ],
   kr: [
-    { ticker:'005930.KS', name:'삼성전자',       market:'KOSPI' },
-    { ticker:'000660.KS', name:'SK하이닉스',      market:'KOSPI' },
-    { ticker:'035420.KS', name:'NAVER',          market:'KOSPI' },
-    { ticker:'086520.KQ', name:'에코프로',        market:'KOSDAQ' },
-    { ticker:'373220.KS', name:'LG에너지솔루션',  market:'KOSPI' },
-    { ticker:'005380.KS', name:'현대차',          market:'KOSPI' },
+    { ticker:'005930.KS', name:'삼성전자',      market:'KOSPI'  },
+    { ticker:'000660.KS', name:'SK하이닉스',    market:'KOSPI'  },
+    { ticker:'035420.KS', name:'NAVER',         market:'KOSPI'  },
+    { ticker:'086520.KQ', name:'에코프로',      market:'KOSDAQ' },
+    { ticker:'373220.KS', name:'LG에너지솔루션',market:'KOSPI'  },
+    { ticker:'005380.KS', name:'현대차',        market:'KOSPI'  },
   ]
 };
 
-function loadFavs() {
-  const key = favKey();
-  if (!key) return JSON.parse(JSON.stringify(DEFAULT_FAVS));
-  try {
-    const saved = JSON.parse(localStorage.getItem(key));
-    if (saved && saved.us && saved.kr) return saved;
-  } catch {}
-  return JSON.parse(JSON.stringify(DEFAULT_FAVS));
-}
+// 메모리 캐시 — renderFavs는 동기, DB 조회는 비동기이므로 캐시로 브리지
+let _favsCache = JSON.parse(JSON.stringify(DEFAULT_FAVS));
 
-function saveFavs(favs) {
-  const key = favKey();
-  if (!key) return;
-  localStorage.setItem(key, JSON.stringify(favs));
-}
+function loadFavs() { return _favsCache; }
 
 function isFaved(ticker) {
-  const f = loadFavs();
-  return [...f.us, ...f.kr].some(x => x.ticker === ticker);
+  return [..._favsCache.us, ..._favsCache.kr].some(x => x.ticker === ticker);
 }
 
-function addFav(ticker, name, exchange) {
-  if (!currentUser()) {
-    openAuthModal();
-    return;
+// DB → 캐시 갱신 후 렌더
+async function refreshFavsFromDB() {
+  if (!_sb || !currentUser()) {
+    _favsCache = JSON.parse(JSON.stringify(DEFAULT_FAVS));
+    renderFavs(); return;
   }
-  const f = loadFavs();
-  // 중복 방지
-  if ([...f.us, ...f.kr].some(x => x.ticker === ticker)) return;
-  // 한국 종목 (.KS / .KQ) 는 kr 그룹에, 나머지는 us 그룹에
+  try {
+    const { data, error } = await _sb
+      .from('favorites')
+      .select('ticker, name, market, group_type')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+
+    // localStorage 마이그레이션 (구 데이터 있으면 DB에 upsert 후 삭제)
+    const oldKey = `signnith_favorites_${currentUser()}`;
+    const oldRaw = localStorage.getItem(oldKey);
+    if (oldRaw) {
+      try {
+        const old = JSON.parse(oldRaw);
+        const rows = [
+          ...(old.us||[]).map(x => ({ ticker:x.ticker, name:x.name||'', market:x.market||'', group_type:'us' })),
+          ...(old.kr||[]).map(x => ({ ticker:x.ticker, name:x.name||'', market:x.market||'', group_type:'kr' })),
+        ];
+        if (rows.length) {
+          await _sb.from('favorites').upsert(rows, { onConflict: 'user_id,ticker' });
+          // 마이그레이션 후 재조회
+          const { data: data2 } = await _sb.from('favorites').select('ticker,name,market,group_type').order('created_at',{ascending:true});
+          if (data2) { buildCache(data2); }
+        }
+      } catch(e) { console.warn('fav migration error', e); }
+      localStorage.removeItem(oldKey);
+      renderFavs(); return;
+    }
+
+    buildCache(data || []);
+  } catch(e) {
+    console.warn('refreshFavsFromDB error', e);
+    _favsCache = JSON.parse(JSON.stringify(DEFAULT_FAVS));
+  }
+  renderFavs();
+}
+
+function buildCache(rows) {
+  _favsCache = { us: [], kr: [] };
+  rows.forEach(r => {
+    const g = r.group_type === 'kr' ? 'kr' : 'us';
+    _favsCache[g].push({ ticker: r.ticker, name: r.name||r.ticker, market: r.market||'' });
+  });
+}
+
+async function addFav(ticker, name, exchange) {
+  if (!currentUser()) { openAuthModal(); return; }
+  if (isFaved(ticker)) return;
+
   const isKS = /\.KS$/i.test(ticker);
   const isKQ = /\.KQ$/i.test(ticker);
-  const isKrTicker = isKS || isKQ;
+  const isKr = isKS || isKQ;
   const market = isKS ? 'KOSPI' : isKQ ? 'KOSDAQ' : (exchange || '');
-  // 이름이 티커와 같으면 KR_STOCKS 사전에서 한국어 종목명 조회
   let resolvedName = name || ticker;
-  if (isKrTicker && (!resolvedName || resolvedName === ticker)) {
+  if (isKr && (!resolvedName || resolvedName === ticker)) {
     const found = (typeof KR_STOCKS !== 'undefined' ? KR_STOCKS : [])
       .find(([,t]) => t.toLowerCase() === ticker.toLowerCase());
     if (found) resolvedName = found[0];
   }
-  (isKrTicker ? f.kr : f.us).push({ ticker, name: resolvedName, market });
-  saveFavs(f);
+  const group_type = isKr ? 'kr' : 'us';
+
+  // 캐시에 즉시 반영 (낙관적 업데이트)
+  _favsCache[group_type].push({ ticker, name: resolvedName, market });
   renderFavs();
+
+  if (_sb) {
+    const { error } = await _sb.from('favorites')
+      .insert({ ticker, name: resolvedName, market, group_type });
+    if (error) {
+      console.warn('addFav DB error', error);
+      await refreshFavsFromDB(); // 실패 시 DB 기준으로 복구
+    }
+  }
 }
 
-function removeFav(ticker) {
-  const f = loadFavs();
-  f.us = f.us.filter(x => x.ticker !== ticker);
-  f.kr = f.kr.filter(x => x.ticker !== ticker);
-  saveFavs(f);
+async function removeFav(ticker) {
+  // 캐시에서 즉시 제거 (낙관적 업데이트)
+  _favsCache.us = _favsCache.us.filter(x => x.ticker !== ticker);
+  _favsCache.kr = _favsCache.kr.filter(x => x.ticker !== ticker);
   renderFavs();
   updateFavBtn(ticker);
+
+  if (_sb && currentUser()) {
+    const { error } = await _sb.from('favorites').delete().eq('ticker', ticker);
+    if (error) {
+      console.warn('removeFav DB error', error);
+      await refreshFavsFromDB();
+    }
+  }
 }
 
 let favCollapsed = false;
@@ -1795,40 +1854,11 @@ function toggleFav() {
 
 function renderFavs() {
   const f = loadFavs();
-  // 기존 저장 항목 중 name===ticker인 KR 종목: KR_STOCKS 사전으로 이름 보정
-  if (typeof KR_STOCKS !== 'undefined') {
-    let changed = false;
-    f.kr.forEach(item => {
-      if (!item.name || item.name === item.ticker) {
-        const found = KR_STOCKS.find(([,t]) => t.toLowerCase() === item.ticker.toLowerCase());
-        if (found) { item.name = found[0]; changed = true; }
-      }
-      if (!item.market) {
-        item.market = /\.KS$/i.test(item.ticker) ? 'KOSPI' : /\.KQ$/i.test(item.ticker) ? 'KOSDAQ' : '';
-        changed = true;
-      }
-    });
-    // 미국 종목: 이름 없으면 EN_TICKER_NAME 사전 조회, market 없으면 거래소 추정
-    f.us.forEach(item => {
-      if (!item.name || item.name === item.ticker) {
-        const looked = (typeof EN_TICKER_NAME !== 'undefined' ? EN_TICKER_NAME[item.ticker] : null);
-        if (looked) { item.name = looked; changed = true; }
-      }
-      if (!item.market && typeof guessExchange === 'function') {
-        item.market = guessExchange(item.ticker);
-        changed = true;
-      }
-    });
-    if (changed) saveFavs(f);
-  }
   const body = document.getElementById('fav-body');
   if (!body) return;
 
   const tileHtml = (item, isUs) => {
-    // 거래소 접미사 제거한 순수 코드 (005930.KS → 005930, AAPL → AAPL)
     const codeOnly = item.ticker.replace(/\.(KS|KQ|T|L|HK)$/i, '');
-
-    // 이름 확정: 사전 fallback → 코드만 표시
     let rawName = item.name || '';
     if (!rawName || rawName === item.ticker || rawName === codeOnly) {
       rawName = (typeof EN_TICKER_NAME !== 'undefined' && EN_TICKER_NAME[item.ticker])
@@ -1837,8 +1867,6 @@ function renderFavs() {
              || '';
     }
     const displayName = rawName || codeOnly;
-
-    // 두 번째 줄: US는 "티커.거래소", KR은 "코드.시장"
     let subLine;
     if (isUs) {
       const exch = item.market || (typeof guessExchange === 'function' ? guessExchange(item.ticker) : 'NASDAQ');
@@ -1846,7 +1874,6 @@ function renderFavs() {
     } else {
       subLine = item.market ? `${codeOnly}.${item.market}` : codeOnly;
     }
-
     return `
     <span class="fav-tile" onclick="setTickerAndRun('${item.ticker}')">
       <span class="fav-tile-label" style="white-space:normal;line-height:1.5">
@@ -1860,15 +1887,11 @@ function renderFavs() {
   body.innerHTML = `
     <div class="fav-group">
       <div class="fav-group-label">🇺🇸 미국 · ETF</div>
-      <div class="fav-tiles">
-        ${f.us.map(item => tileHtml(item, true)).join('')}
-      </div>
+      <div class="fav-tiles">${f.us.map(item => tileHtml(item, true)).join('')}</div>
     </div>
     <div class="fav-group">
       <div class="fav-group-label">🇰🇷 한국</div>
-      <div class="fav-tiles">
-        ${f.kr.map(item => tileHtml(item, false)).join('')}
-      </div>
+      <div class="fav-tiles">${f.kr.map(item => tileHtml(item, false)).join('')}</div>
     </div>
   `;
 }
@@ -5331,7 +5354,7 @@ document.addEventListener('click', e => {
 
 // 페이지 로드 시 초기화
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
-renderFavs();
+refreshFavsFromDB(); // DB 기반 즐겨찾기 (renderFavs 포함)
 renderHistory();
 
 // 새로고침 시 마지막 분석 결과 자동 복원
