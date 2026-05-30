@@ -902,6 +902,7 @@
     font-family: 'Space Grotesk', sans-serif;
     pointer-events: none;
     user-select: none;
+    dominant-baseline: hanging; /* 텍스트 상단을 dy 기준점으로 → 원 아래에 표시 */
   }
   html:not(.light) .kg-node text,
   html:not(.light) .kg-wrap svg text { fill: #f8fafc; }
@@ -3842,6 +3843,22 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         <span><i style="background:var(--yellow)"></i>중립·관망</span>
         <span><i style="background:var(--purple)"></i>중심·카테고리</span>
       </div>
+      <div id="kg-controls" style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:20px;align-items:center;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:7px 16px;font-size:0.72rem;color:var(--muted)">
+        <label style="display:flex;align-items:center;gap:7px;white-space:nowrap">
+          노드 크기
+          <input type="range" id="kg-size-slider" min="4" max="24" value="5" step="1"
+            style="width:80px;accent-color:var(--blue)"
+            oninput="kgUpdateSize(+this.value)">
+          <span id="kg-size-val" style="width:18px;text-align:right">5</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;white-space:nowrap">
+          노드 간격
+          <input type="range" id="kg-dist-slider" min="40" max="220" value="100" step="5"
+            style="width:80px;accent-color:var(--green)"
+            oninput="kgUpdateDist(+this.value)">
+          <span id="kg-dist-val" style="width:24px;text-align:right">100</span>
+        </label>
+      </div>
     </div>
     <!-- 밸류체인 탭 -->
     <div class="kg-wrap" id="vcWrap" style="display:none">
@@ -4343,8 +4360,8 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
 
   // 줌/패닝
   const g = svg.append('g');
-  // ── 공통 상수 ──
-  const GR = 5; // 균일 반지름
+  // ── 공통 상수 (슬라이더 값 사용) ──
+  const GR = _kgNodeR;
   const isDark = !document.documentElement.classList.contains('light');
   const kgBg   = isDark ? '#0f1320' : '#f1f5f9';
   const textCol = isDark ? '#f8fafc' : '#1e293b';
@@ -4372,6 +4389,7 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
     const ta = k < 0.55 ? 0 : 1;
     g.selectAll('.kg-node circle').attr('r', r);
     g.selectAll('.kg-node text').style('opacity', ta);
+    g.selectAll('.kg-node text.nd-lbl').attr('dy', r + 11);
   };
   svg.call(d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => {
     g.attr('transform', e.transform);
@@ -4402,7 +4420,7 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
     .attr('fill', d => d.group === 'center' ? 'url(#kg-center-grad)' : GRAYS[sigIdx(d.sig)])
     .attr('stroke','none');
 
-  // 텍스트 — 원 하단
+  // 텍스트 — 원 아래 (dy = 반지름 + 여백)
   node.append('text')
     .attr('class','nd-lbl')
     .attr('text-anchor','middle')
@@ -4419,14 +4437,15 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
       }
     });
 
+  const kgDistScale = _kgDistBase / 100;
   // 시뮬레이션
   const sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(d=>d.id).distance(d => {
       const s = nodes.find(n=>n.id===d.source.id||n.id===d.source);
       const t = nodes.find(n=>n.id===d.target.id||n.id===d.target);
-      if (s?.group==='center'||t?.group==='center') return 130;
-      if (s?.group==='cat'   ||t?.group==='cat')    return 100;
-      return 80;
+      if (s?.group==='center'||t?.group==='center') return 130 * kgDistScale;
+      if (s?.group==='cat'   ||t?.group==='cat')    return 100 * kgDistScale;
+      return 80 * kgDistScale;
     }).strength(0.6))
     .force('charge', d3.forceManyBody().strength(d => d.group==='center'?-500:d.group==='cat'?-250:-100))
     .force('center', d3.forceCenter(W/2, H/2))
@@ -4436,6 +4455,10 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
           .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
       node.attr('transform',d=>`translate(${d.x},${d.y})`);
     });
+
+  // 전역 참조 저장 (슬라이더 연동)
+  _kgSim     = sim;
+  _kgNodeSel = node;
 }
 
 // ══════════════════════════════════════════════════════
@@ -4880,6 +4903,32 @@ function wrapLabel(text, maxPerLine = 12) {
   }
   // 분리점 없으면 중간에서 자름
   return text.slice(0, mid) + '\n' + text.slice(mid);
+}
+
+// ── 분석 그래프 슬라이더 전역 상태 ──
+let _kgSim = null, _kgNodeSel = null, _kgNodeR = 5, _kgDistBase = 100;
+
+function kgUpdateSize(r) {
+  _kgNodeR = r;
+  document.getElementById('kg-size-val').textContent = r;
+  if (!_kgNodeSel) return;
+  _kgNodeSel.selectAll('circle').attr('r', r);
+  _kgNodeSel.selectAll('text.nd-lbl').attr('dy', r + 11);
+  if (_kgSim) _kgSim.force('collision', d3.forceCollide(r + 18)).alpha(0.3).restart();
+}
+
+function kgUpdateDist(dist) {
+  _kgDistBase = dist;
+  document.getElementById('kg-dist-val').textContent = dist;
+  if (!_kgSim) return;
+  const scale = dist / 100;
+  _kgSim.force('link').distance(d => {
+    const s = d.source;
+    if (s?.group==='center') return 130 * scale;
+    if (s?.group==='cat')    return 100 * scale;
+    return 80 * scale;
+  });
+  _kgSim.alpha(0.3).restart();
 }
 
 // ── 밸류체인 슬라이더 전역 상태 ──
