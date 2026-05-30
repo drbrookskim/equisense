@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 const PROXY = process.env.NEXT_PUBLIC_PROXY_URL ?? ''
@@ -63,7 +62,6 @@ async function searchUS(query: string): Promise<Suggestion[]> {
 }
 
 export default function Header() {
-  const router = useRouter()
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [open, setOpen] = useState(false)
@@ -111,7 +109,9 @@ export default function Header() {
   function navigate(s: Suggestion) {
     setOpen(false)
     setQuery(s.ticker)
-    router.push(`/companies/_/fundamentals?ticker=${s.ticker}&market=${s.market}`)
+    // router.push는 같은 경로의 query param 변경 시 useSearchParams()를 갱신하지 않음
+    // (Next.js 16 static export 제약) → window.location으로 강제 전체 로드
+    window.location.href = `${BASE_PATH}/companies/_/fundamentals?ticker=${s.ticker}&market=${s.market}`
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -120,10 +120,15 @@ export default function Header() {
       navigate(suggestions[activeIdx])
       return
     }
+    // 한글 입력 또는 KR 코드일 때 suggestions 첫 항목으로 이동
+    if (suggestions.length > 0 && (hasKorean(query) || isKrTicker(query.trim()))) {
+      navigate(suggestions[0])
+      return
+    }
     const q = query.trim().toUpperCase()
     if (!q) return
     setOpen(false)
-    router.push(`/companies/_/fundamentals?ticker=${q}&market=${isKrTicker(q) ? 'KR' : 'US'}`)
+    window.location.href = `${BASE_PATH}/companies/_/fundamentals?ticker=${q}&market=${isKrTicker(q) ? 'KR' : 'US'}`
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
