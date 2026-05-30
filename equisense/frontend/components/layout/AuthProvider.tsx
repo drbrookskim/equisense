@@ -41,13 +41,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const pathname = usePathname()
 
   useEffect(() => {
-    isAuthenticated().then((authed) => {
-      setIsLoggedIn(authed)
-      setIsLoading(false)
-      if (!authed && !PUBLIC_PATHS.includes(pathname)) {
-        router.replace(`/login`)
-      }
-    })
+    // TODO: 인증 활성화 시 아래 주석 해제
+    // isAuthenticated().then((authed) => {
+    //   setIsLoggedIn(authed)
+    //   setIsLoading(false)
+    //   if (!authed && !PUBLIC_PATHS.includes(pathname)) {
+    //     router.replace(`/login`)
+    //   }
+    // })
+    setIsLoading(false)
   }, [pathname, router])
 
   const login = useCallback(async (email: string, password: string) => {

@@ -1,22 +1,16 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
 /**
- * GitHub Pages SPA 라우팅 복원.
- * 404.html이 sessionStorage에 저장한 경로를 읽어 클라이언트 라우터로 복원합니다.
+ * 이전 세션의 spa_redirect 잔여값을 정리합니다.
+ * app/not-found.tsx가 window.location으로 루트 리다이렉트를 처리하므로
+ * 이 컴포넌트는 stale sessionStorage만 제거합니다.
  */
 export default function SpaRedirectScript() {
-  const router = useRouter()
-
   useEffect(() => {
-    const redirect = sessionStorage.getItem('spa_redirect')
-    if (redirect) {
-      sessionStorage.removeItem('spa_redirect')
-      router.replace(redirect)
-    }
-  }, [router])
+    sessionStorage.removeItem('spa_redirect')
+  }, [])
 
   return null
 }

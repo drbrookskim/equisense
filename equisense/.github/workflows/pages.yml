@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'frontend/**'
+  workflow_dispatch:
 
 concurrency:
   group: github-pages
@@ -43,9 +44,7 @@ jobs:
           # 레포명이 equisense가 아닌 경우 수정 필요
           # 커스텀 도메인 사용 시 두 줄 모두 제거
           NEXT_PUBLIC_BASE_PATH: /equisense
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
-          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_USER_POOL_ID }}
-          NEXT_PUBLIC_COGNITO_APP_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_APP_CLIENT_ID }}
+          NEXT_PUBLIC_PROXY_URL: ${{ secrets.NEXT_PUBLIC_PROXY_URL }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

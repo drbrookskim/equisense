@@ -10,20 +10,21 @@ const TABS = [
   { label: '기술적 분석', href: 'technical' },
 ]
 
-export default function TabNav({ ticker }: { ticker: string }) {
+export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const market = searchParams.get('market') ?? 'US'
+  const ticker = searchParams.get('ticker') ?? _tickerProp
 
   return (
     <nav className="border-b border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto flex max-w-6xl gap-1 px-6">
         {TABS.map((tab) => {
-          const isActive = pathname === `/companies/${ticker}/${tab.href}`
+          const isActive = pathname === `/companies/_/${tab.href}`
           return (
             <Link
               key={tab.href}
-              href={`/companies/${ticker}/${tab.href}?market=${market}`}
+              href={`/companies/_/${tab.href}?ticker=${ticker}&market=${market}`}
               className={[
                 'border-b-2 px-4 py-3 text-sm font-medium transition-colors',
                 isActive
