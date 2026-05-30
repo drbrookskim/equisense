@@ -220,14 +220,15 @@ export default function QualitativeAnalysisView({ ticker, market }: Props) {
     setError(null)
     setLoading(true)
     try {
-      const res = await triggerQualitativeAnalysis(ticker, market, fiscalYear, docType)
-      const initialJob: AnalysisJob = { job_id: res.job_id, status: 'PENDING', result: null, error: null }
-      setJob(initialJob)
-      startPolling(res.job_id)
+      const job = await triggerQualitativeAnalysis(ticker, market, fiscalYear, docType)
+      setJob(job)
+      if (job.status !== 'COMPLETED' && job.status !== 'FAILED') {
+        startPolling(job.job_id)
+      }
     } catch (err: unknown) {
       const e = err as { message?: string; code?: string }
       if (e?.code === 'RATE_LIMIT_EXCEEDED') {
-        setError('일일 분석 한도(5회)에 도달했습니다. 내일 다시 시도해 주세요.')
+        setError('일일 분석 한도에 도달했습니다. 내일 다시 시도해 주세요.')
       } else {
         setError(e?.message ?? '분석 요청에 실패했습니다.')
       }

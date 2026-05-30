@@ -13,11 +13,11 @@ import type {
   MoatAnalysis,
   TechnicalAnalysis,
   TechnicalPeriod,
-  TriggerQualitativeResponse,
 } from '@/types'
 import { transformDartToFundamentals } from '@/lib/adapters/dart'
 import { transformYahooToFundamentals, transformYahooToTechnical } from '@/lib/adapters/yahoo'
 import { calculateMoat } from '@/lib/adapters/moat'
+import { calculateQualitative, lookupJob } from '@/lib/adapters/qualitative'
 
 const PROXY = process.env.NEXT_PUBLIC_PROXY_URL ?? ''
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
@@ -103,19 +103,20 @@ export async function getTechnicalData(
   return transformYahooToTechnical(data, ticker, market, period)
 }
 
-/** @deprecated LLM 백엔드 미구현 — 향후 지원 예정 */
 export async function triggerQualitativeAnalysis(
-  _ticker: string,
-  _market: Market,
-  _fiscal_year: number,
-  _doc_type: DocType,
-): Promise<TriggerQualitativeResponse> {
-  throw new Error('정성적 분석은 현재 지원되지 않습니다.')
+  ticker: string,
+  market: Market,
+  fiscal_year: number,
+  doc_type: DocType,
+): Promise<AnalysisJob> {
+  const fundamentals = await getFundamentals(ticker, market)
+  return calculateQualitative(fundamentals, fiscal_year, doc_type, market)
 }
 
-/** @deprecated LLM 백엔드 미구현 — 향후 지원 예정 */
-export async function getJobStatus(_jobId: string): Promise<AnalysisJob> {
-  throw new Error('작업 상태 조회는 현재 지원되지 않습니다.')
+export async function getJobStatus(jobId: string): Promise<AnalysisJob> {
+  const job = lookupJob(jobId)
+  if (!job) throw new Error(`작업을 찾을 수 없습니다: ${jobId}`)
+  return job
 }
 
 /** @deprecated 백엔드 미사용 */
