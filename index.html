@@ -902,7 +902,6 @@
     font-family: 'Space Grotesk', sans-serif;
     pointer-events: none;
     user-select: none;
-    dominant-baseline: hanging; /* 텍스트 상단을 dy 기준점으로 → 원 아래에 표시 */
   }
   html:not(.light) .kg-node text,
   html:not(.light) .kg-wrap svg text { fill: #f8fafc; }
@@ -4389,7 +4388,7 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
     const ta = k < 0.55 ? 0 : 1;
     g.selectAll('.kg-node circle').attr('r', r);
     g.selectAll('.kg-node text').style('opacity', ta);
-    g.selectAll('.kg-node text.nd-lbl').attr('dy', r + 11);
+    g.selectAll('.kg-node text.nd-lbl tspan:first-child').attr('dy', r + 4 + 9);
   };
   svg.call(d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => {
     g.attr('transform', e.transform);
@@ -4420,21 +4419,25 @@ function renderKnowledgeGraph({ ticker, d, I, M, cs, ew, ichi, smc, quant, price
     .attr('fill', d => d.group === 'center' ? 'url(#kg-center-grad)' : GRAYS[sigIdx(d.sig)])
     .attr('stroke','none');
 
-  // 텍스트 — 원 아래 (dy = 반지름 + 여백)
+  // 텍스트 — 원 아래 고정
+  // text dy=0, 첫 tspan에 (r + gap + font) 값 직접 지정 → 단/다중 줄 모두 원 아래
   node.append('text')
     .attr('class','nd-lbl')
     .attr('text-anchor','middle')
-    .attr('dy', GR + 11)
+    .attr('dy', 0)
     .attr('fill', textCol)
     .attr('font-size', 9)
     .attr('font-weight', '500')
     .each(function(d) {
+      const r = GR, fs = 9, gap = 4;
+      const firstDy = r + gap + fs; // 원 하단 + 간격 + 폰트 높이 = 베이스라인
       const lines = d.label.split('\n');
-      if (lines.length === 1) { d3.select(this).text(d.label); }
-      else {
-        lines.forEach((l,i) => d3.select(this).append('tspan')
-          .attr('x',0).attr('dy', i===0 ? 0 : 11).text(l));
-      }
+      lines.forEach((l, i) =>
+        d3.select(this).append('tspan')
+          .attr('x', 0)
+          .attr('dy', i === 0 ? firstDy : fs + 2)
+          .text(l)
+      );
     });
 
   const kgDistScale = _kgDistBase / 100;
@@ -4913,7 +4916,8 @@ function kgUpdateSize(r) {
   document.getElementById('kg-size-val').textContent = r;
   if (!_kgNodeSel) return;
   _kgNodeSel.selectAll('circle').attr('r', r);
-  _kgNodeSel.selectAll('text.nd-lbl').attr('dy', r + 11);
+  // 첫 tspan의 dy = 반지름 + gap + font_size
+  _kgNodeSel.selectAll('text.nd-lbl tspan:first-child').attr('dy', r + 4 + 9);
   if (_kgSim) _kgSim.force('collision', d3.forceCollide(r + 18)).alpha(0.3).restart();
 }
 
@@ -4939,8 +4943,7 @@ function vcUpdateSize(r) {
   document.getElementById('vc-size-val').textContent = r;
   if (!_vcNodeSel) return;
   _vcNodeSel.selectAll('circle').attr('r', r);
-  // 텍스트 위치도 반지름에 맞게 갱신
-  _vcNodeSel.selectAll('text.nd-lbl').attr('dy', r + 11);
+  _vcNodeSel.selectAll('text.nd-lbl tspan:first-child').attr('dy', r + 4 + 9);
   if (_vcSim) _vcSim.force('collision', d3.forceCollide(r + 18)).alpha(0.3).restart();
 }
 
@@ -4984,7 +4987,7 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
     const ta = k < 0.55 ? 0 : 1;
     g.selectAll('.kg-node circle').attr('r', r);
     g.selectAll('.kg-node text').style('opacity', ta);
-    g.selectAll('.kg-node text.nd-lbl').attr('dy', r + 11);
+    g.selectAll('.kg-node text.nd-lbl tspan:first-child').attr('dy', r + 4 + 9);
   };
 
   const link = g.append('g').selectAll('line').data(links).join('line')
@@ -5009,18 +5012,24 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
     .attr('fill', d => (d.rel ?? 0) >= 1.0 ? 'url(#vc-center-grad)' : GRAYS[relIdx(d.rel ?? 0.3)])
     .attr('stroke','none');
 
-  // 텍스트 — 원 아래 (dy = 반지름 + 여백)
+  // 텍스트 — 원 아래 고정
   node.append('text')
     .attr('class','nd-lbl')
     .attr('text-anchor','middle')
-    .attr('dy', VR + 11)
+    .attr('dy', 0)
     .attr('fill', textCol)
     .attr('font-size', 9)
     .attr('font-weight', '500')
     .each(function(d) {
+      const r = VR, fs = 9, gap = 4;
+      const firstDy = r + gap + fs;
       const lines = d.label.split('\n');
-      if (lines.length === 1) { d3.select(this).text(d.label); }
-      else { lines.forEach((l, i) => d3.select(this).append('tspan').attr('x', 0).attr('dy', i === 0 ? 0 : 10).text(l)); }
+      lines.forEach((l, i) =>
+        d3.select(this).append('tspan')
+          .attr('x', 0)
+          .attr('dy', i === 0 ? firstDy : fs + 2)
+          .text(l)
+      );
     });
 
   // zoom 핸들러
