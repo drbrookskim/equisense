@@ -78,7 +78,8 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     if (!yr) continue
     const e = map.get(yr) ?? {}
     e._revenue = r(s.totalRevenue)
-    e._opIncome = r(s.operatingIncome) ?? r(s.ebit)
+    // ebit: {raw: 0} 는 Yahoo Finance의 미래/미확정 연도 플레이스홀더 — 0은 null로 처리
+    e._opIncome = r(s.operatingIncome) ?? (r(s.ebit) || null)
     e._netIncome = r(s.netIncome)
     map.set(yr, e)
   }
@@ -115,6 +116,16 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
   // Operating margin + PER/PBR for each year
   const sortedYears = Array.from(map.keys()).sort((a, b) => a - b)
   const latestYear = sortedYears.at(-1)
+
+  // 최신 연도 영업이익이 없으면 financialData.operatingMargins × revenue로 역산
+  if (latestYear != null) {
+    const le = map.get(latestYear)!
+    if (!le._opIncome && le._revenue != null) {
+      const opMgn = r(fd.operatingMargins)
+      if (opMgn != null) le._opIncome = le._revenue * opMgn
+    }
+  }
+
   for (const yr of sortedYears) {
     const e = map.get(yr)!
     if (e._revenue && e._opIncome != null) {

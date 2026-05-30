@@ -75,7 +75,7 @@ export default function TechnicalCharts({
   const currentPeriod = data.period as TechnicalPeriod
 
   function handlePeriod(period: TechnicalPeriod) {
-    router.push(`/companies/${ticker}/technical?market=${market}&period=${period}`)
+    router.push(`/companies/_/technical?ticker=${ticker}&market=${market}&period=${period}`)
   }
 
   const chartData = data.data_points.map((dp) => ({
