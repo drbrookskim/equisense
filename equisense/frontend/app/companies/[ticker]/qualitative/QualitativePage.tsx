@@ -9,8 +9,9 @@ function QualitativeContent() {
   const searchParams = useSearchParams()
   const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
+  const name = searchParams.get('name')
 
-  return <QualitativeAnalysisView ticker={ticker} market={market} />
+  return <QualitativeAnalysisView ticker={ticker} market={market} name={name} />
 }
 
 export default function QualitativePage() {

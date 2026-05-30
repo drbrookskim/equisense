@@ -173,8 +173,15 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     if (e._netIncome != null) netPairs.push([yr, e._netIncome])
   }
 
+  const qt = result.quoteType ?? {}
+  const name: string | null =
+    (typeof qt.longName === 'string' && qt.longName) ||
+    (typeof qt.shortName === 'string' && qt.shortName) ||
+    null
+
   return {
     ticker,
+    name,
     market,
     metrics_by_year,
     trends: {

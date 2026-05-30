@@ -44,11 +44,12 @@ function FundamentalsContent() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-baseline gap-3">
-        <h2 className="text-2xl font-bold">
-          {data.ticker}
-          <span className="ml-2 text-base font-normal text-zinc-500">({data.market})</span>
-        </h2>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="text-2xl font-bold">{data.name ?? data.ticker}</h2>
+        {data.name && (
+          <span className="font-mono text-sm text-zinc-500">{data.ticker}</span>
+        )}
+        <span className="text-sm text-zinc-400">({data.market})</span>
       </div>
       <FundamentalsCharts data={data} />
     </div>

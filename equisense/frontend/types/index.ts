@@ -27,6 +27,7 @@ export interface MetricTrend {
 
 export interface FundamentalAnalysis {
   ticker: string
+  name: string | null
   market: Market
   metrics_by_year: FundamentalMetrics[]
   trends: Record<string, MetricTrend>

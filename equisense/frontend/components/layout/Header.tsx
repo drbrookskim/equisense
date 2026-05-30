@@ -109,9 +109,8 @@ export default function Header() {
   function navigate(s: Suggestion) {
     setOpen(false)
     setQuery(s.ticker)
-    // router.push는 같은 경로의 query param 변경 시 useSearchParams()를 갱신하지 않음
-    // (Next.js 16 static export 제약) → window.location으로 강제 전체 로드
-    window.location.href = `${BASE_PATH}/companies/_/fundamentals?ticker=${s.ticker}&market=${s.market}`
+    const nameParam = s.name ? `&name=${encodeURIComponent(s.name)}` : ''
+    window.location.href = `${BASE_PATH}/companies/_/fundamentals?ticker=${s.ticker}&market=${s.market}${nameParam}`
   }
 
   function handleSubmit(e: React.FormEvent) {

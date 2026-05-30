@@ -67,7 +67,7 @@ function makeTrend(name: string, vals: [number, number][]): MetricTrend {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function transformDartToFundamentals(dartData: any, yahooKeyStats: any, ticker: string): FundamentalAnalysis {
+export function transformDartToFundamentals(dartData: any, yahooKeyStats: any, ticker: string, corpName?: string): FundamentalAnalysis {
   const market: Market = 'KR'
   const list: DartAccount[] = dartData?.list ?? []
   if (list.length === 0) throw new Error(`DART: 재무제표 데이터 없음 (${ticker})`)
@@ -143,6 +143,7 @@ export function transformDartToFundamentals(dartData: any, yahooKeyStats: any, t
 
   return {
     ticker,
+    name: corpName ?? null,
     market,
     metrics_by_year: metrics_by_year.filter(
       (m) => m.roe != null || m.roa != null || m.operating_margin != null,

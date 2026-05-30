@@ -15,6 +15,9 @@ export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
   const searchParams = useSearchParams()
   const market = searchParams.get('market') ?? 'US'
   const ticker = searchParams.get('ticker') ?? _tickerProp
+  const name = searchParams.get('name')
+
+  const nameParam = name ? `&name=${encodeURIComponent(name)}` : ''
 
   return (
     <nav className="border-b border-zinc-200 dark:border-zinc-800">
@@ -24,7 +27,7 @@ export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
           return (
             <Link
               key={tab.href}
-              href={`/companies/_/${tab.href}?ticker=${ticker}&market=${market}`}
+              href={`/companies/_/${tab.href}?ticker=${ticker}&market=${market}${nameParam}`}
               className={[
                 'border-b-2 px-4 py-3 text-sm font-medium transition-colors',
                 isActive

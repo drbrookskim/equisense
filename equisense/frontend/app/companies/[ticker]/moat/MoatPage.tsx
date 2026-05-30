@@ -22,6 +22,7 @@ function MoatContent() {
   const searchParams = useSearchParams()
   const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
+  const name = searchParams.get('name')
 
   const [data, setData] = useState<MoatAnalysis | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -56,11 +57,10 @@ function MoatContent() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-baseline gap-3">
-        <h2 className="text-2xl font-bold">
-          {data.ticker}
-          <span className="ml-2 text-base font-normal text-zinc-500">({data.market})</span>
-        </h2>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="text-2xl font-bold">{name ?? data.ticker}</h2>
+        {name && <span className="font-mono text-sm text-zinc-500">{data.ticker}</span>}
+        <span className="text-sm text-zinc-400">({data.market})</span>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GRADE_COLOR[data.grade]}`}>
           {GRADE_LABEL[data.grade]}
         </span>

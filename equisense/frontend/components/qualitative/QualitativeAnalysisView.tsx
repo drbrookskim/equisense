@@ -19,6 +19,7 @@ const POLL_INTERVAL_MS = 3000
 interface Props {
   ticker: string
   market: Market
+  name: string | null
 }
 
 function IntegrityGauge({ score }: { score: number }) {
@@ -180,7 +181,7 @@ function StatusBanner({ status }: { status: JobStatus }) {
   )
 }
 
-export default function QualitativeAnalysisView({ ticker, market }: Props) {
+export default function QualitativeAnalysisView({ ticker, market, name }: Props) {
   const [fiscalYear, setFiscalYear] = useState<number>(FISCAL_YEARS[0])
   const [docType, setDocType] = useState<DocType>('annual_report')
   const [job, setJob] = useState<AnalysisJob | null>(null)
@@ -239,12 +240,11 @@ export default function QualitativeAnalysisView({ ticker, market }: Props) {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-baseline gap-3">
-        <h2 className="text-2xl font-bold">
-          {ticker}
-          <span className="ml-2 text-base font-normal text-zinc-500">({market})</span>
-        </h2>
-        <span className="text-sm text-zinc-500">정성적 분석 (AI)</span>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="text-2xl font-bold">{name ?? ticker}</h2>
+        {name && <span className="font-mono text-sm text-zinc-500">{ticker}</span>}
+        <span className="text-sm text-zinc-400">({market})</span>
+        <span className="text-sm text-zinc-500">정성적 분석</span>
       </div>
 
       <form

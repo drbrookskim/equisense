@@ -28,6 +28,7 @@ const SUMMARY_MODULES = [
   'cashflowStatementHistory',
   'defaultKeyStatistics',
   'financialData',
+  'quoteType',
 ].join(',')
 
 async function proxyFetch<T>(path: string): Promise<T> {
@@ -37,8 +38,9 @@ async function proxyFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// corp-codes.json은 GitHub Pages 정적 파일로 제공 (CF Worker IP 차단 우회)
+// corp-codes.json / corp-names.json은 GitHub Pages 정적 파일로 제공
 let _corpCodeMap: Record<string, string> | null = null
+let _corpNameMap: Record<string, string> | null = null
 
 async function getCorpCode(stockCode: string): Promise<string> {
   if (!_corpCodeMap) {
@@ -51,9 +53,21 @@ async function getCorpCode(stockCode: string): Promise<string> {
   return corpCode
 }
 
+async function getCorpName(stockCode: string): Promise<string | undefined> {
+  if (!_corpNameMap) {
+    const res = await fetch(`${BASE_PATH}/corp-names.json`).catch(() => null)
+    if (!res?.ok) return undefined
+    _corpNameMap = await res.json() as Record<string, string>
+  }
+  return _corpNameMap[stockCode]
+}
+
 export async function getFundamentals(ticker: string, market: Market): Promise<FundamentalAnalysis> {
   if (market === 'KR') {
-    const corpCode = await getCorpCode(ticker)
+    const [corpCode, corpName] = await Promise.all([
+      getCorpCode(ticker),
+      getCorpName(ticker),
+    ])
 
     const year = new Date().getFullYear() - 1
     const [dartData, yahooData] = await Promise.all([
@@ -72,7 +86,7 @@ export async function getFundamentals(ticker: string, market: Market): Promise<F
       ...((yahooResult.financialData as Record<string, unknown>) ?? {}),
     }
 
-    return transformDartToFundamentals(dartData, keyStats, ticker)
+    return transformDartToFundamentals(dartData, keyStats, ticker, corpName)
   }
 
   const data = await proxyFetch<unknown>(
