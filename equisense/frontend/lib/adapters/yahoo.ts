@@ -109,6 +109,9 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     map.set(yr, e)
   }
 
+  // financialData 모듈 — incomeStatementHistory/balanceSheet가 비어있을 때 최신 연도 보완
+  const fd = result.financialData ?? {}
+
   // Operating margin + PER/PBR for each year
   const sortedYears = Array.from(map.keys()).sort((a, b) => a - b)
   const latestYear = sortedYears.at(-1)
@@ -119,7 +122,30 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     }
     if (yr === latestYear) {
       e.per = r(keyStats.trailingPE) ?? r(keyStats.forwardPE)
-      e.pbr = r(keyStats.priceToBook)
+      e.pbr = r(keyStats.priceToBook) ?? r(fd.priceToBook)
+      // financialData fallback: 더 신뢰할 수 있는 최신 지표로 빈 값 보완
+      if (e.operating_margin == null) {
+        const opMgn = r(fd.operatingMargins)
+        e.operating_margin = opMgn != null ? opMgn * 100 : null
+      }
+      if (e.roe == null) {
+        const roe = r(fd.returnOnEquity)
+        e.roe = roe != null ? roe * 100 : null
+      }
+      if (e.roa == null) {
+        const roa = r(fd.returnOnAssets)
+        e.roa = roa != null ? roa * 100 : null
+      }
+      if (e.fcf == null) {
+        e.fcf = r(fd.freeCashflow)
+      }
+      // debtToEquity(%) → debt_ratio 근사: D/E = D/(A-D), debt_ratio = D/A = D/E / (1 + D/E)
+      if (e.debt_ratio == null) {
+        const de = r(fd.debtToEquity)
+        if (de != null && de >= 0) {
+          e.debt_ratio = (de / (100 + de)) * 100
+        }
+      }
     }
     e.fiscal_year = yr
   }

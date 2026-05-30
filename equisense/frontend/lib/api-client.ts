@@ -27,6 +27,7 @@ const SUMMARY_MODULES = [
   'balanceSheetHistory',
   'cashflowStatementHistory',
   'defaultKeyStatistics',
+  'financialData',
 ].join(',')
 
 async function proxyFetch<T>(path: string): Promise<T> {
