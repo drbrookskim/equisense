@@ -12,9 +12,13 @@ function TechnicalContent() {
   const searchParams = useSearchParams()
   const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
-  const period = (
-    VALID_PERIODS.has(searchParams.get('period') ?? '') ? searchParams.get('period') : '1y'
-  ) as TechnicalPeriod
+
+  // period는 URL에서 초기값을 읽되 React state로 관리
+  // (Next.js 16 static export에서 router.push가 query param을 갱신하지 않는 문제 우회)
+  const [period, setPeriod] = useState<TechnicalPeriod>(() => {
+    const p = searchParams.get('period')
+    return (VALID_PERIODS.has(p ?? '') ? p : '1y') as TechnicalPeriod
+  })
 
   const [data, setData] = useState<TechnicalAnalysis | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -25,7 +29,7 @@ function TechnicalContent() {
     setIsLoading(true)
     setErrorMsg(null)
     getTechnicalData(ticker, market, period)
-      .then(data => { if (!cancelled) setData(data) })
+      .then(d => { if (!cancelled) setData(d) })
       .catch((err: { status?: number }) => {
         if (!cancelled) setErrorMsg(
           err?.status === 404
@@ -63,7 +67,7 @@ function TechnicalContent() {
           </div>
         }
       >
-        <TechnicalCharts data={data} ticker={ticker} />
+        <TechnicalCharts data={data} ticker={ticker} period={period} onPeriodChange={setPeriod} />
       </Suspense>
     </div>
   )

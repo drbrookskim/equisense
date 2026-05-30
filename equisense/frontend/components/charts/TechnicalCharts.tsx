@@ -64,17 +64,21 @@ function SummaryCard({ label, value, highlight }: SummaryCardProps) {
 export default function TechnicalCharts({
   data,
   ticker,
+  period: currentPeriod,
+  onPeriodChange,
 }: {
   data: TechnicalAnalysis
   ticker: string
+  period: TechnicalPeriod
+  onPeriodChange: (p: TechnicalPeriod) => void
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const market = searchParams.get('market') ?? 'US'
 
-  const currentPeriod = data.period as TechnicalPeriod
-
   function handlePeriod(period: TechnicalPeriod) {
+    onPeriodChange(period)
+    // URL도 업데이트 (북마크/공유용 — 현재 Next.js 16 static export에서는 query 반영이 불완전)
     router.push(`/companies/_/technical?ticker=${ticker}&market=${market}&period=${period}`)
   }
 
