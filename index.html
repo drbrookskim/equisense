@@ -3852,6 +3852,23 @@ function renderDashboard({ ticker, bars, ind, tech, fund, decision: d, price, is
         <span><i style="background:var(--blue)"></i>섹터</span>
         <span><i style="background:var(--muted2)"></i>관련 종목</span>
       </div>
+      <!-- 조절 슬라이더 -->
+      <div id="vc-controls" style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:20px;align-items:center;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:7px 16px;font-size:0.72rem;color:var(--muted)">
+        <label style="display:flex;align-items:center;gap:7px;white-space:nowrap">
+          노드 크기
+          <input type="range" id="vc-size-slider" min="4" max="24" value="5" step="1"
+            style="width:80px;accent-color:var(--blue)"
+            oninput="vcUpdateSize(+this.value)">
+          <span id="vc-size-val" style="width:18px;text-align:right">5</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;white-space:nowrap">
+          노드 간격
+          <input type="range" id="vc-dist-slider" min="40" max="220" value="95" step="5"
+            style="width:80px;accent-color:var(--green)"
+            oninput="vcUpdateDist(+this.value)">
+          <span id="vc-dist-val" style="width:24px;text-align:right">95</span>
+        </label>
+      </div>
     </div>
   </div>
   `;
@@ -4865,17 +4882,45 @@ function wrapLabel(text, maxPerLine = 12) {
   return text.slice(0, mid) + '\n' + text.slice(mid);
 }
 
+// ── 밸류체인 슬라이더 전역 상태 ──
+let _vcSim = null, _vcNodeSel = null, _vcNodeR = 5, _vcDistBase = 95;
+
+function vcUpdateSize(r) {
+  _vcNodeR = r;
+  document.getElementById('vc-size-val').textContent = r;
+  if (!_vcNodeSel) return;
+  _vcNodeSel.selectAll('circle').attr('r', r);
+  // 텍스트 위치도 반지름에 맞게 갱신
+  _vcNodeSel.selectAll('text.nd-lbl').attr('dy', r + 11);
+  if (_vcSim) _vcSim.force('collision', d3.forceCollide(r + 18)).alpha(0.3).restart();
+}
+
+function vcUpdateDist(dist) {
+  _vcDistBase = dist;
+  document.getElementById('vc-dist-val').textContent = dist;
+  if (!_vcSim) return;
+  _vcSim.force('link').distance(d => {
+    const src = (d.source?.rel != null ? d.source : null);
+    const r0 = src?.rel ?? 0.5;
+    const scale = dist / 95;
+    return (r0 >= 0.8 ? 120 : r0 >= 0.5 ? 95 : 72) * scale;
+  });
+  _vcSim.alpha(0.3).restart();
+}
+
 function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
-  const VR     = 5; // 균일 반지름
-  const vcBg   = isDark ? '#0f1320' : '#f1f5f9';
+  // 슬라이더 현재값 사용
+  const VR      = _vcNodeR;
+  const distBase = _vcDistBase;
+
+  const vcBg    = isDark ? '#0f1320' : '#f1f5f9';
   const textCol = isDark ? '#e2e8f0' : '#1e293b';
   const linkCol = isDark ? '#334155' : '#cbd5e1';
-  // 다크모드: 좋을수록 밝은 원(라이트모드와 반대 방향)
-  const GRAYS  = isDark
+  const GRAYS   = isDark
     ? ['#f1f5f9','#94a3b8','#64748b','#334155','#7f1d1d']
     : ['#1e293b','#334155','#475569','#64748b','#7f1d1d'];
 
-  // 핵심 노드용 radial gradient (VC)
+  // 핵심 노드용 radial gradient
   const svgForDefs = g.node().closest('svg');
   if (svgForDefs && !svgForDefs.querySelector('#vc-center-grad')) {
     const defs = d3.select(svgForDefs).append('defs');
@@ -4890,6 +4935,7 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
     const ta = k < 0.55 ? 0 : 1;
     g.selectAll('.kg-node circle').attr('r', r);
     g.selectAll('.kg-node text').style('opacity', ta);
+    g.selectAll('.kg-node text.nd-lbl').attr('dy', r + 11);
   };
 
   const link = g.append('g').selectAll('line').data(links).join('line')
@@ -4909,12 +4955,12 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
   // 배경 원
   node.append('circle').attr('class','bg-c').attr('r', VR).attr('fill', vcBg).attr('stroke','none');
 
-  // 관련도 기반 그레이 원 (최고 관련 노드는 그라데이션)
+  // 관련도 기반 채색 원
   node.append('circle').attr('class','cl-c').attr('r', VR)
     .attr('fill', d => (d.rel ?? 0) >= 1.0 ? 'url(#vc-center-grad)' : GRAYS[relIdx(d.rel ?? 0.3)])
     .attr('stroke','none');
 
-  // 텍스트 — 원 하단 (다중 줄 지원)
+  // 텍스트 — 원 아래 (dy = 반지름 + 여백)
   node.append('text')
     .attr('class','nd-lbl')
     .attr('text-anchor','middle')
@@ -4928,7 +4974,7 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
       else { lines.forEach((l, i) => d3.select(this).append('tspan').attr('x', 0).attr('dy', i === 0 ? 0 : 10).text(l)); }
     });
 
-  // zoom 핸들러는 svg에 등록된 것을 재활용 (wrap의 svg)
+  // zoom 핸들러
   const svgEl = g.node().closest('svg');
   if (svgEl) {
     const zoom = d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => {
@@ -4938,11 +4984,12 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
     d3.select(svgEl).call(zoom);
   }
 
+  const distScale = distBase / 95;
   const sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(d=>d.id).distance(d => {
       const src = nodes.find(n=>n.id===(d.source.id??d.source));
       const r0 = src?.rel ?? 0.5;
-      return r0 >= 0.8 ? 120 : r0 >= 0.5 ? 95 : 72;
+      return (r0 >= 0.8 ? 120 : r0 >= 0.5 ? 95 : 72) * distScale;
     }).strength(0.5))
     .force('charge', d3.forceManyBody().strength(d =>
       (d.rel??0) >= 0.9 ? -480 : (d.rel??0) >= 0.6 ? -240 : (d.rel??0) >= 0.4 ? -140 : -75))
@@ -4953,6 +5000,10 @@ function buildVCGraph(g, W, H, nodes, links, relIdx, isDark) {
           .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
       node.attr('transform',d=>`translate(${d.x},${d.y})`);
     });
+
+  // 전역 참조 저장 (슬라이더에서 사용)
+  _vcSim     = sim;
+  _vcNodeSel = node;
 }
 
 // ══════════════════════════════════════════════════════
