@@ -6,7 +6,9 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
 const config: NextConfig = {
   output: 'export',       // 순수 정적 파일 생성 — 서버 실행 환경 불필요
-  trailingSlash: true,    // /login → /login/index.html (GitHub Pages 친화적)
+  // trailingSlash는 false(기본값)를 유지한다.
+  // true로 설정하면 RSC 페이로드가 /path/index.txt에 생성되는데,
+  // router.push('/path?...') 시 fetchServerResponse가 /path.txt를 요청해 404가 발생한다.
   basePath,
   assetPrefix: basePath,
   reactCompiler: true,
