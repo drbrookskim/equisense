@@ -18,6 +18,13 @@ const DIMENSION_LABEL: Record<string, string> = {
   network_effects: '네트워크 효과',
 }
 
+const DIMENSION_DESCRIPTION: Record<string, string> = {
+  cost_advantage: '높은 영업이익률과 낮은 부채는 경쟁사 대비 지속적 원가 우위를 시사합니다.',
+  intangible_assets: 'ROE는 브랜드·특허가 만들어내는 초과수익률의 대리 지표입니다.',
+  switching_costs: '안정적·성장하는 매출은 고객이 이탈하기 어려운 구조를 반영합니다.',
+  network_effects: 'FCF 마진이 높을수록 규모 확장 시 수익성이 자기강화됩니다.',
+}
+
 export default function MoatCharts({ data }: { data: MoatAnalysis }) {
   const radarData = data.dimension_scores.map((d) => ({
     dimension: DIMENSION_LABEL[d.dimension] ?? d.dimension,
@@ -50,19 +57,38 @@ export default function MoatCharts({ data }: { data: MoatAnalysis }) {
           </div>
 
           <div className="w-full shrink-0 space-y-2 md:w-64">
-            {data.dimension_scores.map((d) => (
-              <div key={d.dimension} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium">
-                    {DIMENSION_LABEL[d.dimension] ?? d.dimension}
-                  </span>
-                  <span className="text-sm font-bold">{d.score.toFixed(1)}</span>
+            {data.dimension_scores.map((d) => {
+              const barColor =
+                d.score >= 7.5
+                  ? 'bg-indigo-500'
+                  : d.score >= 5
+                    ? 'bg-violet-400'
+                    : 'bg-zinc-400'
+              return (
+                <div key={d.dimension} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium">
+                      {DIMENSION_LABEL[d.dimension] ?? d.dimension}
+                    </span>
+                    <span className="text-sm font-bold">{d.score.toFixed(1)}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${barColor}`}
+                      style={{ width: `${d.score * 10}%` }}
+                    />
+                  </div>
+                  {d.rationale && (
+                    <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">{d.rationale}</p>
+                  )}
+                  {DIMENSION_DESCRIPTION[d.dimension] && (
+                    <p className="mt-1 text-xs italic text-zinc-400 dark:text-zinc-500">
+                      {DIMENSION_DESCRIPTION[d.dimension]}
+                    </p>
+                  )}
                 </div>
-                {d.rationale && (
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{d.rationale}</p>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
