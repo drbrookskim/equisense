@@ -29,9 +29,13 @@ function findAmt(
   names: string[],
   field: (typeof AMOUNT_FIELDS)[number],
 ): number | null {
-  for (const name of names) {
-    const found = list.find((a) => a.sj_div === sjDiv && a.account_nm.trim() === name)
-    if (found) return parseAmt(found[field])
+  // 일부 기업은 IS(손익계산서) 대신 CIS(포괄손익계산서)에 손익 항목을 기재
+  const divs = sjDiv === 'IS' ? ['IS', 'CIS'] : [sjDiv]
+  for (const div of divs) {
+    for (const name of names) {
+      const found = list.find((a) => a.sj_div === div && a.account_nm.trim() === name)
+      if (found) return parseAmt(found[field])
+    }
   }
   return null
 }
