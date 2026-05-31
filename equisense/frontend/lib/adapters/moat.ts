@@ -1,13 +1,13 @@
-import type { DimensionScore, FundamentalAnalysis, MoatAnalysis, MoatGrade } from '@/types'
+import type { DimensionScore, FundamentalAnalysis, MoatAnalysis, MoatDimension, MoatGrade } from '@/types'
 
-const DIMENSION_NAME_KO: Record<string, string> = {
+const DIMENSION_NAME_KO: Record<MoatDimension, string> = {
   cost_advantage: '비용 우위',
   intangible_assets: '무형 자산',
   switching_costs: '전환 비용',
   network_effects: '네트워크 효과',
 }
 
-const GRADE_TEXT: Record<string, string> = {
+const GRADE_TEXT: Record<MoatGrade, string> = {
   wide: '강력한 경제적 해자를 보유합니다',
   narrow: '일부 구조적 우위가 확인됩니다',
   none: '뚜렷한 해자가 확인되지 않습니다',
