@@ -1,5 +1,18 @@
 import type { DimensionScore, FundamentalAnalysis, MoatAnalysis, MoatGrade } from '@/types'
 
+const DIMENSION_NAME_KO: Record<string, string> = {
+  cost_advantage: '비용 우위',
+  intangible_assets: '무형 자산',
+  switching_costs: '전환 비용',
+  network_effects: '네트워크 효과',
+}
+
+const GRADE_TEXT: Record<string, string> = {
+  wide: '강력한 경제적 해자를 보유합니다',
+  narrow: '일부 구조적 우위가 확인됩니다',
+  none: '뚜렷한 해자가 확인되지 않습니다',
+}
+
 function score(value: number | null, thresholds: [number, number, number, number]): number {
   if (value == null) return 0
   const [t1, t2, t3, t4] = thresholds
@@ -8,6 +21,57 @@ function score(value: number | null, thresholds: [number, number, number, number
   if (value >= t2) return 5
   if (value >= t1) return 2.5
   return 0
+}
+
+function subjectParticle(word: string): string {
+  const last = word[word.length - 1]
+  const code = last.charCodeAt(0)
+  // 한글 완성형: 받침 없으면(0) '는', 있으면 '은'
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 0 ? '는' : '은'
+  return '은'
+}
+
+function generateAnalystNote(
+  displayName: string,
+  grade: MoatGrade,
+  dimension_scores: DimensionScore[],
+): string {
+  const sorted = [...dimension_scores].sort((a, b) => b.score - a.score)
+  const strongest = sorted[0]
+  const weakest = sorted[sorted.length - 1]
+
+  const strongName = DIMENSION_NAME_KO[strongest.dimension] ?? strongest.dimension
+  const weakName = DIMENSION_NAME_KO[weakest.dimension] ?? weakest.dimension
+
+  const para1 =
+    `${displayName}${subjectParticle(displayName)} ${GRADE_TEXT[grade]}. ` +
+    `${strongName}(${strongest.score.toFixed(1)}점)이 가장 강한 경쟁 기반으로` +
+    (strongest.rationale ? `, ${strongest.rationale}` : '') +
+    `. ${weakName}(${weakest.score.toFixed(1)}점)은 상대적으로 약합니다.`
+
+  const strengths = dimension_scores.filter((d) => d.score >= 6.0)
+  const weaknesses = dimension_scores.filter((d) => d.score < 5.0)
+
+  const lines: string[] = [para1]
+
+  if (strengths.length > 0) {
+    lines.push(
+      '✅ 강점: ' +
+        strengths
+          .map((d) => d.rationale ?? `${DIMENSION_NAME_KO[d.dimension] ?? d.dimension} ${d.score.toFixed(1)}점`)
+          .join(' · '),
+    )
+  }
+  if (weaknesses.length > 0) {
+    lines.push(
+      '⚠️ 개선 필요: ' +
+        weaknesses
+          .map((d) => d.rationale ?? `${DIMENSION_NAME_KO[d.dimension] ?? d.dimension} ${d.score.toFixed(1)}점`)
+          .join(' · '),
+    )
+  }
+
+  return lines.join('\n')
 }
 
 export function calculateMoat(fundamentals: FundamentalAnalysis): MoatAnalysis {
@@ -74,7 +138,11 @@ export function calculateMoat(fundamentals: FundamentalAnalysis): MoatAnalysis {
     dimension_scores,
     composite_score: Math.round(composite_score * 10) / 10,
     grade,
-    analyst_note: null,
+    analyst_note: generateAnalystNote(
+      fundamentals.name ?? fundamentals.ticker,
+      grade,
+      dimension_scores,
+    ),
     scored_at: new Date().toISOString(),
   }
 }
