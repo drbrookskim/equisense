@@ -91,7 +91,7 @@ function IndicatorChip({
 
 function BuyDot(props: Record<string, unknown>) {
   const { cx, cy, payload } = props as { cx: number; cy: number; payload: { buySignal: number | null; signalLabel: string | null } }
-  if (payload.buySignal === null) return null
+  if (payload.buySignal === null || cx == null || cy == null) return null
   return (
     <g>
       <text x={cx} y={(cy as number) + 4} textAnchor="middle" fill="#34d399" fontSize={12}>▲</text>
@@ -104,7 +104,7 @@ function BuyDot(props: Record<string, unknown>) {
 
 function SellDot(props: Record<string, unknown>) {
   const { cx, cy, payload } = props as { cx: number; cy: number; payload: { sellSignal: number | null; signalLabel: string | null } }
-  if (payload.sellSignal === null) return null
+  if (payload.sellSignal === null || cx == null || cy == null) return null
   return (
     <g>
       <text x={cx} y={(cy as number) - 4} textAnchor="middle" fill="#f87171" fontSize={12}>▼</text>
@@ -252,7 +252,7 @@ export default function TechnicalCharts({
               interval="preserveStartEnd"
             />
             <YAxis
-              tickFormatter={formatPrice}
+              tickFormatter={(v: unknown) => typeof v === 'number' ? formatPrice(v) : ''}
               tick={{ fontSize: 11 }}
               width={70}
               domain={['auto', 'auto']}
