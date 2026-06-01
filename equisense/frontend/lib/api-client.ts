@@ -70,8 +70,9 @@ export async function getFundamentals(ticker: string, market: Market): Promise<F
     ])
 
     const year = new Date().getFullYear() - 1
-    const [dartData, yahooData] = await Promise.all([
+    const [dartDataRecent, dartDataOld, yahooData] = await Promise.all([
       proxyFetch<unknown>(`/dart/fs?corp_code=${corpCode}&year=${year}`),
+      proxyFetch<unknown>(`/dart/fs?corp_code=${corpCode}&year=${year - 2}`).catch(() => null),
       proxyFetch<unknown>(
         `/yahoo/summary?symbol=${ticker}&market=KR&modules=defaultKeyStatistics,financialData`,
       ).catch(() => null),
@@ -83,10 +84,10 @@ export async function getFundamentals(ticker: string, market: Market): Promise<F
 
     const keyStats = {
       ...((yahooResult.defaultKeyStatistics as Record<string, unknown>) ?? {}),
-      ...((yahooResult.financialData as Record<string, unknown>) ?? {}),
+      ...((yahooResult.financialData     as Record<string, unknown>) ?? {}),
     }
 
-    return transformDartToFundamentals(dartData, keyStats, ticker, corpName)
+    return transformDartToFundamentals(dartDataRecent, dartDataOld, keyStats, ticker, corpName)
   }
 
   const data = await proxyFetch<unknown>(
