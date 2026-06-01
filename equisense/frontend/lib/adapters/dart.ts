@@ -83,7 +83,8 @@ export function transformDartToFundamentals(
 
   const oldList: DartAccount[] = (dartDataOld as { list?: DartAccount[] } | null)?.list ?? []
 
-  const bsnsYear = parseInt(recentList[0]?.bsns_year ?? String(new Date().getFullYear() - 1))
+  const bsnsYearRaw = parseInt(recentList[0]?.bsns_year ?? '', 10)
+  const bsnsYear = isNaN(bsnsYearRaw) ? new Date().getFullYear() - 1 : bsnsYearRaw
 
   const REV_NAMES = ['매출액', '수익(매출액)', '영업수익', '매출']
   const OP_NAMES = ['영업이익', '영업이익(손실)']
