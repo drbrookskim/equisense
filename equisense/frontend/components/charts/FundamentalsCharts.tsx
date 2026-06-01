@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import {
   Area,
   AreaChart,
@@ -197,6 +197,7 @@ function ExpandedPanel({
 // ── 메인 컴포넌트 ───────────────────────────────
 
 export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis }) {
+  const uid = useId()
   const [expandedMetric, setExpandedMetric] = useState<MetricKey | null>(null)
 
   function toggleMetric(key: MetricKey) {
@@ -240,15 +241,15 @@ export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={incomeData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
             <defs>
-              <linearGradient id="income-grad-revenue" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`${uid}-income-grad-revenue`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
               </linearGradient>
-              <linearGradient id="income-grad-op" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`${uid}-income-grad-op`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#22c55e" stopOpacity={0}   />
               </linearGradient>
-              <linearGradient id="income-grad-net" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`${uid}-income-grad-net`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}   />
               </linearGradient>
@@ -263,9 +264,9 @@ export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis
             />
             <Tooltip formatter={(v) => (typeof v === 'number' ? formatLargeNumber(v) : v)} />
             <Legend />
-            <Area type="monotone" dataKey="revenue"          name="매출액"   stroke="#6366f1" strokeWidth={2} fill="url(#income-grad-revenue)" dot={false} connectNulls />
-            <Area type="monotone" dataKey="operating_income" name="영업이익" stroke="#22c55e" strokeWidth={2} fill="url(#income-grad-op)"      dot={false} connectNulls />
-            <Area type="monotone" dataKey="net_income"       name="순이익"   stroke="#f59e0b" strokeWidth={2} fill="url(#income-grad-net)"     dot={false} connectNulls />
+            <Area type="monotone" dataKey="revenue"          name="매출액"   stroke="#6366f1" strokeWidth={2} fill={`url(#${uid}-income-grad-revenue)`} dot={false} connectNulls />
+            <Area type="monotone" dataKey="operating_income" name="영업이익" stroke="#22c55e" strokeWidth={2} fill={`url(#${uid}-income-grad-op)`}      dot={false} connectNulls />
+            <Area type="monotone" dataKey="net_income"       name="순이익"   stroke="#f59e0b" strokeWidth={2} fill={`url(#${uid}-income-grad-net)`}     dot={false} connectNulls />
           </ComposedChart>
         </ResponsiveContainer>
       </section>
@@ -278,15 +279,15 @@ export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={marginData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
             <defs>
-              <linearGradient id="margin-grad-roe" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`${uid}-margin-grad-roe`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
               </linearGradient>
-              <linearGradient id="margin-grad-roa" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`${uid}-margin-grad-roa`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#22c55e" stopOpacity={0}   />
               </linearGradient>
-              <linearGradient id="margin-grad-op" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`${uid}-margin-grad-op`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}   />
               </linearGradient>
@@ -301,9 +302,9 @@ export default function FundamentalsCharts({ data }: { data: FundamentalAnalysis
             />
             <Tooltip formatter={(v) => (typeof v === 'number' ? formatPercent(v) : v)} />
             <Legend />
-            <Area type="monotone" dataKey="ROE"      name="ROE"      stroke="#6366f1" strokeWidth={2} fill="url(#margin-grad-roe)" dot={false} connectNulls />
-            <Area type="monotone" dataKey="ROA"      name="ROA"      stroke="#22c55e" strokeWidth={2} fill="url(#margin-grad-roa)" dot={false} connectNulls />
-            <Area type="monotone" dataKey="영업이익률" name="영업이익률" stroke="#f59e0b" strokeWidth={2} fill="url(#margin-grad-op)"  dot={false} connectNulls />
+            <Area type="monotone" dataKey="ROE"      name="ROE"      stroke="#6366f1" strokeWidth={2} fill={`url(#${uid}-margin-grad-roe)`} dot={false} connectNulls />
+            <Area type="monotone" dataKey="ROA"      name="ROA"      stroke="#22c55e" strokeWidth={2} fill={`url(#${uid}-margin-grad-roa)`} dot={false} connectNulls />
+            <Area type="monotone" dataKey="영업이익률" name="영업이익률" stroke="#f59e0b" strokeWidth={2} fill={`url(#${uid}-margin-grad-op)`}  dot={false} connectNulls />
           </ComposedChart>
         </ResponsiveContainer>
       </section>
