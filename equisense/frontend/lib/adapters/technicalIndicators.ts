@@ -16,6 +16,7 @@ export function calcSMA(closes: (number | null)[], period: number): (number | nu
 export function calcEMA(closes: (number | null)[], period: number): (number | null)[] {
   const k = 2 / (period + 1)
   const result: (number | null)[] = new Array(closes.length).fill(null)
+  const smaResult = calcSMA(closes, period)
   let started = false
   let prev = 0
 
@@ -23,7 +24,7 @@ export function calcEMA(closes: (number | null)[], period: number): (number | nu
     const v = closes[i]
     if (v === null) continue
     if (!started) {
-      const seed = calcSMA(closes, period)[i]
+      const seed = smaResult[i]
       if (seed === null) continue
       prev = seed
       result[i] = prev
@@ -241,6 +242,13 @@ export interface CurrentSignalSummary {
 export function getCurrentSignalSummary(
   indicators: IndicatorRow[],
 ): CurrentSignalSummary {
+  if (indicators.length === 0) {
+    return {
+      maCross: { state: 'neutral', label: '— 데이터 부족', detail: '계산 불가' },
+      rsiState: { value: null, state: 'neutral', label: '— 데이터 부족', detail: '계산 불가' },
+      macdState: { state: 'neutral', label: '— 데이터 부족', detail: '계산 불가' },
+    }
+  }
   const last = indicators[indicators.length - 1]
 
   let maCross: CurrentSignalSummary['maCross']
