@@ -70,14 +70,20 @@ function makeTrend(name: string, vals: [number, number][]): MetricTrend {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function transformDartToFundamentals(dartData: any, yahooKeyStats: any, ticker: string, corpName?: string): FundamentalAnalysis {
+export function transformDartToFundamentals(
+  dartDataRecent: unknown,
+  dartDataOld: unknown | null,
+  yahooKeyStats: unknown,
+  ticker: string,
+  corpName?: string,
+): FundamentalAnalysis {
   const market: Market = 'KR'
-  const list: DartAccount[] = dartData?.list ?? []
-  if (list.length === 0) throw new Error(`DART: 재무제표 데이터 없음 (${ticker})`)
+  const recentList: DartAccount[] = (dartDataRecent as { list?: DartAccount[] })?.list ?? []
+  if (recentList.length === 0) throw new Error(`DART: 재무제표 데이터 없음 (${ticker})`)
 
-  const bsnsYear = parseInt(list[0]?.bsns_year ?? String(new Date().getFullYear() - 1))
-  const years = [bsnsYear - 2, bsnsYear - 1, bsnsYear]
+  const oldList: DartAccount[] = (dartDataOld as { list?: DartAccount[] } | null)?.list ?? []
+
+  const bsnsYear = parseInt(recentList[0]?.bsns_year ?? String(new Date().getFullYear() - 1))
 
   const REV_NAMES = ['매출액', '수익(매출액)', '영업수익', '매출']
   const OP_NAMES = ['영업이익', '영업이익(손실)']
@@ -93,36 +99,43 @@ export function transformDartToFundamentals(dartData: any, yahooKeyStats: any, t
   const OCF_NAMES = ['영업활동현금흐름', '영업활동으로 인한 현금흐름', '영업활동 현금흐름']
   const CAPEX_NAMES = ['유형자산의 취득', '유형자산취득', '유형자산 취득']
 
-  // Yahoo 숫자 필드 파싱
   function rYahoo(v: unknown): number | null {
     if (v == null) return null
     if (typeof v === 'number') return isFinite(v) ? v : null
     if (typeof v === 'object' && 'raw' in v) return rYahoo((v as { raw: unknown }).raw)
     return null
   }
-  const perLatest = rYahoo(yahooKeyStats?.trailingPE) ?? rYahoo(yahooKeyStats?.forwardPE)
-  // PBR: Yahoo 직접값 우선, 없으면 price × shares / equity 로 계산
-  const yahooPbr = rYahoo(yahooKeyStats?.priceToBook)
-  const yahooPrice = rYahoo(yahooKeyStats?.currentPrice) ?? rYahoo(yahooKeyStats?.regularMarketPrice)
-  const yahooShares = rYahoo(yahooKeyStats?.sharesOutstanding)
+  const ks = yahooKeyStats as Record<string, unknown> | null
+  const perLatest = rYahoo(ks?.trailingPE) ?? rYahoo(ks?.forwardPE)
+  const yahooPbr = rYahoo(ks?.priceToBook)
+  const yahooPrice = rYahoo(ks?.currentPrice) ?? rYahoo(ks?.regularMarketPrice)
+  const yahooShares = rYahoo(ks?.sharesOutstanding)
+
+  type YearEntry = { year: number; list: DartAccount[]; field: typeof AMOUNT_FIELDS[number] }
+  const yearEntries: YearEntry[] = ([
+    { year: bsnsYear - 4, list: oldList,    field: 'bfefrmtrm_amount' as const },
+    { year: bsnsYear - 3, list: oldList,    field: 'frmtrm_amount' as const    },
+    { year: bsnsYear - 2, list: recentList, field: 'bfefrmtrm_amount' as const },
+    { year: bsnsYear - 1, list: recentList, field: 'frmtrm_amount' as const    },
+    { year: bsnsYear,     list: recentList, field: 'thstrm_amount' as const    },
+  ] as const).filter(e => e.list.length > 0) as YearEntry[]
 
   const revPairs: [number, number][] = []
   const opPairs: [number, number][] = []
   const netPairs: [number, number][] = []
 
-  const metrics_by_year: FundamentalMetrics[] = years.map((yr, i) => {
-    const field = AMOUNT_FIELDS[i]
-    const rev = findAmt(list, 'IS', REV_NAMES, field)
-    const opInc = findAmt(list, 'IS', OP_NAMES, field)
-    const netInc = findAmt(list, 'IS', NET_NAMES, field)
-    const assets = findAmt(list, 'BS', ASSET_NAMES, field)
-    const liab = findAmt(list, 'BS', LIAB_NAMES, field)
+  const metrics_by_year: FundamentalMetrics[] = yearEntries.map(({ year: yr, list, field }) => {
+    const rev    = findAmt(list, 'IS', REV_NAMES,    field)
+    const opInc  = findAmt(list, 'IS', OP_NAMES,     field)
+    const netInc = findAmt(list, 'IS', NET_NAMES,    field)
+    const assets = findAmt(list, 'BS', ASSET_NAMES,  field)
+    const liab   = findAmt(list, 'BS', LIAB_NAMES,   field)
     const equity = findAmt(list, 'BS', EQUITY_NAMES, field)
-    const ocf = findAmt(list, 'CF', OCF_NAMES, field)
-    const capex = findAmt(list, 'CF', CAPEX_NAMES, field)
+    const ocf    = findAmt(list, 'CF', OCF_NAMES,    field)
+    const capex  = findAmt(list, 'CF', CAPEX_NAMES,  field)
 
-    if (rev != null) revPairs.push([yr, rev])
-    if (opInc != null) opPairs.push([yr, opInc])
+    if (rev    != null) revPairs.push([yr, rev])
+    if (opInc  != null) opPairs.push([yr, opInc])
     if (netInc != null) netPairs.push([yr, netInc])
 
     let pbr: number | null = null
@@ -135,12 +148,12 @@ export function transformDartToFundamentals(dartData: any, yahooKeyStats: any, t
 
     return {
       fiscal_year: yr,
-      roe: netInc != null && equity ? (netInc / equity) * 100 : null,
-      roa: netInc != null && assets ? (netInc / assets) * 100 : null,
-      debt_ratio: liab != null && assets ? (liab / assets) * 100 : null,
-      operating_margin: opInc != null && rev ? (opInc / rev) * 100 : null,
-      fcf: ocf != null ? (capex != null ? ocf + capex : ocf) : null,
-      per: yr === bsnsYear ? perLatest : null,
+      roe:              netInc != null && equity ? (netInc / equity) * 100 : null,
+      roa:              netInc != null && assets ? (netInc / assets) * 100 : null,
+      debt_ratio:       liab   != null && assets ? (liab   / assets) * 100 : null,
+      operating_margin: opInc  != null && rev    ? (opInc  / rev)   * 100 : null,
+      fcf:              ocf    != null ? (capex != null ? ocf + capex : ocf) : null,
+      per:              yr === bsnsYear ? perLatest : null,
       pbr,
     }
   })
@@ -150,12 +163,12 @@ export function transformDartToFundamentals(dartData: any, yahooKeyStats: any, t
     name: corpName ?? null,
     market,
     metrics_by_year: metrics_by_year.filter(
-      (m) => m.roe != null || m.roa != null || m.operating_margin != null,
+      m => m.roe != null || m.roa != null || m.operating_margin != null,
     ),
     trends: {
-      revenue: makeTrend('revenue', revPairs),
+      revenue:          makeTrend('revenue',          revPairs),
       operating_income: makeTrend('operating_income', opPairs),
-      net_income: makeTrend('net_income', netPairs),
+      net_income:       makeTrend('net_income',       netPairs),
     },
   }
 }
