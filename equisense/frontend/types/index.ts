@@ -188,3 +188,81 @@ export interface ApiError {
 export interface ApiErrorResponse {
   error: ApiError
 }
+
+// ──────────────────────────────────────────────
+// Module 5: 스윙 판정
+// ──────────────────────────────────────────────
+
+export type GateStatus = 'GO' | 'WARN' | 'STOP'
+export type GateVerdict = 'PASS' | 'BLOCK'
+export type FinalVerdict = 'PASS' | 'CONDITIONAL' | 'BLOCK'
+export type StockType = 'high_beta' | 'value' | 'small_cap'
+
+export interface GateAData {
+  vix: number | null
+  kospi_price: number | null
+  kospi_ma200: number | null
+  usdkrw: number | null
+  rate_bp: number
+  pmi: number
+  pmi_direction: 'up' | 'down'
+}
+
+export interface GateAResult {
+  data: GateAData
+  axes: Record<string, GateStatus>
+  verdict: GateVerdict
+}
+
+export interface GateBInput {
+  market_foreign_days: number
+  market_institution: 'buy' | 'neutral' | 'sell'
+  sector_etf_days: number
+  stock_foreign_days: number
+  stock_institution_weeks: number
+  short_ratio: number
+  short_trend: 'decrease' | 'stable' | 'increase'
+}
+
+export interface GateBResult {
+  input: GateBInput
+  layer1: GateStatus
+  layer2: GateStatus
+  layer3: GateStatus
+  matrix: 'STRONG_BUY' | 'FIND_ALTERNATIVE' | 'HEADWIND_SHORT_ONLY' | 'NO_ENTRY'
+  verdict: GateVerdict
+}
+
+export interface RRInput {
+  entry: number
+  stop: number
+  target: number
+}
+
+export interface RRResult {
+  rr: number
+  loss_pct: number
+  gain_pct: number
+  breakeven_winrate: number
+  verdict: 'PASS' | 'CAUTION' | 'BLOCK'
+}
+
+export interface TimeStopResult {
+  entry_date: string
+  deadline: string
+  total_days: number
+  elapsed: number
+  remaining: number
+  status: 'HOLDING' | 'PREPARE_EXIT' | 'TIME_STOP'
+  action: string
+}
+
+export interface SwingFinalResult {
+  verdict: FinalVerdict
+  gate_a: GateVerdict
+  gate_b: GateVerdict
+  step1_pass: boolean
+  rr: RRResult
+  time_stop: TimeStopResult
+  summary_line: string
+}
