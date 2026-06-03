@@ -7,7 +7,7 @@ import type {
   Market, RRInput, RRResult, StockType, SwingFinalResult,
 } from '@/types'
 import { getFundamentals } from '@/lib/api-client'
-import { checkRR, getTimeStop, getFinalVerdict, MACRO_CONSTANTS } from '@/lib/adapters/swingPipeline'
+import { checkRR, getTimeStop, getFinalVerdict } from '@/lib/adapters/swingPipeline'
 import GateAPanel from '@/components/swing/GateAPanel'
 import GateBPanel from '@/components/swing/GateBPanel'
 
@@ -132,7 +132,7 @@ function SwingContent() {
       <Arrow />
 
       {/* Step 1 체력필터 요약 */}
-      <div className={`relative rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 ${gateABlocked ? 'opacity-40' : ''}`}>
+      <div className={`relative rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 ${gateBBlocked ? 'opacity-40' : ''}`}>
         {gateBBlocked && <BlockedOverlay />}
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
