@@ -4,10 +4,9 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 const TABS = [
-  { label: '펀더멘털',    href: 'fundamentals' },
+  { label: '분석',        href: 'analysis' },
   { label: '해자',        href: 'moat' },
   { label: '정성적 분석', href: 'qualitative' },
-  { label: '기술적 분석', href: 'technical' },
   { label: '스윙 판정',   href: 'swing' },
 ]
 
