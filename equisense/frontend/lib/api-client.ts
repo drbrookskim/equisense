@@ -9,6 +9,7 @@ import type {
   AnalysisJob,
   DocType,
   FundamentalAnalysis,
+  GateAData,
   Market,
   MoatAnalysis,
   QuarterlyInsightMap,
@@ -20,6 +21,7 @@ import { transformYahooToFundamentals, transformYahooToTechnical } from '@/lib/a
 import { computeQuarterlyInsights } from '@/lib/adapters/quarterly'
 import { calculateMoat } from '@/lib/adapters/moat'
 import { calculateQualitative, lookupJob } from '@/lib/adapters/qualitative'
+import { MACRO_CONSTANTS } from '@/lib/adapters/swingPipeline'
 
 const PROXY = process.env.NEXT_PUBLIC_PROXY_URL ?? ''
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
@@ -158,4 +160,40 @@ export async function getQuarterlyInsights(
 /** @deprecated 백엔드 미사용 */
 export async function getPrice(_ticker: string): Promise<{ data: null; cached: false }> {
   return { data: null, cached: false }
+}
+
+export async function fetchGateAData(): Promise<GateAData> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function extractPrice(data: any): number | null {
+    const p = data?.quoteSummary?.result?.[0]?.price?.regularMarketPrice
+    if (p == null) return null
+    if (typeof p === 'number') return p
+    if (typeof p === 'object' && 'raw' in p) return (p as { raw: number }).raw
+    return null
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function extractMa200(data: any): number | null {
+    const ma = data?.quoteSummary?.result?.[0]?.summaryDetail?.twoHundredDayAverage
+    if (ma == null) return null
+    if (typeof ma === 'number') return ma
+    if (typeof ma === 'object' && 'raw' in ma) return (ma as { raw: number }).raw
+    return null
+  }
+
+  const [vixRes, kospiRes, krwRes] = await Promise.allSettled([
+    proxyFetch<unknown>('/yahoo/summary?symbol=%5EVIX&modules=price'),
+    proxyFetch<unknown>('/yahoo/summary?symbol=%5EKS11&modules=price%2CsummaryDetail'),
+    proxyFetch<unknown>('/yahoo/summary?symbol=KRW%3DX&modules=price'),
+  ])
+
+  return {
+    vix:          vixRes.status   === 'fulfilled' ? extractPrice(vixRes.value)   : null,
+    kospi_price:  kospiRes.status === 'fulfilled' ? extractPrice(kospiRes.value) : null,
+    kospi_ma200:  kospiRes.status === 'fulfilled' ? extractMa200(kospiRes.value) : null,
+    usdkrw:       krwRes.status   === 'fulfilled' ? extractPrice(krwRes.value)   : null,
+    rate_bp:      MACRO_CONSTANTS.rate_bp,
+    pmi:          MACRO_CONSTANTS.pmi,
+    pmi_direction: MACRO_CONSTANTS.pmi_direction,
+  }
 }
