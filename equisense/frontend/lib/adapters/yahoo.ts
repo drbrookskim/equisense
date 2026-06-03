@@ -69,6 +69,7 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     _revenue?: number | null
     _opIncome?: number | null
     _netIncome?: number | null
+    _interestExpense?: number | null   // 신규
   }
   const map = new Map<number, YearEntry>()
 
@@ -81,6 +82,7 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     // ebit: {raw: 0} 는 Yahoo Finance의 미래/미확정 연도 플레이스홀더 — 0은 null로 처리
     e._opIncome = r(s.operatingIncome) ?? (r(s.ebit) || null)
     e._netIncome = r(s.netIncome)
+    e._interestExpense = r(s.interestExpense)
     map.set(yr, e)
   }
 
@@ -131,9 +133,22 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     if (e._revenue && e._opIncome != null) {
       e.operating_margin = (e._opIncome / e._revenue) * 100
     }
+    // ICR = 영업이익 / |이자비용|
+    if (e._opIncome != null && e._interestExpense != null && e._interestExpense !== 0) {
+      e.icr = e._opIncome / Math.abs(e._interestExpense)
+    } else {
+      e.icr = null
+    }
     if (yr === latestYear) {
       e.per = r(keyStats.trailingPE) ?? r(keyStats.forwardPE)
       e.pbr = r(keyStats.priceToBook) ?? r(fd.priceToBook)
+      // PEG Ratio
+      e.peg_ratio = r(keyStats.pegRatio)
+      // 52주 고저 + 현재가 (summaryDetail 모듈)
+      const summary = result.summaryDetail ?? {}
+      e.week52_high   = r(summary.fiftyTwoWeekHigh)
+      e.week52_low    = r(summary.fiftyTwoWeekLow)
+      e.current_price = r(fd.currentPrice) ?? r(fd.regularMarketPrice)
       // financialData를 최신 연도 우선 소스로 사용 (incomeStatementHistory ebit=0 같은 오염 데이터 방어)
       const opMgn = r(fd.operatingMargins)
       if (opMgn != null) e.operating_margin = opMgn * 100
@@ -153,14 +168,19 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
   const metrics_by_year: FundamentalMetrics[] = sortedYears.map((yr) => {
     const e = map.get(yr)!
     return {
-      fiscal_year: yr,
-      roe: e.roe ?? null,
-      roa: e.roa ?? null,
-      debt_ratio: e.debt_ratio ?? null,
+      fiscal_year:      yr,
+      roe:              e.roe ?? null,
+      roa:              e.roa ?? null,
+      debt_ratio:       e.debt_ratio ?? null,
       operating_margin: e.operating_margin ?? null,
-      fcf: e.fcf ?? null,
-      per: e.per ?? null,
-      pbr: e.pbr ?? null,
+      fcf:              e.fcf ?? null,
+      per:              e.per ?? null,
+      pbr:              e.pbr ?? null,
+      icr:              e.icr ?? null,
+      peg_ratio:        e.peg_ratio ?? null,
+      week52_high:      e.week52_high ?? null,
+      week52_low:       e.week52_low ?? null,
+      current_price:    e.current_price ?? null,
     }
   })
 

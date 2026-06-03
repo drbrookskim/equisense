@@ -99,6 +99,7 @@ export function transformDartToFundamentals(
   const EQUITY_NAMES = ['자본총계', '자본 합계']
   const OCF_NAMES = ['영업활동현금흐름', '영업활동으로 인한 현금흐름', '영업활동 현금흐름']
   const CAPEX_NAMES = ['유형자산의 취득', '유형자산취득', '유형자산 취득']
+  const INT_EXP_NAMES = ['이자비용', '금융원가', '이자비용 등']
 
   function rYahoo(v: unknown): number | null {
     if (v == null) return null
@@ -134,6 +135,12 @@ export function transformDartToFundamentals(
     const equity = findAmt(list, 'BS', EQUITY_NAMES, field)
     const ocf    = findAmt(list, 'CF', OCF_NAMES,    field)
     const capex  = findAmt(list, 'CF', CAPEX_NAMES,  field)
+    const intExp = findAmt(list, 'IS', INT_EXP_NAMES, field)
+
+    const icrVal =
+      opInc != null && intExp != null && intExp !== 0
+        ? opInc / Math.abs(intExp)
+        : null
 
     if (rev    != null) revPairs.push([yr, rev])
     if (opInc  != null) opPairs.push([yr, opInc])
@@ -148,7 +155,7 @@ export function transformDartToFundamentals(
     }
 
     return {
-      fiscal_year: yr,
+      fiscal_year:      yr,
       roe:              netInc != null && equity ? (netInc / equity) * 100 : null,
       roa:              netInc != null && assets ? (netInc / assets) * 100 : null,
       debt_ratio:       liab   != null && assets ? (liab   / assets) * 100 : null,
@@ -156,6 +163,11 @@ export function transformDartToFundamentals(
       fcf:              ocf    != null ? (capex != null ? ocf + capex : ocf) : null,
       per:              yr === bsnsYear ? perLatest : null,
       pbr,
+      icr:              icrVal,
+      peg_ratio:        null,
+      week52_high:      yr === bsnsYear ? (rYahoo(ks?.fiftyTwoWeekHigh) ?? null) : null,
+      week52_low:       yr === bsnsYear ? (rYahoo(ks?.fiftyTwoWeekLow)  ?? null) : null,
+      current_price:    yr === bsnsYear ? (yahooPrice ?? null) : null,
     }
   })
 
