@@ -11,11 +11,13 @@ import type {
   FundamentalAnalysis,
   Market,
   MoatAnalysis,
+  QuarterlyInsightMap,
   TechnicalAnalysis,
   TechnicalPeriod,
 } from '@/types'
 import { transformDartToFundamentals } from '@/lib/adapters/dart'
 import { transformYahooToFundamentals, transformYahooToTechnical } from '@/lib/adapters/yahoo'
+import { computeQuarterlyInsights } from '@/lib/adapters/quarterly'
 import { calculateMoat } from '@/lib/adapters/moat'
 import { calculateQualitative, lookupJob } from '@/lib/adapters/qualitative'
 
@@ -29,6 +31,7 @@ const SUMMARY_MODULES = [
   'defaultKeyStatistics',
   'financialData',
   'quoteType',
+  'summaryDetail',
 ].join(',')
 
 async function proxyFetch<T>(path: string): Promise<T> {
@@ -74,7 +77,7 @@ export async function getFundamentals(ticker: string, market: Market): Promise<F
       proxyFetch<unknown>(`/dart/fs?corp_code=${corpCode}&year=${year}`),
       proxyFetch<unknown>(`/dart/fs?corp_code=${corpCode}&year=${year - 2}`).catch(() => null),
       proxyFetch<unknown>(
-        `/yahoo/summary?symbol=${ticker}&market=KR&modules=defaultKeyStatistics,financialData`,
+        `/yahoo/summary?symbol=${ticker}&market=KR&modules=defaultKeyStatistics,financialData,summaryDetail`,
       ).catch(() => null),
     ])
 
@@ -85,6 +88,7 @@ export async function getFundamentals(ticker: string, market: Market): Promise<F
     const keyStats = {
       ...((yahooResult.defaultKeyStatistics as Record<string, unknown>) ?? {}),
       ...((yahooResult.financialData     as Record<string, unknown>) ?? {}),
+      ...((yahooResult.summaryDetail      as Record<string, unknown>) ?? {}),
     }
 
     return transformDartToFundamentals(dartDataRecent, dartDataOld, keyStats, ticker, corpName)
@@ -133,6 +137,22 @@ export async function getJobStatus(jobId: string): Promise<AnalysisJob> {
   const job = lookupJob(jobId)
   if (!job) throw new Error(`작업을 찾을 수 없습니다: ${jobId}`)
   return job
+}
+
+export async function getQuarterlyInsights(
+  ticker: string,
+  market: Market,
+): Promise<QuarterlyInsightMap> {
+  const QUARTERLY_MODULES = [
+    'incomeStatementHistoryQuarterly',
+    'balanceSheetHistoryQuarterly',
+    'cashflowStatementHistoryQuarterly',
+  ].join(',')
+
+  const data = await proxyFetch<unknown>(
+    `/yahoo/summary?symbol=${ticker}&market=${market}&modules=${QUARTERLY_MODULES}`,
+  )
+  return computeQuarterlyInsights(data)
 }
 
 /** @deprecated 백엔드 미사용 */
