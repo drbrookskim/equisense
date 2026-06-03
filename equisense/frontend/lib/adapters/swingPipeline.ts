@@ -78,7 +78,7 @@ export function checkRR(input: RRInput): RRResult {
   const rr     = reward / risk
   return {
     rr:                 Math.round(rr * 100) / 100,
-    loss_pct:           Math.round((stop - entry) / entry * 1000) / 10,
+    loss_pct:           Math.round((entry - stop) / entry * 1000) / 10,
     gain_pct:           Math.round((target - entry) / entry * 1000) / 10,
     breakeven_winrate:  Math.round(1 / (1 + rr) * 1000) / 10,
     verdict:            rr >= 2.0 ? 'PASS' : rr >= 1.5 ? 'CAUTION' : 'BLOCK',
@@ -148,9 +148,10 @@ export function getFinalVerdict(
   entry: number,
   stop: number,
   target: number,
+  stockType: StockType = 'high_beta',
 ): SwingFinalResult {
   const today = new Date()
-  const timeStop = getTimeStop(today, 'high_beta')
+  const timeStop = getTimeStop(today, stockType)
 
   let verdict: FinalVerdict
   let summaryLine: string
