@@ -15,6 +15,11 @@ export interface FundamentalMetrics {
   fcf: number | null
   per: number | null
   pbr: number | null
+  icr: number | null           // 이자보상배율 = 영업이익 / 이자비용
+  peg_ratio: number | null     // PEG = PER / EPS성장률 (US만, KR null)
+  week52_high: number | null   // 52주 고가 (최신 연도만, 나머지 null)
+  week52_low: number | null    // 52주 저가 (최신 연도만, 나머지 null)
+  current_price: number | null // 현재가 (최신 연도만, 나머지 null)
 }
 
 export interface MetricTrend {
@@ -150,6 +155,25 @@ export interface TriggerQualitativeResponse {
   status: 'PENDING'
   estimated_seconds: number
 }
+
+// ──────────────────────────────────────────────
+// 분기별 인사이트
+// ──────────────────────────────────────────────
+
+export interface QuarterlyPoint {
+  label: string       // "2024 Q3"
+  value: number | null
+}
+
+export interface QuarterlyInsight {
+  quarters: QuarterlyPoint[]    // 최대 3개, 오름차순
+  trend_line: string            // "Q2 14.8% → Q3 16.1% → Q4 17.3%"
+  momentum_label: string        // "↑ 3분기 연속 상승 · 모멘텀 가속"
+  direction: 'up' | 'down' | 'mixed' | 'flat'
+  insufficient?: boolean        // true = 유효 데이터 포인트 < 2 (연간 fallback 트리거)
+}
+
+export type QuarterlyInsightMap = Partial<Record<string, QuarterlyInsight>>
 
 // ──────────────────────────────────────────────
 // 공통 에러
