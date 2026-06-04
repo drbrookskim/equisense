@@ -57,12 +57,9 @@ function TechnicalContent({ hideHeader = false }: Props) {
   return (
     <div className="space-y-8">
       {!hideHeader && (
-        <div className="flex flex-wrap items-baseline gap-2">
-          <h2 className="text-2xl font-bold">{name ?? data.ticker}</h2>
-          {name && <span className="font-mono text-sm text-zinc-500">{data.ticker}</span>}
-          <span className="text-sm text-zinc-400">({data.market})</span>
-          <span className="text-sm text-zinc-500">기술적 분석</span>
-        </div>
+        <h2 className="text-2xl font-bold">
+          {name ? `${name} (${data.ticker})` : data.ticker}
+        </h2>
       )}
       <Suspense
         fallback={

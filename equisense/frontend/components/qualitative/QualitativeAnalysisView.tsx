@@ -240,12 +240,9 @@ export default function QualitativeAnalysisView({ ticker, market, name }: Props)
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h2 className="text-2xl font-bold">{name ?? ticker}</h2>
-        {name && <span className="font-mono text-sm text-zinc-500">{ticker}</span>}
-        <span className="text-sm text-zinc-400">({market})</span>
-        <span className="text-sm text-zinc-500">정성적 분석</span>
-      </div>
+      <h2 className="text-2xl font-bold">
+        {name ? `${name} (${ticker})` : ticker}
+      </h2>
 
       <form
         onSubmit={handleSubmit}

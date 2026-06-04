@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import type { FundamentalMetrics, Market, QuarterlyInsightMap } from '@/types'
 
 function formatLargeNumber(value: number): string {
@@ -170,18 +169,13 @@ export default function SwingScoreDrawer({
   quarterlyLoading: boolean
   market: Market
 }) {
-  const [open, setOpen] = useState(false)
-
   if (!metrics) return null
 
   const score = quarterlyLoading ? null : computeSwingScore(metrics, quarterlyInsights)
 
   return (
     <section>
-      <div
-        onClick={() => setOpen(o => !o)}
-        className="cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors select-none"
-      >
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center gap-3 px-4 py-3">
           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">📊 스윙 적합도</span>
           {score ? (
@@ -202,10 +196,9 @@ export default function SwingScoreDrawer({
           ) : (
             <div className="h-1.5 flex-1 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
           )}
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">{open ? '▲' : '▼'}</span>
         </div>
 
-        {open && score && (
+        {score && (
           <div className="space-y-3 border-t border-zinc-200 p-3 dark:border-zinc-800">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {score.items.map(item => (
@@ -239,7 +232,7 @@ export default function SwingScoreDrawer({
           </div>
         )}
 
-        {open && !score && (
+        {!score && (
           <div className="animate-pulse space-y-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
             <div className="h-16 rounded bg-zinc-100 dark:bg-zinc-800" />
           </div>

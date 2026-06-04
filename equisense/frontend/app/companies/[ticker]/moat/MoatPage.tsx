@@ -94,9 +94,9 @@ function MoatContent() {
     <div className="space-y-8">
       {/* 헤더 */}
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 className="text-2xl font-bold">{name ?? data.ticker}</h2>
-        {name && <span className="font-mono text-sm text-zinc-500">{data.ticker}</span>}
-        <span className="text-sm text-zinc-400">({data.market})</span>
+        <h2 className="text-2xl font-bold">
+          {name ? `${name} (${data.ticker})` : data.ticker}
+        </h2>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GRADE_COLOR[data.grade]}`}>
           {GRADE_LABEL[data.grade]}
         </span>

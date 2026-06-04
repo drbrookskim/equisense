@@ -133,6 +133,7 @@ function SparklineCard({
   quarterlyLoading,
   isExpanded,
   onToggle,
+  clickable,
 }: {
   metricKey: string
   label: string
@@ -146,17 +147,22 @@ function SparklineCard({
   quarterlyLoading: boolean
   isExpanded: boolean
   onToggle: () => void
+  clickable?: boolean
 }) {
   const hasEnoughData = sparkData.filter(d => d.value !== null).length >= 2
+  const isClickable = clickable ?? true
 
   return (
     <div
-      onClick={onToggle}
+      onClick={isClickable ? onToggle : undefined}
       className={[
-        'rounded-lg border p-3 cursor-pointer transition-colors select-none',
+        'rounded-lg border p-3 transition-colors select-none',
+        isClickable ? 'cursor-pointer' : '',
         isExpanded
           ? 'border-indigo-500 bg-indigo-950/10 dark:bg-indigo-950/20'
-          : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600',
+          : isClickable
+            ? 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+            : 'border-zinc-200 dark:border-zinc-800',
       ].join(' ')}
     >
       <div className="text-xs text-zinc-500">{label}</div>
@@ -203,6 +209,7 @@ function ExpandedPanel({
   marginData,
   uid,
   onClose,
+  showClose = true,
 }: {
   expandedKey: ExpandedKey
   sparkDataByKey: Record<MetricKey, { year: number; value: number | null }[]>
@@ -210,6 +217,7 @@ function ExpandedPanel({
   marginData: MarginRow[]
   uid: string
   onClose: () => void
+  showClose?: boolean
 }) {
   const header =
     expandedKey === 'income' ? '손익 추이 — 연도별 추이' :
@@ -220,12 +228,14 @@ function ExpandedPanel({
     <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{header}</h4>
-        <button
-          onClick={onClose}
-          className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
-        >
-          ✕ 닫기
-        </button>
+        {showClose && (
+          <button
+            onClick={onClose}
+            className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+          >
+            ✕ 닫기
+          </button>
+        )}
       </div>
 
       {expandedKey === 'income' && (
@@ -353,9 +363,9 @@ export default function FundamentalsCharts({
   quarterlyLoading: boolean
 }) {
   const uid = useId()
-  const [expanded, setExpanded] = useState<ExpandedKey | null>(null)
+  const [expanded, setExpanded] = useState<MetricKey | null>(null)
 
-  function toggle(key: ExpandedKey) {
+  function toggle(key: MetricKey) {
     setExpanded(prev => (prev === key ? null : key))
   }
 
@@ -411,7 +421,7 @@ export default function FundamentalsCharts({
   return (
     <div className="space-y-6">
 
-      {/* 확장 패널 — 상단 고정 */}
+      {/* 핵심지표 확장 패널 — 상단 고정 */}
       {expanded && (
         <ExpandedPanel
           expandedKey={expanded}
@@ -423,7 +433,7 @@ export default function FundamentalsCharts({
         />
       )}
 
-      {/* 손익추이 + 수익성지표 카드 */}
+      {/* 손익추이 + 수익성지표 — 항상 표시 */}
       <section>
         <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">추이 분석</h3>
         <div className="grid grid-cols-2 gap-3">
@@ -437,8 +447,9 @@ export default function FundamentalsCharts({
             description="매출액·영업이익·순이익의 연도별 변화 추이"
             {...effectiveInsight('income', incomeSpark)}
             quarterlyLoading={quarterlyLoading}
-            isExpanded={expanded === 'income'}
-            onToggle={() => toggle('income')}
+            isExpanded={true}
+            onToggle={() => {}}
+            clickable={false}
           />
           <SparklineCard
             metricKey="margin"
@@ -450,8 +461,31 @@ export default function FundamentalsCharts({
             description="ROE·ROA·영업이익률의 연도별 추이"
             {...effectiveInsight('margin', marginSpark)}
             quarterlyLoading={quarterlyLoading}
-            isExpanded={expanded === 'margin'}
-            onToggle={() => toggle('margin')}
+            isExpanded={true}
+            onToggle={() => {}}
+            clickable={false}
+          />
+        </div>
+
+        {/* 연도별 추이 차트 — 항상 표시 */}
+        <div className="mt-4 space-y-4">
+          <ExpandedPanel
+            expandedKey="income"
+            sparkDataByKey={sparkDataByKey}
+            incomeData={incomeData}
+            marginData={marginData}
+            uid={uid}
+            onClose={() => {}}
+            showClose={false}
+          />
+          <ExpandedPanel
+            expandedKey="margin"
+            sparkDataByKey={sparkDataByKey}
+            incomeData={incomeData}
+            marginData={marginData}
+            uid={uid}
+            onClose={() => {}}
+            showClose={false}
           />
         </div>
       </section>

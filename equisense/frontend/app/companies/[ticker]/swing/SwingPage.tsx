@@ -123,10 +123,7 @@ function SwingContent() {
       {/* 헤더 */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold">
-          {fundamentals?.name ?? ticker}
-          {fundamentals?.name && (
-            <span className="ml-2 font-mono text-sm text-zinc-500">{ticker}</span>
-          )}
+          {fundamentals?.name ? `${fundamentals.name} (${ticker})` : ticker}
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           스윙 트레이딩 진입 판정 — Minervini SEPA 파이프라인
