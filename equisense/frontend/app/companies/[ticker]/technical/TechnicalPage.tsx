@@ -8,7 +8,9 @@ import TechnicalCharts from '@/components/charts/TechnicalCharts'
 
 const VALID_PERIODS = new Set<string>(['1m', '3m', '6m', '1y', '3y'])
 
-function TechnicalContent() {
+interface Props { hideHeader?: boolean }
+
+function TechnicalContent({ hideHeader = false }: Props) {
   const searchParams = useSearchParams()
   const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
@@ -54,12 +56,14 @@ function TechnicalContent() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h2 className="text-2xl font-bold">{name ?? data.ticker}</h2>
-        {name && <span className="font-mono text-sm text-zinc-500">{data.ticker}</span>}
-        <span className="text-sm text-zinc-400">({data.market})</span>
-        <span className="text-sm text-zinc-500">기술적 분석</span>
-      </div>
+      {!hideHeader && (
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h2 className="text-2xl font-bold">{name ?? data.ticker}</h2>
+          {name && <span className="font-mono text-sm text-zinc-500">{data.ticker}</span>}
+          <span className="text-sm text-zinc-400">({data.market})</span>
+          <span className="text-sm text-zinc-500">기술적 분석</span>
+        </div>
+      )}
       <Suspense
         fallback={
           <div className="flex h-60 items-center justify-center">
@@ -82,10 +86,10 @@ function LoadingSkeleton() {
   )
 }
 
-export default function TechnicalPage() {
+export default function TechnicalPage({ hideHeader = false }: Props) {
   return (
     <Suspense fallback={<LoadingSkeleton />}>
-      <TechnicalContent />
+      <TechnicalContent hideHeader={hideHeader} />
     </Suspense>
   )
 }

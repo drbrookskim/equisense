@@ -70,10 +70,10 @@ function SwingContent() {
     const latest = fundamentals?.metrics_by_year.at(-1)
     if (!latest?.current_price) return
     const entry  = latest.current_price
-    const stop   = Math.round(entry * 0.95 / 100) * 100
+    const stop   = Math.round(entry * 0.95 / 1000) * 1000
     const target = latest.week52_high
-      ? Math.round(latest.week52_high * 1.05 / 100) * 100
-      : Math.round(entry * 1.20 / 100) * 100
+      ? Math.round(latest.week52_high * 1.05 / 1000) * 1000
+      : Math.round(entry * 1.20 / 1000) * 1000
     setRRInput({ entry, stop, target })
   }, [fundamentals])
 
@@ -188,23 +188,27 @@ function SwingContent() {
             </div>
             <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
               <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">손절선</div>
+              <div className="font-bold text-red-500 dark:text-red-400">{fmtKR(rrInput.stop)}원</div>
               <input
                 type="number"
+                step="1000"
                 value={rrInput.stop}
                 onChange={e => setRRInput(p => p ? { ...p, stop: parseFloat(e.target.value) || p.stop } : p)}
-                className="w-full bg-transparent font-bold text-red-500 focus:outline-none dark:text-red-400"
+                className="mt-1 w-full border-b border-zinc-200 bg-transparent text-xs text-zinc-400 focus:outline-none dark:border-zinc-700 dark:text-zinc-500"
               />
-              <div className="text-[10px] text-zinc-400">{rr?.loss_pct}% 손실</div>
+              <div className="mt-0.5 text-[10px] text-zinc-400">{rr?.loss_pct}% 손실</div>
             </div>
             <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
               <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">목표가 (52주고가×1.05)</div>
+              <div className="font-bold text-emerald-600 dark:text-emerald-400">{fmtKR(rrInput.target)}원</div>
               <input
                 type="number"
+                step="1000"
                 value={rrInput.target}
                 onChange={e => setRRInput(p => p ? { ...p, target: parseFloat(e.target.value) || p.target } : p)}
-                className="w-full bg-transparent font-bold text-emerald-600 focus:outline-none dark:text-emerald-400"
+                className="mt-1 w-full border-b border-zinc-200 bg-transparent text-xs text-zinc-400 focus:outline-none dark:border-zinc-700 dark:text-zinc-500"
               />
-              <div className="text-[10px] text-zinc-400">+{rr?.gain_pct}% 수익</div>
+              <div className="mt-0.5 text-[10px] text-zinc-400">+{rr?.gain_pct}% 수익</div>
             </div>
           </div>
         )}
