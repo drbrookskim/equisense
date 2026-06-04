@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 const TABS = [
-  { label: '분석',        href: 'analysis' },
-  { label: '해자',        href: 'moat' },
-  { label: '정성적 분석', href: 'qualitative' },
-  { label: '스윙 판정',   href: 'swing' },
+  { label: '분석',     href: 'analysis' },
+  { label: '해자',     href: 'moat' },
+  { label: '센티멘트', href: 'qualitative' },
+  { label: '스윙 투자', href: 'swing' },
 ]
 
 export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {

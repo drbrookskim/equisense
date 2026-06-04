@@ -4,12 +4,13 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import type {
   FundamentalAnalysis, GateAResult, GateBResult,
-  Market, RRInput, RRResult, StockType, SwingFinalResult,
+  Market, QuarterlyInsightMap, RRInput, RRResult, StockType, SwingFinalResult,
 } from '@/types'
-import { getFundamentals } from '@/lib/api-client'
+import { getFundamentals, getQuarterlyInsights } from '@/lib/api-client'
 import { checkRR, getTimeStop, getFinalVerdict } from '@/lib/adapters/swingPipeline'
 import GateAPanel from '@/components/swing/GateAPanel'
 import GateBPanel from '@/components/swing/GateBPanel'
+import SwingScoreDrawer from '@/components/swing/SwingScoreDrawer'
 
 function fmtKR(n: number) { return n.toLocaleString('ko-KR') }
 
@@ -53,16 +54,28 @@ function SwingContent() {
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
 
   const [fundamentals, setFundamentals] = useState<FundamentalAnalysis | null>(null)
+  const [quarterlyInsights, setQuarterlyInsights] = useState<QuarterlyInsightMap | null>(null)
+  const [quarterlyLoading, setQuarterlyLoading] = useState(false)
   const [gateAResult, setGateAResult] = useState<GateAResult | null>(null)
   const [gateBResult, setGateBResult] = useState<GateBResult | null>(null)
   const [stockType, setStockType] = useState<StockType>('high_beta')
   const [rrInput, setRRInput] = useState<RRInput | null>(null)
   const [final, setFinal] = useState<SwingFinalResult | null>(null)
 
-  // 펀더멘털 데이터 fetch (Step 1 재사용)
   useEffect(() => {
     if (!ticker) return
     getFundamentals(ticker, market).then(setFundamentals).catch(() => {})
+  }, [ticker, market])
+
+  useEffect(() => {
+    if (!ticker) return
+    let cancelled = false
+    setQuarterlyLoading(true)
+    getQuarterlyInsights(ticker, market)
+      .then(d => { if (!cancelled) setQuarterlyInsights(d) })
+      .catch(() => { if (!cancelled) setQuarterlyInsights(null) })
+      .finally(() => { if (!cancelled) setQuarterlyLoading(false) })
+    return () => { cancelled = true }
   }, [ticker, market])
 
   // R:R 기본값 계산 (current_price + week52_high 기반)
@@ -131,35 +144,20 @@ function SwingContent() {
       </div>
       <Arrow />
 
-      {/* Step 1 체력필터 요약 */}
-      <div className={`relative rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 ${gateBBlocked ? 'opacity-40' : ''}`}>
+      {/* Step 1 체력필터 — 스윙 적합도 */}
+      <div className={`relative rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden ${gateBBlocked ? 'opacity-40' : ''}`}>
         {gateBBlocked && <BlockedOverlay />}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-            Step 1 — 체력 필터
-          </span>
-          {latest ? (
-            <span className={`rounded-full px-3 py-0.5 text-xs font-bold ring-1 ${
-              (latest.debt_ratio ?? Infinity) <= 200 && (latest.fcf ?? 0) > 0
-                ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-800'
-                : 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/20 dark:text-red-400 dark:ring-red-800'
-            }`}>
-              {(latest.debt_ratio ?? Infinity) <= 200 && (latest.fcf ?? 0) > 0
-                ? '✅ PASS'
-                : '🚫 BLOCK'}
-            </span>
-          ) : (
-            <span className="text-xs text-zinc-400">데이터 로딩 중...</span>
-          )}
+        <div className="bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
+          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Step 1 — 체력 필터</span>
         </div>
-        {latest && (
-          <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-zinc-500">
-            <span>부채비율: {latest.debt_ratio != null ? `${latest.debt_ratio.toFixed(1)}%` : '—'}</span>
-            <span>이자보상: {latest.icr != null ? `${latest.icr.toFixed(1)}x` : '—'}</span>
-            <span>FCF: {latest.fcf != null ? fmtKR(Math.round(latest.fcf / 1e8)) + '억' : '—'}</span>
-          </div>
-        )}
-        <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">← 펀더멘털 탭 데이터 재사용</p>
+        <div className="p-3">
+          <SwingScoreDrawer
+            metrics={latest ?? null}
+            quarterlyInsights={quarterlyInsights}
+            quarterlyLoading={quarterlyLoading}
+            market={market}
+          />
+        </div>
       </div>
       <Arrow />
 
