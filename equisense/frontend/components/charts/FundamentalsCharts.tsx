@@ -53,10 +53,38 @@ function yAxisFormatter(format: MetricFormat): (v: unknown) => string {
 
 // ── 타입 ────────────────────────────────────────
 
-const METRIC_KEYS = ['roe', 'roa', 'debt_ratio', 'operating_margin', 'per', 'pbr', 'fcf'] as const
+type ExpandedKey = 'roe' | 'roa' | 'debt_ratio' | 'operating_margin' | 'per' | 'pbr' | 'fcf' | 'income' | 'margin'
 
-type MetricKey = typeof METRIC_KEYS[number]
-type ExpandedKey = MetricKey | 'income' | 'margin'
+// ── 섹션 헬퍼 ───────────────────────────────────
+
+function calcCagr(data: { year: number; value: number | null }[]): number | null {
+  const valid = data.filter((d): d is { year: number; value: number } => d.value != null)
+  if (valid.length < 2) return null
+  const first = valid[0].value
+  const last  = valid.at(-1)!.value
+  const years = valid.at(-1)!.year - valid[0].year
+  if (years <= 0 || first <= 0) return null
+  return (Math.pow(last / first, 1 / years) - 1) * 100
+}
+
+function healthSignal(
+  latest: import('@/types').FundamentalMetrics | null,
+): 'good' | 'warn' | 'danger' {
+  if (!latest) return 'warn'
+  const dr  = latest.debt_ratio ?? Infinity
+  const fcf = latest.fcf        ?? -1
+  const icr = latest.icr        ?? 0
+  if (dr > 300 || fcf < 0 || icr < 1.5) return 'danger'
+  if (dr > 200 || icr < 3)               return 'warn'
+  return 'good'
+}
+
+function pillCls(status: 'pass' | 'warn' | 'fail' | 'na'): string {
+  if (status === 'pass') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400'
+  if (status === 'warn') return 'bg-amber-50  text-amber-700  dark:bg-amber-950/20  dark:text-amber-400'
+  if (status === 'fail') return 'bg-red-50    text-red-700    dark:bg-red-950/20    dark:text-red-400'
+  return 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+}
 
 // ── 지표 설정 ───────────────────────────────────
 
@@ -120,83 +148,6 @@ function QuarterlyOverlay({
   )
 }
 
-function SparklineCard({
-  metricKey,
-  label,
-  latestValue,
-  format,
-  sparkData,
-  color,
-  description,
-  insight,
-  isAnnual,
-  quarterlyLoading,
-  isExpanded,
-  onToggle,
-  clickable,
-}: {
-  metricKey: string
-  label: string
-  latestValue: number | null
-  format: MetricFormat
-  sparkData: { year: number; value: number | null }[]
-  color: string
-  description: string
-  insight: QuarterlyInsight | null | undefined
-  isAnnual?: boolean
-  quarterlyLoading: boolean
-  isExpanded: boolean
-  onToggle: () => void
-  clickable?: boolean
-}) {
-  const hasEnoughData = sparkData.filter(d => d.value !== null).length >= 2
-  const isClickable = clickable ?? true
-
-  return (
-    <div
-      onClick={isClickable ? onToggle : undefined}
-      className={[
-        'rounded-lg border p-3 transition-colors select-none',
-        isClickable ? 'cursor-pointer' : '',
-        isExpanded
-          ? 'border-indigo-500 bg-indigo-950/10 dark:bg-indigo-950/20'
-          : isClickable
-            ? 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
-            : 'border-zinc-200 dark:border-zinc-800',
-      ].join(' ')}
-    >
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 text-lg font-semibold">{formatValue(latestValue, format)}</div>
-      {hasEnoughData && (
-        <ResponsiveContainer width="100%" height={52}>
-          <AreaChart data={sparkData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id={`spark-grad-${metricKey}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor={color} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={color} stopOpacity={0}   />
-              </linearGradient>
-            </defs>
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={color}
-              strokeWidth={1.5}
-              fill={`url(#spark-grad-${metricKey})`}
-              dot={false}
-              connectNulls={false}
-              isAnimationActive={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      )}
-      <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">{description}</p>
-      {isExpanded && (
-        <QuarterlyOverlay insight={insight} loading={quarterlyLoading} isAnnual={isAnnual ?? false} />
-      )}
-    </div>
-  )
-}
-
 // ── 확장 패널 ───────────────────────────────────
 
 type IncomeRow  = { year: string; revenue: number | null; operating_income: number | null; net_income: number | null }
@@ -212,7 +163,7 @@ function ExpandedPanel({
   showClose = true,
 }: {
   expandedKey: ExpandedKey
-  sparkDataByKey: Record<MetricKey, { year: number; value: number | null }[]>
+  sparkDataByKey: Record<string, { year: number; value: number | null }[]>
   incomeData: IncomeRow[]
   marginData: MarginRow[]
   uid: string
@@ -363,10 +314,10 @@ export default function FundamentalsCharts({
   quarterlyLoading: boolean
 }) {
   const uid = useId()
-  const [expanded, setExpanded] = useState<MetricKey | null>(null)
+  const [openSection, setOpenSection] = useState<'growth' | 'profit' | 'health' | null>(null)
 
-  function toggle(key: MetricKey) {
-    setExpanded(prev => (prev === key ? null : key))
+  function toggleSection(key: 'growth' | 'profit' | 'health') {
+    setOpenSection(prev => prev === key ? null : key)
   }
 
   const incomeData: IncomeRow[] = data.metrics_by_year.map(m => ({
@@ -383,7 +334,7 @@ export default function FundamentalsCharts({
     영업이익률: m.operating_margin,
   }))
 
-  const sparkDataByKey: Record<MetricKey, { year: number; value: number | null }[]> = {
+  const sparkDataByKey: Record<string, { year: number; value: number | null }[]> = {
     roe:              data.metrics_by_year.map(m => ({ year: m.fiscal_year, value: m.roe })),
     roa:              data.metrics_by_year.map(m => ({ year: m.fiscal_year, value: m.roa })),
     debt_ratio:       data.metrics_by_year.map(m => ({ year: m.fiscal_year, value: m.debt_ratio })),
@@ -418,106 +369,261 @@ export default function FundamentalsCharts({
     return { insight: annual, isAnnual: true }
   }
 
+  // ── 파생 값 ──────────────────────────────────────
+
+  const cagr = calcCagr(incomeSpark)
+  const validIncomeSpark = incomeSpark.filter(
+    (d): d is { year: number; value: number } => d.value != null,
+  )
+  const maxRevenue = validIncomeSpark.reduce((m, d) => Math.max(m, d.value), 0)
+
+  const signal = healthSignal(latestMetrics)
+  const healthBadgeCls =
+    signal === 'good'
+      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400'
+      : signal === 'warn'
+      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400'
+      : 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400'
+  const healthBorderCls =
+    signal === 'good'
+      ? 'border-emerald-500/50 dark:border-emerald-500/40'
+      : signal === 'warn'
+      ? 'border-amber-500/50 dark:border-amber-500/40'
+      : 'border-red-500/50 dark:border-red-500/40'
+
+  type PillStatus = 'pass' | 'warn' | 'fail' | 'na'
+  const debtStatus: PillStatus = latestMetrics?.debt_ratio == null ? 'na'
+    : latestMetrics.debt_ratio <= 200 ? 'pass'
+    : latestMetrics.debt_ratio <= 300 ? 'warn' : 'fail'
+  const fcfStatus: PillStatus = latestMetrics?.fcf == null ? 'na'
+    : latestMetrics.fcf > 0 ? 'pass' : 'fail'
+  const icrStatus: PillStatus = latestMetrics?.icr == null ? 'na'
+    : latestMetrics.icr >= 3 ? 'pass' : latestMetrics.icr >= 1.5 ? 'warn' : 'fail'
+  const perStatus: PillStatus = latestMetrics?.per == null ? 'na'
+    : latestMetrics.per < 15 ? 'pass' : latestMetrics.per < 30 ? 'warn' : 'fail'
+  const pbrStatus: PillStatus = latestMetrics?.pbr == null ? 'na'
+    : latestMetrics.pbr < 1 ? 'pass' : latestMetrics.pbr < 3 ? 'warn' : 'fail'
+
+  const growthInsight = effectiveInsight('income', incomeSpark)
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
 
-      {/* 핵심지표 확장 패널 — 상단 고정 */}
-      {expanded && (
-        <ExpandedPanel
-          expandedKey={expanded}
-          sparkDataByKey={sparkDataByKey}
-          incomeData={incomeData}
-          marginData={marginData}
-          uid={uid}
-          onClose={() => setExpanded(null)}
-        />
-      )}
-
-      {/* 손익추이 + 수익성지표 — 항상 표시 */}
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">추이 분석</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <SparklineCard
-            metricKey="income"
-            label="손익 추이"
-            latestValue={latestRevenue}
-            format="large"
-            sparkData={incomeSpark}
-            color="#6366f1"
-            description="매출액·영업이익·순이익의 연도별 변화 추이"
-            {...effectiveInsight('income', incomeSpark)}
-            quarterlyLoading={quarterlyLoading}
-            isExpanded={true}
-            onToggle={() => {}}
-            clickable={false}
-          />
-          <SparklineCard
-            metricKey="margin"
-            label="수익성 지표"
-            latestValue={latestROE}
-            format="percent"
-            sparkData={marginSpark}
-            color="#22c55e"
-            description="ROE·ROA·영업이익률의 연도별 추이"
-            {...effectiveInsight('margin', marginSpark)}
-            quarterlyLoading={quarterlyLoading}
-            isExpanded={true}
-            onToggle={() => {}}
-            clickable={false}
-          />
+      {/* ── 1. 성장성 ── */}
+      <section className={[
+        'rounded-lg border transition-colors bg-zinc-50 dark:bg-zinc-900/50',
+        openSection === 'growth'
+          ? 'border-indigo-500/50 dark:border-indigo-500/40'
+          : 'border-zinc-200 dark:border-zinc-800',
+      ].join(' ')}>
+        <div
+          className="flex cursor-pointer select-none items-start justify-between px-4 py-3"
+          onClick={() => toggleSection('growth')}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg leading-none">🚀</span>
+            <div>
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">성장성</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">매출 · 영업이익 · 순이익</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-0.5">
+            {cagr != null && (
+              <span className={[
+                'rounded-full px-2.5 py-0.5 text-xs font-bold',
+                cagr >= 0
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400'
+                  : 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400',
+              ].join(' ')}>
+                CAGR {cagr >= 0 ? '+' : ''}{cagr.toFixed(1)}%
+              </span>
+            )}
+            <span className="text-xs text-zinc-400">{openSection === 'growth' ? '▲' : '▼'}</span>
+          </div>
         </div>
 
-        {/* 연도별 추이 차트 — 항상 표시 */}
-        <div className="mt-4 space-y-4">
-          <ExpandedPanel
-            expandedKey="income"
-            sparkDataByKey={sparkDataByKey}
-            incomeData={incomeData}
-            marginData={marginData}
-            uid={uid}
-            onClose={() => {}}
-            showClose={false}
-          />
-          <ExpandedPanel
-            expandedKey="margin"
-            sparkDataByKey={sparkDataByKey}
-            incomeData={incomeData}
-            marginData={marginData}
-            uid={uid}
-            onClose={() => {}}
-            showClose={false}
-          />
-        </div>
-      </section>
-
-      {/* 핵심지표 SparklineCard 그리드 */}
-      {latestMetrics && (
-        <section>
-          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">핵심지표</h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {METRIC_KEYS.map(key => {
-              const cfg = METRIC_CONFIGS[key]
-              const latestVal = latestMetrics[key as keyof typeof latestMetrics] as number | null
+        {validIncomeSpark.length >= 2 && (
+          <div className="flex h-5 items-end gap-0.5 px-4 pb-2">
+            {validIncomeSpark.map((d, i) => {
+              const h = maxRevenue > 0 ? Math.max(3, Math.round((d.value / maxRevenue) * 18)) : 3
               return (
-                <SparklineCard
-                  key={key}
-                  metricKey={key}
-                  label={cfg.label}
-                  latestValue={latestVal}
-                  format={cfg.format}
-                  sparkData={sparkDataByKey[key]}
-                  color={cfg.color}
-                  description={cfg.description}
-                  {...effectiveInsight(key, sparkDataByKey[key])}
-                  quarterlyLoading={quarterlyLoading}
-                  isExpanded={expanded === key}
-                  onToggle={() => toggle(key)}
+                <div
+                  key={i}
+                  style={{ height: `${h}px` }}
+                  className="flex-1 rounded-sm bg-indigo-400 opacity-70 dark:bg-indigo-500"
                 />
               )
             })}
           </div>
-        </section>
-      )}
+        )}
+
+        {openSection === 'growth' && (
+          <div className="space-y-4 border-t border-zinc-200 p-4 dark:border-zinc-800">
+            <ExpandedPanel
+              expandedKey="income"
+              sparkDataByKey={sparkDataByKey}
+              incomeData={incomeData}
+              marginData={marginData}
+              uid={uid}
+              onClose={() => {}}
+              showClose={false}
+            />
+            <QuarterlyOverlay
+              insight={growthInsight.insight}
+              loading={quarterlyLoading}
+              isAnnual={growthInsight.isAnnual}
+            />
+          </div>
+        )}
+      </section>
+
+      {/* ── 2. 수익성 ── */}
+      <section className={[
+        'rounded-lg border transition-colors bg-zinc-50 dark:bg-zinc-900/50',
+        openSection === 'profit'
+          ? 'border-emerald-500/50 dark:border-emerald-500/40'
+          : 'border-zinc-200 dark:border-zinc-800',
+      ].join(' ')}>
+        <div
+          className="flex cursor-pointer select-none items-start justify-between px-4 py-3"
+          onClick={() => toggleSection('profit')}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg leading-none">💎</span>
+            <div>
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">수익성</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">ROE · ROA · 영업이익률</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-0.5">
+            {latestROE != null && (
+              <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400">
+                ROE {formatPercent(latestROE)}
+              </span>
+            )}
+            <span className="text-xs text-zinc-400">{openSection === 'profit' ? '▲' : '▼'}</span>
+          </div>
+        </div>
+
+        {latestMetrics && (
+          <div className="grid grid-cols-3 gap-px border-t border-zinc-200 dark:border-zinc-800">
+            {(
+              [
+                { label: 'ROE',       value: latestMetrics.roe,              format: 'percent' },
+                { label: '영업이익률', value: latestMetrics.operating_margin, format: 'percent' },
+                { label: 'ROA',       value: latestMetrics.roa,              format: 'percent' },
+              ] as { label: string; value: number | null; format: MetricFormat }[]
+            ).map(({ label, value, format }) => (
+              <div key={label} className="px-4 py-2.5 text-center">
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{label}</p>
+                <p className="mt-0.5 text-base font-bold text-zinc-800 dark:text-zinc-200">
+                  {formatValue(value, format)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {openSection === 'profit' && (
+          <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
+            <ExpandedPanel
+              expandedKey="margin"
+              sparkDataByKey={sparkDataByKey}
+              incomeData={incomeData}
+              marginData={marginData}
+              uid={uid}
+              onClose={() => {}}
+              showClose={false}
+            />
+          </div>
+        )}
+      </section>
+
+      {/* ── 3. 재무 건전성 ── */}
+      <section className={[
+        'rounded-lg border transition-colors bg-zinc-50 dark:bg-zinc-900/50',
+        openSection === 'health' ? healthBorderCls : 'border-zinc-200 dark:border-zinc-800',
+      ].join(' ')}>
+        <div
+          className="flex cursor-pointer select-none items-start justify-between px-4 py-3"
+          onClick={() => toggleSection('health')}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg leading-none">🛡️</span>
+            <div>
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">재무 건전성</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">부채비율 · FCF · 이자보상 · PER · PBR</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-0.5">
+            <span className={['rounded-full px-2.5 py-0.5 text-xs font-bold', healthBadgeCls].join(' ')}>
+              {signal === 'good' ? '✓ 양호' : signal === 'warn' ? '⚠ 주의' : '✗ 위험'}
+            </span>
+            <span className="text-xs text-zinc-400">{openSection === 'health' ? '▲' : '▼'}</span>
+          </div>
+        </div>
+
+        {latestMetrics && (
+          <div className="flex flex-wrap gap-1.5 border-t border-zinc-200 px-4 py-2.5 dark:border-zinc-800">
+            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(debtStatus)].join(' ')}>
+              부채 {formatValue(latestMetrics.debt_ratio, 'percent')}
+            </span>
+            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(fcfStatus)].join(' ')}>
+              FCF {latestMetrics.fcf != null ? formatLargeNumber(latestMetrics.fcf) : '—'}
+            </span>
+            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(icrStatus)].join(' ')}>
+              이자보상 {latestMetrics.icr != null ? `${latestMetrics.icr.toFixed(1)}x` : '—'}
+            </span>
+            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(perStatus)].join(' ')}>
+              PER {formatValue(latestMetrics.per, 'ratio')}
+            </span>
+            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(pbrStatus)].join(' ')}>
+              PBR {formatValue(latestMetrics.pbr, 'ratio')}
+            </span>
+          </div>
+        )}
+
+        {openSection === 'health' && latestMetrics && (
+          <div className="space-y-4 border-t border-zinc-200 p-4 dark:border-zinc-800">
+            <div className="grid grid-cols-2 gap-4">
+              <ExpandedPanel
+                expandedKey="debt_ratio"
+                sparkDataByKey={sparkDataByKey}
+                incomeData={incomeData}
+                marginData={marginData}
+                uid={uid}
+                onClose={() => {}}
+                showClose={false}
+              />
+              <ExpandedPanel
+                expandedKey="fcf"
+                sparkDataByKey={sparkDataByKey}
+                incomeData={incomeData}
+                marginData={marginData}
+                uid={uid}
+                onClose={() => {}}
+                showClose={false}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {(
+                [
+                  { label: '이자보상배율', value: latestMetrics.icr, format: 'ratio' },
+                  { label: 'PER',         value: latestMetrics.per, format: 'ratio' },
+                  { label: 'PBR',         value: latestMetrics.pbr, format: 'ratio' },
+                ] as { label: string; value: number | null; format: MetricFormat }[]
+              ).map(({ label, value, format }) => (
+                <div key={label} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
+                  <p className="mt-1 text-lg font-bold text-zinc-800 dark:text-zinc-200">
+                    {formatValue(value, format)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
     </div>
   )
