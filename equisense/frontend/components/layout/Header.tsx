@@ -110,7 +110,7 @@ export default function Header() {
     setOpen(false)
     setQuery(s.ticker)
     const nameParam = s.name ? `&name=${encodeURIComponent(s.name)}` : ''
-    window.location.href = `${BASE_PATH}/companies/_/fundamentals?ticker=${s.ticker}&market=${s.market}${nameParam}`
+    window.location.href = `${BASE_PATH}/companies/_/analysis?ticker=${s.ticker}&market=${s.market}${nameParam}`
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -127,7 +127,7 @@ export default function Header() {
     const q = query.trim().toUpperCase()
     if (!q) return
     setOpen(false)
-    window.location.href = `${BASE_PATH}/companies/_/fundamentals?ticker=${q}&market=${isKrTicker(q) ? 'KR' : 'US'}`
+    window.location.href = `${BASE_PATH}/companies/_/analysis?ticker=${q}&market=${isKrTicker(q) ? 'KR' : 'US'}`
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Area,
   Bar,
@@ -128,10 +127,6 @@ export default function TechnicalCharts({
   period: TechnicalPeriod
   onPeriodChange: (p: TechnicalPeriod) => void
 }) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const market = searchParams.get('market') ?? 'US'
-
   const [activeIndicators, setActiveIndicators] = useState<Set<IndicatorKey>>(
     () => new Set(['MA', 'BB', 'RSI', 'MACD']),
   )
@@ -147,7 +142,6 @@ export default function TechnicalCharts({
 
   function handlePeriod(period: TechnicalPeriod) {
     onPeriodChange(period)
-    router.push(`/companies/_/technical?ticker=${ticker}&market=${market}&period=${period}`)
   }
 
   const indicators = useMemo(() => computeIndicators(data.data_points), [data.data_points])
