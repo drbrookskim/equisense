@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getFundamentals } from '@/lib/api-client'
-import type { FundamentalAnalysis, Market } from '@/types'
+import { getFundamentals, getQuarterlyInsights } from '@/lib/api-client'
+import type { FundamentalAnalysis, Market, QuarterlyInsightMap } from '@/types'
 import FundamentalsCharts from '@/components/charts/FundamentalsCharts'
 
 function FundamentalsContent() {
@@ -14,6 +14,8 @@ function FundamentalsContent() {
   const [data, setData] = useState<FundamentalAnalysis | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [quarterlyInsights, setQuarterlyInsights] = useState<QuarterlyInsightMap | null>(null)
+  const [quarterlyLoading, setQuarterlyLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -29,6 +31,18 @@ function FundamentalsContent() {
         )
       })
       .finally(() => { if (!cancelled) setIsLoading(false) })
+    return () => { cancelled = true }
+  }, [ticker, market])
+
+  useEffect(() => {
+    if (!ticker) return
+    let cancelled = false
+    setQuarterlyLoading(true)
+    setQuarterlyInsights(null)
+    getQuarterlyInsights(ticker, market)
+      .then(d => { if (!cancelled) setQuarterlyInsights(d) })
+      .catch(() => { if (!cancelled) setQuarterlyInsights(null) })
+      .finally(() => { if (!cancelled) setQuarterlyLoading(false) })
     return () => { cancelled = true }
   }, [ticker, market])
 
@@ -51,7 +65,11 @@ function FundamentalsContent() {
         )}
         <span className="text-sm text-zinc-400">({data.market})</span>
       </div>
-      <FundamentalsCharts data={data} />
+      <FundamentalsCharts
+        data={data}
+        quarterlyInsights={quarterlyInsights}
+        quarterlyLoading={quarterlyLoading}
+      />
     </div>
   )
 }
