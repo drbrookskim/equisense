@@ -168,6 +168,18 @@ export default {
         })
       }
 
+      // ── DART: 최근 공시 목록 ──────────────────────────────────────────────
+      if (url.pathname === '/dart/disclosures') {
+        const corpCode = p.get('corp_code') ?? ''
+        const pageCount = p.get('page_count') ?? '20'
+        const upstream = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${env.DART_API_KEY}&corp_code=${corpCode}&page_count=${pageCount}&sort=date&sort_mth=desc`
+        const res = await fetch(upstream)
+        return new Response(await res.text(), {
+          status: res.status,
+          headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+        })
+      }
+
       return new Response('Not found', { status: 404, headers: CORS })
     } catch (err) {
       return new Response(JSON.stringify({ error: String(err) }), {

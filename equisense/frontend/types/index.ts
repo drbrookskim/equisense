@@ -176,6 +176,63 @@ export interface QuarterlyInsight {
 export type QuarterlyInsightMap = Partial<Record<string, QuarterlyInsight>>
 
 // ──────────────────────────────────────────────
+// Module 6: 센티멘트 데이터
+// ──────────────────────────────────────────────
+
+export interface AnalystConsensus {
+  strong_buy: number
+  buy: number
+  hold: number
+  sell: number
+  strong_sell: number
+  total: number
+  target_mean: number | null
+  target_high: number | null
+  target_low: number | null
+  current_price: number | null
+}
+
+export interface EarningsSurprise {
+  quarter: string           // e.g. "2024 Q3"
+  eps_estimate: number | null
+  eps_actual: number | null
+  surprise_pct: number | null   // 5.24 = +5.24%
+}
+
+export type DisclosureImportance = 'high' | 'medium' | 'low'
+
+export interface DartDisclosure {
+  rcept_no: string
+  report_nm: string
+  rcept_dt: string        // "20241015"
+  flr_nm: string
+  importance: DisclosureImportance
+}
+
+export interface InsiderTransaction {
+  name: string
+  relation: string
+  transaction: 'buy' | 'sell' | 'other'
+  shares: number | null
+  date: string
+}
+
+export interface InstitutionHolder {
+  name: string
+  pct_held: number | null   // 8.12 = 8.12%
+  shares: number | null
+  report_date: string
+}
+
+export interface SentimentData {
+  consensus: AnalystConsensus | null
+  earnings_surprises: EarningsSurprise[]
+  disclosures: DartDisclosure[]           // KR only
+  insider_transactions: InsiderTransaction[]
+  institution_holders: InstitutionHolder[]
+}
+
+// ──────────────────────────────────────────────
 // 공통 에러
 // ──────────────────────────────────────────────
 

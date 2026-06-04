@@ -11,6 +11,7 @@ import type {
   QualitativeResult,
   RiskFactor,
 } from '@/types'
+import SentimentPanels from '@/components/qualitative/SentimentPanels'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const FISCAL_YEARS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - 1 - i)
@@ -243,6 +244,16 @@ export default function QualitativeAnalysisView({ ticker, market, name }: Props)
       <h2 className="text-2xl font-bold">
         {name ? `${name} (${ticker})` : ticker}
       </h2>
+
+      {/* 시장 데이터 — 자동 로드 */}
+      <SentimentPanels ticker={ticker} market={market} />
+
+      {/* AI 정성 분석 구분선 */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
+        <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">AI 정성 분석</span>
+        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
+      </div>
 
       <form
         onSubmit={handleSubmit}

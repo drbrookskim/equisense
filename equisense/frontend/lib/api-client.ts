@@ -13,6 +13,7 @@ import type {
   Market,
   MoatAnalysis,
   QuarterlyInsightMap,
+  SentimentData,
   TechnicalAnalysis,
   TechnicalPeriod,
 } from '@/types'
@@ -21,6 +22,7 @@ import { transformYahooToFundamentals, transformYahooToTechnical } from '@/lib/a
 import { computeQuarterlyInsights } from '@/lib/adapters/quarterly'
 import { calculateMoat } from '@/lib/adapters/moat'
 import { calculateQualitative, lookupJob } from '@/lib/adapters/qualitative'
+import { parseSentimentData } from '@/lib/adapters/sentiment'
 import { MACRO_CONSTANTS } from '@/lib/adapters/swingPipeline'
 
 const PROXY = process.env.NEXT_PUBLIC_PROXY_URL ?? ''
@@ -160,6 +162,35 @@ export async function getQuarterlyInsights(
 /** @deprecated 백엔드 미사용 */
 export async function getPrice(_ticker: string): Promise<{ data: null; cached: false }> {
   return { data: null, cached: false }
+}
+
+export async function fetchSentimentData(
+  ticker: string,
+  market: Market,
+): Promise<SentimentData> {
+  const SENTIMENT_MODULES = [
+    'recommendationTrend',
+    'financialData',
+    'earningsHistory',
+    'insiderHolders',
+    'institutionOwnership',
+  ].join(',')
+
+  const [yahooRes, dartRes] = await Promise.allSettled([
+    proxyFetch<unknown>(
+      `/yahoo/summary?symbol=${ticker}&market=${market}&modules=${SENTIMENT_MODULES}`,
+    ),
+    market === 'KR'
+      ? getCorpCode(ticker).then(corpCode =>
+          proxyFetch<unknown>(`/dart/disclosures?corp_code=${corpCode}&page_count=20`),
+        )
+      : Promise.resolve(null),
+  ])
+
+  const yahooData = yahooRes.status === 'fulfilled' ? yahooRes.value : null
+  const dartData  = dartRes.status  === 'fulfilled' ? dartRes.value  : null
+
+  return parseSentimentData(yahooData, dartData)
 }
 
 export async function fetchGateAData(): Promise<GateAData> {
