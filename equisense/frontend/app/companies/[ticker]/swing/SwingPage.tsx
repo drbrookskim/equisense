@@ -11,41 +11,24 @@ import { checkRR, getTimeStop, getFinalVerdict } from '@/lib/adapters/swingPipel
 import GateAPanel from '@/components/swing/GateAPanel'
 import GateBPanel from '@/components/swing/GateBPanel'
 import SwingScoreDrawer from '@/components/swing/SwingScoreDrawer'
+import { Card, Eyebrow, Reveal, Stat, TabHead, Term, Verdict } from '@/components/ui'
+import type { VerdictTone } from '@/components/ui'
 
 function fmtKR(n: number) { return n.toLocaleString('ko-KR') }
 
 const STOCK_TYPE_LABEL: Record<StockType, string> = {
-  high_beta:  '고베타 (10거래일)',
-  value:      '가치형 (15거래일)',
-  small_cap:  '소형 (10거래일)',
+  high_beta: '고베타 (10거래일)',
+  value: '가치형 (15거래일)',
+  small_cap: '소형 (10거래일)',
 }
 
-const FINAL_BORDER: Record<SwingFinalResult['verdict'], string> = {
-  PASS:        'border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/20',
-  CONDITIONAL: 'border-amber-400 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20',
-  BLOCK:       'border-red-400 bg-red-50 dark:border-red-700 dark:bg-red-950/20',
+const FINAL_VERDICT_LABEL: Record<SwingFinalResult['verdict'], string> = {
+  PASS: 'PASS · 진입 가능',
+  CONDITIONAL: 'CONDITIONAL · 조건부',
+  BLOCK: 'BLOCK · 진입 불가',
 }
-const FINAL_TEXT: Record<SwingFinalResult['verdict'], string> = {
-  PASS:        'text-emerald-700 dark:text-emerald-400',
-  CONDITIONAL: 'text-amber-700 dark:text-amber-400',
-  BLOCK:       'text-red-700 dark:text-red-400',
-}
-const FINAL_LABEL: Record<SwingFinalResult['verdict'], string> = {
-  PASS: '✅ 진입 가능', CONDITIONAL: '⚠️ 조건부 진입', BLOCK: '🚫 진입 불가',
-}
-
-function Arrow() {
-  return (
-    <div className="flex justify-center py-1 text-xl text-indigo-400 select-none dark:text-indigo-600">↓</div>
-  )
-}
-
-function BlockedOverlay() {
-  return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-zinc-100/80 dark:bg-zinc-900/80">
-      <span className="text-sm text-zinc-500 dark:text-zinc-400">이전 단계 통과 후 활성화</span>
-    </div>
-  )
+const FINAL_VERDICT_TONE: Record<SwingFinalResult['verdict'], VerdictTone> = {
+  PASS: 'strong', CONDITIONAL: 'neutral', BLOCK: 'weak',
 }
 
 function SwingContent() {
@@ -72,42 +55,31 @@ function SwingContent() {
     let cancelled = false
     setQuarterlyLoading(true)
     getQuarterlyInsights(ticker, market)
-      .then(d => { if (!cancelled) setQuarterlyInsights(d) })
+      .then((d) => { if (!cancelled) setQuarterlyInsights(d) })
       .catch(() => { if (!cancelled) setQuarterlyInsights(null) })
       .finally(() => { if (!cancelled) setQuarterlyLoading(false) })
     return () => { cancelled = true }
   }, [ticker, market])
 
-  // R:R 기본값 계산 (current_price + week52_high 기반)
   useEffect(() => {
     const latest = fundamentals?.metrics_by_year.at(-1)
     if (!latest?.current_price) return
-    const entry  = latest.current_price
-    const stop   = Math.round(entry * 0.95 / 1000) * 1000
+    const entry = latest.current_price
+    const stop = Math.round(entry * 0.95 / 1000) * 1000
     const target = latest.week52_high
       ? Math.round(latest.week52_high * 1.05 / 1000) * 1000
       : Math.round(entry * 1.20 / 1000) * 1000
     setRRInput({ entry, stop, target })
   }, [fundamentals])
 
-  // 최종 판정 갱신
   useEffect(() => {
     if (!gateAResult || !gateBResult || !rrInput) return
     const latest = fundamentals?.metrics_by_year.at(-1)
-    const step1Pass =
-      (latest?.debt_ratio ?? Infinity) <= 200 &&
-      (latest?.fcf ?? 0) > 0
-
+    const step1Pass = (latest?.debt_ratio ?? Infinity) <= 200 && (latest?.fcf ?? 0) > 0
     const rr = checkRR(rrInput)
     const result = getFinalVerdict(
-      gateAResult.verdict,
-      gateBResult.verdict,
-      step1Pass,
-      rr,
-      rrInput.entry,
-      rrInput.stop,
-      rrInput.target,
-      stockType,
+      gateAResult.verdict, gateBResult.verdict, step1Pass, rr,
+      rrInput.entry, rrInput.stop, rrInput.target, stockType,
     )
     setFinal(result)
   }, [gateAResult, gateBResult, rrInput, fundamentals, stockType])
@@ -119,35 +91,87 @@ function SwingContent() {
   const timeStop = getTimeStop(new Date(), stockType)
 
   return (
-    <div className="space-y-2">
-      {/* 헤더 */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold">
-          {fundamentals?.name ? `${fundamentals.name} (${ticker})` : ticker}
-        </h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          스윙 트레이딩 진입 판정 — Minervini SEPA 파이프라인
-        </p>
-      </div>
+    <div className="eq-tab-body">
+      <TabHead
+        n={4}
+        kicker="Technical · SEPA 스윙"
+        title="언제, 얼마에, 어디서 자를 것인가"
+        lede="좋은 기업이라도 진입 타이밍은 별개의 규율. Minervini의 SEPA 추세 템플릿으로 추세 정합성을 채점하고, 진입·손절·목표를 한 화면에서 판정합니다."
+      />
+
+      {/* Surface — 최종 판정 카드 */}
+      {final && (
+        <Card style={{ display: 'grid', gridTemplateColumns: 'auto 1px 1fr', gap: 26, alignItems: 'center', marginBottom: 22 }}>
+          <div style={{ textAlign: 'center', minWidth: 140 }}>
+            <Verdict label={FINAL_VERDICT_LABEL[final.verdict]} tone={FINAL_VERDICT_TONE[final.verdict]} big />
+            <p style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 10, lineHeight: 1.5 }}>{final.summary_line}</p>
+          </div>
+          <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--line)' }} />
+          <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+            <Stat
+              value={rr ? rr.rr.toFixed(2) : '—'}
+              unit=": 1"
+              label="손익비 R-Multiple"
+              sub={rr ? `손익분기 승률 ${rr.breakeven_winrate}%` : undefined}
+            />
+            {rrInput && (
+              <Stat
+                value={market === 'KR' ? fmtKR(rrInput.entry) : `$${rrInput.entry.toFixed(2)}`}
+                label="현재가 (진입가)"
+                sub={market === 'KR' ? '원' : undefined}
+              />
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Gate A */}
-      <GateAPanel onResult={setGateAResult} />
-      <Arrow />
+      <Reveal title="Gate A — 거시환경 점검" hint="VIX · KOSPI · 금리" depth={2} defaultOpen>
+        <div style={{ paddingTop: 8 }}>
+          <GateAPanel onResult={setGateAResult} />
+        </div>
+      </Reveal>
 
       {/* Gate B */}
-      <div className="relative">
-        {gateABlocked && <BlockedOverlay />}
-        <GateBPanel onResult={setGateBResult} />
-      </div>
-      <Arrow />
-
-      {/* Step 1 체력필터 — 스윙 적합도 */}
-      <div className={`relative rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden ${gateBBlocked ? 'opacity-40' : ''}`}>
-        {gateBBlocked && <BlockedOverlay />}
-        <div className="bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
-          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Step 1 — 체력 필터</span>
+      <Reveal
+        title="Gate B — 수급 강도 점검"
+        hint="외국인·기관 · 섹터 ETF · 공매도"
+        depth={2}
+        defaultOpen={!gateABlocked}
+      >
+        <div style={{ paddingTop: 8, position: 'relative' }}>
+          {gateABlocked && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'color-mix(in srgb, var(--surface-2) 80%, transparent)',
+              borderRadius: 8, backdropFilter: 'blur(2px)',
+            }}>
+              <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>Gate A 통과 후 활성화</span>
+            </div>
+          )}
+          <GateBPanel onResult={setGateBResult} />
         </div>
-        <div className="p-3">
+      </Reveal>
+
+      {/* Step 1 체력 필터 */}
+      <Reveal
+        title="Step 1 — 체력 필터"
+        hint="부채비율 · FCF · 분기 모멘텀"
+        depth={2}
+        defaultOpen={!gateBBlocked}
+      >
+        <div style={{ paddingTop: 8, position: 'relative', opacity: gateBBlocked ? 0.4 : 1 }}>
+          {gateBBlocked && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'color-mix(in srgb, var(--surface-2) 80%, transparent)',
+              borderRadius: 8,
+            }}>
+              <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>이전 단계 통과 후 활성화</span>
+            </div>
+          )}
           <SwingScoreDrawer
             metrics={latest ?? null}
             quarterlyInsights={quarterlyInsights}
@@ -155,137 +179,100 @@ function SwingContent() {
             market={market}
           />
         </div>
-      </div>
-      <Arrow />
+      </Reveal>
 
       {/* R:R 검증 */}
-      <div className={`relative rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden ${gateBBlocked ? 'opacity-40' : ''}`}>
-        {gateBBlocked && <BlockedOverlay />}
-        <div className="flex items-center justify-between bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
-          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Step 5 — R:R 검증</span>
-          {rr && (
-            <span className={`rounded-full px-3 py-0.5 text-xs font-bold ring-1 ${
-              rr.verdict === 'PASS'
-                ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-800'
-                : rr.verdict === 'CAUTION'
-                ? 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:ring-amber-800'
-                : 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/20 dark:text-red-400 dark:ring-red-800'
-            }`}>
-              {rr.verdict === 'PASS' ? '✅ PASS' : rr.verdict === 'CAUTION' ? '⚠️ CAUTION' : '🚫 BLOCK'}
-            </span>
-          )}
-        </div>
-        {rrInput && (
-          <div className="grid grid-cols-3 gap-3 p-4">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">진입가 (현재가)</div>
-              <div className="font-bold">{fmtKR(rrInput.entry)}원</div>
-            </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">손절선</div>
-              <div className="font-bold text-red-500 dark:text-red-400">{fmtKR(rrInput.stop)}원</div>
-              <input
-                type="number"
-                step="1000"
-                value={rrInput.stop}
-                onChange={e => setRRInput(p => p ? { ...p, stop: parseFloat(e.target.value) || p.stop } : p)}
-                className="mt-1 w-full border-b border-zinc-200 bg-transparent text-xs text-zinc-400 focus:outline-none dark:border-zinc-700 dark:text-zinc-500"
-              />
-              <div className="mt-0.5 text-[10px] text-zinc-400">{rr?.loss_pct}% 손실</div>
-            </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">목표가 (52주고가×1.05)</div>
-              <div className="font-bold text-emerald-600 dark:text-emerald-400">{fmtKR(rrInput.target)}원</div>
-              <input
-                type="number"
-                step="1000"
-                value={rrInput.target}
-                onChange={e => setRRInput(p => p ? { ...p, target: parseFloat(e.target.value) || p.target } : p)}
-                className="mt-1 w-full border-b border-zinc-200 bg-transparent text-xs text-zinc-400 focus:outline-none dark:border-zinc-700 dark:text-zinc-500"
-              />
-              <div className="mt-0.5 text-[10px] text-zinc-400">+{rr?.gain_pct}% 수익</div>
-            </div>
-          </div>
-        )}
-        {rr && (
-          <div className="border-t border-zinc-200 px-4 py-2.5 dark:border-zinc-800">
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-              R:R = {rr.rr} : 1
-            </span>
-            <span className="ml-3 text-xs text-zinc-400">손익분기 승률 {rr.breakeven_winrate}%</span>
-          </div>
-        )}
-      </div>
-      <Arrow />
-
-      {/* 시간 손절 */}
-      <div className={`relative rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden ${gateBBlocked ? 'opacity-40' : ''}`}>
-        {gateBBlocked && <BlockedOverlay />}
-        <div className="bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
-          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Step 6 — 시간 손절</span>
-        </div>
-        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-            <div className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">종목 유형</div>
-            <div className="flex flex-col gap-1">
-              {(['high_beta', 'value', 'small_cap'] as StockType[]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setStockType(t)}
-                  className={[
-                    'rounded px-2 py-1 text-left text-xs font-medium transition-colors',
-                    stockType === t
-                      ? 'bg-indigo-500 text-white'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700',
-                  ].join(' ')}
-                >
-                  {STOCK_TYPE_LABEL[t]}
-                </button>
+      <Reveal title="Step 5 — R:R 손익비 검증" hint="진입·손절·목표 설정" depth={2} defaultOpen={!gateBBlocked}>
+        <div style={{ paddingTop: 8, opacity: gateBBlocked ? 0.4 : 1 }}>
+          {rrInput && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+              {[
+                { label: '진입가 (현재가)', value: market === 'KR' ? `${fmtKR(rrInput.entry)}원` : `$${rrInput.entry.toFixed(2)}`, color: 'var(--accent)', editable: false },
+                { label: '손절선', value: market === 'KR' ? `${fmtKR(rrInput.stop)}원` : `$${rrInput.stop.toFixed(2)}`, color: 'var(--ink)', editable: true, key: 'stop' as const },
+                { label: '목표가', value: market === 'KR' ? `${fmtKR(rrInput.target)}원` : `$${rrInput.target.toFixed(2)}`, color: 'var(--accent)', editable: true, key: 'target' as const },
+              ].map((f) => (
+                <div key={f.label} style={{ border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', background: 'var(--surface)', borderLeft: `3px solid ${f.color}` }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 6 }}>{f.label}</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: 'var(--ink)' }}>{f.value}</div>
+                  {f.editable && f.key && (
+                    <input
+                      type="number"
+                      step="1000"
+                      value={rrInput[f.key]}
+                      onChange={(e) => setRRInput((p) => p ? { ...p, [f.key!]: parseFloat(e.target.value) || p[f.key!] } : p)}
+                      style={{ marginTop: 6, width: '100%', background: 'transparent', fontSize: 11, color: 'var(--ink-3)', outline: 'none', border: 'none', borderBottom: '1px solid var(--line-2)', padding: '2px 0' }}
+                    />
+                  )}
+                </div>
               ))}
             </div>
-          </div>
-          <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-            <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">시간 손절 기한</div>
-            <div className="font-bold">{timeStop.deadline}</div>
-            <div className="text-xs text-zinc-400">{timeStop.total_days}거래일 기준</div>
-          </div>
-          <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-            <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">상태</div>
-            <div className={`font-bold ${
-              timeStop.status === 'HOLDING'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : timeStop.status === 'PREPARE_EXIT'
-                ? 'text-amber-600 dark:text-amber-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>{timeStop.status}</div>
-            <div className="text-xs text-zinc-400 dark:text-zinc-500">{timeStop.action}</div>
+          )}
+          {rr && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: rr.verdict === 'PASS' ? 'var(--accent)' : rr.verdict === 'CAUTION' ? '#b45309' : 'var(--ink-2)' }}>
+                R:R = {rr.rr} : 1
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>손익분기 승률 {rr.breakeven_winrate}%</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>손실 {rr.loss_pct}% · 수익 {rr.gain_pct}%</span>
+            </div>
+          )}
+        </div>
+      </Reveal>
+
+      {/* 시간 손절 */}
+      <Reveal title="Step 6 — 시간 손절" hint="보유 기한 · 청산 기준일" depth={3}>
+        <div style={{ paddingTop: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px,1fr) 1fr 1fr', gap: 12 }}>
+            {/* 종목 유형 선택 */}
+            <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', background: 'var(--surface)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>종목 유형</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {(['high_beta', 'value', 'small_cap'] as StockType[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setStockType(t)}
+                    style={{
+                      all: 'unset', boxSizing: 'border-box',
+                      padding: '5px 10px', borderRadius: 5, cursor: 'pointer',
+                      fontSize: 12, textAlign: 'left',
+                      background: stockType === t ? 'var(--ink)' : 'transparent',
+                      color: stockType === t ? 'var(--bg)' : 'var(--ink-2)',
+                      border: '1px solid ' + (stockType === t ? 'var(--ink)' : 'var(--line-2)'),
+                    }}
+                  >
+                    {STOCK_TYPE_LABEL[t]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', background: 'var(--surface)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 6 }}>시간 손절 기한</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: 'var(--ink)' }}>{timeStop.deadline}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>{timeStop.total_days}거래일 기준</div>
+            </div>
+            <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', background: 'var(--surface)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 6 }}>상태</div>
+              <div style={{
+                fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600,
+                color: timeStop.status === 'HOLDING' ? 'var(--accent)' : timeStop.status === 'PREPARE_EXIT' ? '#b45309' : 'var(--ink)',
+              }}>
+                {timeStop.status}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>{timeStop.action}</div>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* 최종 판정 */}
-      {final && (
-        <>
-          <Arrow />
-          <div className={`rounded-lg border-2 p-5 text-center ${FINAL_BORDER[final.verdict]}`}>
-            <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">최종 판정</div>
-            <div className={`text-2xl font-bold ${FINAL_TEXT[final.verdict]}`}>
-              {FINAL_LABEL[final.verdict]}
-            </div>
-            <p className={`mt-2 text-sm ${FINAL_TEXT[final.verdict]}`}>{final.summary_line}</p>
-          </div>
-        </>
-      )}
+      </Reveal>
     </div>
   )
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-8 w-48 rounded bg-zinc-100 dark:bg-zinc-800" />
-      <div className="h-40 rounded bg-zinc-100 dark:bg-zinc-800" />
-      <div className="h-60 rounded bg-zinc-100 dark:bg-zinc-800" />
+    <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
+      <div style={{ height: 32, width: 200, borderRadius: 6, background: 'var(--surface-2)', marginBottom: 16 }} />
+      <div style={{ height: 120, borderRadius: 12, background: 'var(--surface-2)', marginBottom: 10 }} />
+      <div style={{ height: 200, borderRadius: 12, background: 'var(--surface-2)' }} />
     </div>
   )
 }

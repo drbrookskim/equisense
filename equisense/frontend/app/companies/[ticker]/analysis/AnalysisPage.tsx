@@ -26,7 +26,7 @@ function AnalysisContent() {
       </div>
 
       <section>
-        <FundamentalsPage hideHeader />
+        <FundamentalsPage />
       </section>
 
       <div className="flex items-center gap-4">
