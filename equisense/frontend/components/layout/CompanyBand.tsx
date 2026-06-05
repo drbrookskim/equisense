@@ -27,7 +27,7 @@ export default function CompanyBand() {
         fontFamily: 'var(--font-mono)', fontSize: 12,
         color: 'var(--ink-3)', marginTop: 7,
       }}>
-        {ticker} · {market === 'KR' ? 'KRX' : 'NYSE / NASDAQ'}
+        {ticker} · {market === 'KR' ? 'KRX' : 'US'}
       </div>
     </div>
   )
