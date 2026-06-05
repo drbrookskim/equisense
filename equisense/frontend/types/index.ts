@@ -47,8 +47,18 @@ export type MoatDimension =
   | 'intangible_assets'
   | 'switching_costs'
   | 'network_effects'
+  | 'efficient_scale'
 
 export type MoatGrade = 'wide' | 'narrow' | 'none'
+
+export type CompoundMoatType = 'lock_in_ring' | 'value_flywheel' | 'scale_fortress'
+
+export interface CompoundMoat {
+  type: CompoundMoatType
+  name: string
+  description: string
+  dimensions: [MoatDimension, MoatDimension]
+}
 
 export interface DimensionScore {
   dimension: MoatDimension
@@ -61,6 +71,7 @@ export interface MoatAnalysis {
   market: Market
   fiscal_year: number
   dimension_scores: DimensionScore[]
+  compound_moats: CompoundMoat[]
   composite_score: number
   grade: MoatGrade
   analyst_note: string | null

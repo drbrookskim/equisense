@@ -39,6 +39,35 @@ const MOAT_DIMENSIONS = [
     method: 'FCF 마진으로 수익 창출력 측정',
     benchmark: 'FCF 마진 15%↑ → 만점',
   },
+  {
+    key: 'efficient_scale',
+    emoji: '⚖️',
+    name: '효율적 규모',
+    definition: '시장이 소수 플레이어만 수용해 신규 진입이 비경제적인 구조',
+    method: 'ROA + 이자보상배율(ICR)로 측정',
+    benchmark: 'ROA 15%↑ · ICR 20배↑ → 만점',
+  },
+]
+
+const COMPOUND_MOATS = [
+  {
+    emoji: '🔗',
+    name: '잠금 고리',
+    description: '전환 비용 + 네트워크 효과',
+    detail: '고객이 떠나기 어렵고, 남을수록 가치가 커지는 이중 잠금 구조',
+  },
+  {
+    emoji: '🔄',
+    name: '가치 플라이휠',
+    description: '무형 자산 + 비용 우위',
+    detail: '브랜드·IP 기반 프리미엄이 효율적 원가 구조로 증폭되는 선순환',
+  },
+  {
+    emoji: '🏰',
+    name: '규모 요새',
+    description: '효율적 규모 + 비용 우위',
+    detail: '구조적 진입 장벽과 원가 우위가 결합된 철옹성',
+  },
 ]
 
 const GRADE_LABEL: Record<string, string> = {
@@ -150,32 +179,57 @@ function LoadingSkeleton() {
 
 function MoatConceptIntro() {
   return (
-    <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
-        💡 경제적 해자란?
-      </p>
-      <p className="mb-4 text-sm text-indigo-900 dark:text-indigo-200">
-        워런 버핏이 제시한 개념으로, 경쟁자가 쉽게 침범할 수 없는{' '}
-        <strong>구조적 경쟁 우위</strong>를 뜻합니다.
-        해자가 넓을수록 기업은 장기간 초과수익을 유지할 수 있습니다.
-        EquiSense는 아래 4가지 원천을 재무 데이터로 정량화합니다.
-      </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {MOAT_DIMENSIONS.map((d) => (
-          <div
-            key={d.key}
-            className="rounded-md bg-white p-3 dark:bg-indigo-950/50"
-          >
-            <p className="mb-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {d.emoji} {d.name}
-            </p>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">{d.definition}</p>
-            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-              측정: {d.method}
-            </p>
-            <p className="text-xs text-indigo-500 dark:text-indigo-400">{d.benchmark}</p>
-          </div>
-        ))}
+    <div className="space-y-3">
+      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
+          💡 경제적 해자란?
+        </p>
+        <p className="mb-4 text-sm text-indigo-900 dark:text-indigo-200">
+          워런 버핏이 제시한 개념으로, 경쟁자가 쉽게 침범할 수 없는{' '}
+          <strong>구조적 경쟁 우위</strong>를 뜻합니다.
+          해자가 넓을수록 기업은 장기간 초과수익을 유지할 수 있습니다.
+          EquiSense는 아래 5가지 원천을 재무 데이터로 정량화합니다.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {MOAT_DIMENSIONS.map((d) => (
+            <div
+              key={d.key}
+              className="rounded-md bg-white p-3 dark:bg-indigo-950/50"
+            >
+              <p className="mb-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                {d.emoji} {d.name}
+              </p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">{d.definition}</p>
+              <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                측정: {d.method}
+              </p>
+              <p className="text-xs text-indigo-500 dark:text-indigo-400">{d.benchmark}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+          ⚡ 복합 해자란?
+        </p>
+        <p className="mb-3 text-sm text-emerald-900 dark:text-emerald-200">
+          두 해자가 동시에 강할 때(각 6점↑) 방어력이 곱셈으로 커집니다.
+          복합 해자가 감지되면 종합 점수에 보너스가 반영됩니다.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {COMPOUND_MOATS.map((m) => (
+            <div key={m.name} className="rounded-md bg-white p-3 dark:bg-emerald-950/50">
+              <p className="mb-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                {m.emoji} {m.name}
+              </p>
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                {m.description}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{m.detail}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

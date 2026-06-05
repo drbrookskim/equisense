@@ -1,10 +1,43 @@
-import type { DimensionScore, FundamentalAnalysis, MoatAnalysis, MoatDimension, MoatGrade } from '@/types'
+import type {
+  CompoundMoat,
+  CompoundMoatType,
+  DimensionScore,
+  FundamentalAnalysis,
+  MoatAnalysis,
+  MoatDimension,
+  MoatGrade,
+} from '@/types'
 
 const DIMENSION_NAME_KO: Record<MoatDimension, string> = {
   cost_advantage: '비용 우위',
   intangible_assets: '무형 자산',
   switching_costs: '전환 비용',
   network_effects: '네트워크 효과',
+  efficient_scale: '효율적 규모',
+}
+
+const COMPOUND_MOAT_DEFS: Record<
+  CompoundMoatType,
+  { name: string; description: string; dimensions: [MoatDimension, MoatDimension]; threshold: number }
+> = {
+  lock_in_ring: {
+    name: '잠금 고리',
+    description: '고객이 떠나기 어렵고, 남을수록 가치가 커지는 이중 잠금 구조',
+    dimensions: ['switching_costs', 'network_effects'],
+    threshold: 6.0,
+  },
+  value_flywheel: {
+    name: '가치 플라이휠',
+    description: '브랜드·IP 기반 프리미엄이 효율적 원가 구조로 증폭되는 선순환',
+    dimensions: ['intangible_assets', 'cost_advantage'],
+    threshold: 6.0,
+  },
+  scale_fortress: {
+    name: '규모 요새',
+    description: '구조적 진입 장벽과 원가 우위가 결합된 철옹성',
+    dimensions: ['efficient_scale', 'cost_advantage'],
+    threshold: 6.0,
+  },
 }
 
 const GRADE_TEXT: Record<MoatGrade, string> = {
@@ -31,10 +64,27 @@ function subjectParticle(word: string): string {
   return '은'
 }
 
+function detectCompoundMoats(scoreMap: Record<MoatDimension, number>): CompoundMoat[] {
+  return (
+    Object.entries(COMPOUND_MOAT_DEFS) as [
+      CompoundMoatType,
+      (typeof COMPOUND_MOAT_DEFS)[CompoundMoatType],
+    ][]
+  )
+    .filter(([, def]) => def.dimensions.every((d) => (scoreMap[d] ?? 0) >= def.threshold))
+    .map(([type, def]) => ({
+      type,
+      name: def.name,
+      description: def.description,
+      dimensions: def.dimensions,
+    }))
+}
+
 function generateAnalystNote(
   displayName: string,
   grade: MoatGrade,
   dimension_scores: DimensionScore[],
+  compound_moats: CompoundMoat[],
 ): string {
   const sorted = [...dimension_scores].sort((a, b) => b.score - a.score)
   const strongest = sorted[0]
@@ -53,6 +103,18 @@ function generateAnalystNote(
   const weaknesses = dimension_scores.filter((d) => d.score < 5.0)
 
   const lines: string[] = [para1]
+
+  if (compound_moats.length > 0) {
+    lines.push(
+      '⚡ 복합 해자: ' +
+        compound_moats
+          .map(
+            (m) =>
+              `${m.name}(${m.dimensions.map((d) => DIMENSION_NAME_KO[d] ?? d).join('+')} 동반 강세)`,
+          )
+          .join(' · '),
+    )
+  }
 
   if (strengths.length > 0) {
     lines.push(
@@ -103,6 +165,13 @@ export function calculateMoat(fundamentals: FundamentalAnalysis): MoatAnalysis {
   const fcfMargin = fcf != null && revVal != null && revVal > 0 ? (fcf / revVal) * 100 : null
   const networkEffects = score(fcfMargin, [-5, 0, 5, 15])
 
+  // Efficient scale: ROA (capital efficiency in saturated market) + ICR (capital cost barrier to entry)
+  const roa = latest?.roa ?? null
+  const icr = latest?.icr ?? null
+  const roaScore = score(roa, [3, 6, 10, 15])
+  const icrScore = score(icr, [2, 5, 10, 20])
+  const efficientScale = (roaScore + icrScore) / 2
+
   const dimension_scores: DimensionScore[] = [
     {
       dimension: 'cost_advantage',
@@ -124,10 +193,28 @@ export function calculateMoat(fundamentals: FundamentalAnalysis): MoatAnalysis {
       score: Math.round(networkEffects * 10) / 10,
       rationale: fcfMargin != null ? `FCF 마진 ${fcfMargin.toFixed(1)}%` : null,
     },
+    {
+      dimension: 'efficient_scale',
+      score: Math.round(efficientScale * 10) / 10,
+      rationale:
+        roa != null && icr != null
+          ? `ROA ${roa.toFixed(1)}% · 이자보상 ${icr.toFixed(1)}배`
+          : roa != null
+            ? `ROA ${roa.toFixed(1)}%`
+            : null,
+    },
   ]
 
-  const composite_score =
-    dimension_scores.reduce((s, d) => s + d.score, 0) / dimension_scores.length
+  const scoreMap = Object.fromEntries(
+    dimension_scores.map((d) => [d.dimension, d.score]),
+  ) as Record<MoatDimension, number>
+
+  const compound_moats = detectCompoundMoats(scoreMap)
+
+  const rawComposite = dimension_scores.reduce((s, d) => s + d.score, 0) / dimension_scores.length
+  const compoundBonus = Math.min(0.6, compound_moats.length * 0.3)
+  const composite_score = Math.min(10, rawComposite + compoundBonus)
+
   const grade: MoatGrade =
     composite_score >= 7.5 ? 'wide' : composite_score >= 5.0 ? 'narrow' : 'none'
 
@@ -136,12 +223,14 @@ export function calculateMoat(fundamentals: FundamentalAnalysis): MoatAnalysis {
     market: fundamentals.market,
     fiscal_year,
     dimension_scores,
+    compound_moats,
     composite_score: Math.round(composite_score * 10) / 10,
     grade,
     analyst_note: generateAnalystNote(
       fundamentals.name ?? fundamentals.ticker,
       grade,
       dimension_scores,
+      compound_moats,
     ),
     scored_at: new Date().toISOString(),
   }
