@@ -4,10 +4,55 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 const TABS = [
-  { label: '분석',     href: 'analysis' },
-  { label: '해자',     href: 'moat' },
-  { label: '센티멘트', href: 'qualitative' },
-  { label: '스윙 투자', href: 'swing' },
+  {
+    href: 'analysis',
+    ko: '분석',
+    en: 'Fundamental',
+    glyph: (
+      <g>
+        <rect x="6" y="22" width="6" height="12" />
+        <rect x="17" y="13" width="6" height="21" />
+        <rect x="28" y="18" width="6" height="16" />
+        <line x1="4" y1="34" x2="36" y2="34" />
+      </g>
+    ),
+  },
+  {
+    href: 'moat',
+    ko: '해자',
+    en: 'Moat',
+    glyph: (
+      <g>
+        <circle cx="20" cy="22" r="14" />
+        <circle cx="20" cy="22" r="8.5" />
+        <circle cx="20" cy="22" r="3" />
+      </g>
+    ),
+  },
+  {
+    href: 'qualitative',
+    ko: '센티멘트',
+    en: 'Qualitative',
+    glyph: (
+      <g>
+        <path d="M8 14h24v14H22l-6 6v-6H8z" />
+        <line x1="14" y1="21" x2="26" y2="21" />
+      </g>
+    ),
+  },
+  {
+    href: 'swing',
+    ko: '스윙 투자',
+    en: 'Technical',
+    glyph: (
+      <g>
+        <line x1="12" y1="10" x2="12" y2="34" />
+        <rect x="9" y="16" width="6" height="11" />
+        <line x1="26" y1="12" x2="26" y2="34" />
+        <rect x="23" y="20" width="6" height="9" />
+      </g>
+    ),
+  },
 ]
 
 export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
@@ -16,26 +61,69 @@ export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
   const market = searchParams.get('market') ?? 'US'
   const ticker = searchParams.get('ticker') ?? _tickerProp
   const name = searchParams.get('name')
-
   const nameParam = name ? `&name=${encodeURIComponent(name)}` : ''
 
   return (
-    <nav className="border-b border-zinc-200 dark:border-zinc-800">
-      <div className="mx-auto flex max-w-6xl gap-1 px-6">
+    <nav style={{ borderBottom: '1px solid var(--line-2)' }}>
+      <div style={{
+        maxWidth: 1080, margin: '0 auto',
+        padding: '0 32px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+        gap: 4,
+      }}>
         {TABS.map((tab) => {
           const isActive = pathname === `/companies/_/${tab.href}`
           return (
             <Link
               key={tab.href}
               href={`/companies/_/${tab.href}?ticker=${ticker}&market=${market}${nameParam}`}
-              className={[
-                'border-b-2 px-4 py-3 text-sm font-medium transition-colors',
-                isActive
-                  ? 'border-zinc-900 text-zinc-900 dark:border-zinc-50 dark:text-zinc-50'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50',
-              ].join(' ')}
+              style={{
+                textDecoration: 'none',
+                textAlign: 'left',
+                background: isActive ? 'var(--surface)' : 'transparent',
+                border: '1px solid ' + (isActive ? 'var(--line-2)' : 'transparent'),
+                borderBottom: isActive ? '1px solid var(--surface)' : '1px solid transparent',
+                borderRadius: '10px 10px 0 0',
+                padding: '13px 16px',
+                cursor: 'pointer',
+                position: 'relative',
+                marginBottom: -1,
+                display: 'block',
+              }}
             >
-              {tab.label}
+              {isActive && (
+                <span style={{
+                  position: 'absolute', top: 0, left: 16, right: 16,
+                  height: 2, background: 'var(--accent)',
+                }} />
+              )}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                color: isActive ? 'var(--accent)' : 'var(--ink-3)',
+                whiteSpace: 'nowrap',
+              }}>
+                <svg
+                  width="18" height="18" viewBox="0 0 40 40"
+                  fill="none" stroke="currentColor"
+                  strokeWidth="1.6" strokeLinejoin="round"
+                >
+                  {tab.glyph}
+                </svg>
+                <span style={{
+                  fontSize: 13.5, fontWeight: 700,
+                  color: isActive ? 'var(--ink)' : 'var(--ink-2)',
+                }}>
+                  {tab.ko}
+                </span>
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.08em',
+                color: 'var(--ink-3)', textTransform: 'uppercase',
+                marginTop: 5, whiteSpace: 'nowrap',
+              }}>
+                {tab.en}
+              </div>
             </Link>
           )
         })}

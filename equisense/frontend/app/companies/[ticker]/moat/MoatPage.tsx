@@ -3,85 +3,127 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { getMoatScore } from '@/lib/api-client'
-import type { Market, MoatAnalysis } from '@/types'
-import MoatCharts from '@/components/charts/MoatCharts'
+import type { Market, MoatAnalysis, MoatDimension } from '@/types'
+import { Card, Eyebrow, MetricBar, Reveal, Stat, TabHead, Term, Verdict } from '@/components/ui'
 
-const MOAT_DIMENSIONS = [
-  {
-    key: 'cost_advantage',
-    emoji: '🏭',
-    name: '비용 우위',
-    definition: '경쟁사보다 낮은 원가로 생산하는 능력',
-    method: '영업이익률 + 부채비율로 측정',
-    benchmark: '영업이익률 30%↑ → 만점',
-  },
-  {
-    key: 'intangible_assets',
-    emoji: '💎',
-    name: '무형 자산',
-    definition: '브랜드·특허 등 모방하기 어려운 자산',
-    method: 'ROE를 브랜드 가치의 대리 지표로 활용',
-    benchmark: 'ROE 25%↑ → 만점',
-  },
-  {
-    key: 'switching_costs',
-    emoji: '🔒',
-    name: '전환 비용',
-    definition: '고객이 다른 제품으로 옮기기 어려운 마찰',
-    method: '매출 CAGR + 성장 방향성 보정',
-    benchmark: 'CAGR 12%↑ → 만점',
-  },
-  {
-    key: 'network_effects',
-    emoji: '🌐',
-    name: '네트워크 효과',
-    definition: '사용자 증가가 가치를 키우는 선순환',
-    method: 'FCF 마진으로 수익 창출력 측정',
-    benchmark: 'FCF 마진 15%↑ → 만점',
-  },
-  {
-    key: 'efficient_scale',
-    emoji: '⚖️',
-    name: '효율적 규모',
-    definition: '시장이 소수 플레이어만 수용해 신규 진입이 비경제적인 구조',
-    method: 'ROA + 이자보상배율(ICR)로 측정',
-    benchmark: 'ROA 15%↑ · ICR 20배↑ → 만점',
-  },
-]
-
-const COMPOUND_MOATS = [
-  {
-    emoji: '🔗',
-    name: '잠금 고리',
-    description: '전환 비용 + 네트워크 효과',
-    detail: '고객이 떠나기 어렵고, 남을수록 가치가 커지는 이중 잠금 구조',
-  },
-  {
-    emoji: '🔄',
-    name: '가치 플라이휠',
-    description: '무형 자산 + 비용 우위',
-    detail: '브랜드·IP 기반 프리미엄이 효율적 원가 구조로 증폭되는 선순환',
-  },
-  {
-    emoji: '🏰',
-    name: '규모 요새',
-    description: '효율적 규모 + 비용 우위',
-    detail: '구조적 진입 장벽과 원가 우위가 결합된 철옹성',
-  },
-]
-
-const GRADE_LABEL: Record<string, string> = {
-  wide: 'WIDE 해자',
-  narrow: 'NARROW 해자',
-  none: '해자 없음',
+/* ── Fortress rings visualization ── */
+function MoatRings({ grade }: { grade: string }) {
+  const fill = grade === 'wide' ? 3 : grade === 'narrow' ? 2 : 1
+  const rs = [54, 40, 26]
+  return (
+    <svg width="128" height="128" viewBox="0 0 128 128" style={{ display: 'block' }}>
+      {rs.map((r, i) => (
+        <circle
+          key={i} cx="64" cy="64" r={r} fill="none"
+          stroke={i < 3 - fill ? 'var(--line-2)' : 'var(--accent)'}
+          strokeWidth={i < 3 - fill ? 1.5 : 6}
+          strokeOpacity={i < 3 - fill ? 1 : 1 - i * 0.18}
+          strokeDasharray={i < 3 - fill ? '3 4' : undefined}
+        />
+      ))}
+      <circle cx="64" cy="64" r="12" fill="var(--ink)" />
+      <text x="64" y="68" textAnchor="middle"
+        style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, fill: 'var(--bg)' }}>
+        CO.
+      </text>
+    </svg>
+  )
 }
 
-const GRADE_COLOR: Record<string, string> = {
-  wide: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
-  narrow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  none: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
+/* ── Custom SVG radar ── */
+const DIMENSION_ORDER: MoatDimension[] = [
+  'intangible_assets', 'switching_costs', 'network_effects',
+  'efficient_scale', 'cost_advantage',
+]
+const DIMENSION_LABEL: Record<MoatDimension, string> = {
+  cost_advantage: '비용 우위',
+  intangible_assets: '무형 자산',
+  switching_costs: '전환 비용',
+  network_effects: '네트워크 효과',
+  efficient_scale: '효율적 규모',
 }
 
+function RadarChart({ scores }: { scores: Record<MoatDimension, number> }) {
+  const size = 260
+  const cx = size / 2, cy = size / 2, r = 100
+  const n = DIMENSION_ORDER.length
+  const pts = DIMENSION_ORDER.map((_, i) => {
+    const angle = (i / n) * 2 * Math.PI - Math.PI / 2
+    return { cos: Math.cos(angle), sin: Math.sin(angle) }
+  })
+
+  const gridLevels = [0.25, 0.5, 0.75, 1]
+
+  const valuePath = DIMENSION_ORDER.map((dim, i) => {
+    const v = (scores[dim] ?? 0) / 10
+    const x = cx + pts[i].cos * r * v
+    const y = cy + pts[i].sin * r * v
+    return (i === 0 ? 'M' : 'L') + `${x.toFixed(1)} ${y.toFixed(1)}`
+  }).join(' ') + 'Z'
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block', margin: '0 auto' }}>
+      {/* Grid */}
+      {gridLevels.map((level) => (
+        <polygon key={level}
+          points={DIMENSION_ORDER.map((_, i) => {
+            const x = cx + pts[i].cos * r * level
+            const y = cy + pts[i].sin * r * level
+            return `${x.toFixed(1)},${y.toFixed(1)}`
+          }).join(' ')}
+          fill="none" stroke="var(--line)" strokeWidth="1"
+        />
+      ))}
+      {/* Spokes */}
+      {pts.map((p, i) => (
+        <line key={i}
+          x1={cx} y1={cy}
+          x2={(cx + p.cos * r).toFixed(1)}
+          y2={(cy + p.sin * r).toFixed(1)}
+          stroke="var(--line)" strokeWidth="1"
+        />
+      ))}
+      {/* Value area */}
+      <path d={valuePath} fill="var(--accent)" fillOpacity="0.18" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" />
+      {/* Axis labels */}
+      {DIMENSION_ORDER.map((dim, i) => {
+        const lx = cx + pts[i].cos * (r + 22)
+        const ly = cy + pts[i].sin * (r + 22)
+        return (
+          <text key={dim} x={lx.toFixed(1)} y={ly.toFixed(1)}
+            textAnchor="middle" dominantBaseline="middle"
+            style={{ fontFamily: 'var(--font-ui)', fontSize: 11, fill: 'var(--ink-2)' }}>
+            {DIMENSION_LABEL[dim]}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
+/* ── Grade display helpers ── */
+const GRADE_VERDICT_LABEL: Record<string, string> = {
+  wide: 'WIDE · 광폭',
+  narrow: 'NARROW · 협폭',
+  none: 'NONE · 없음',
+}
+const GRADE_TONE: Record<string, 'strong' | 'positive' | 'weak'> = {
+  wide: 'strong',
+  narrow: 'positive',
+  none: 'weak',
+}
+const GRADE_DURABILITY: Record<string, string> = {
+  wide: '10년+',
+  narrow: '5~10년',
+  none: '불확실',
+}
+const COMPOUND_EMOJI: Record<string, string> = {
+  lock_in_ring: '🔗',
+  value_flywheel: '🔄',
+  scale_fortress: '🏰',
+}
+
+/* ── Main content ── */
 function MoatContent() {
   const searchParams = useSearchParams()
   const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
@@ -97,11 +139,11 @@ function MoatContent() {
     setIsLoading(true)
     setErrorMsg(null)
     getMoatScore(ticker, market)
-      .then(data => { if (!cancelled) setData(data) })
+      .then((d) => { if (!cancelled) setData(d) })
       .catch((err: { status?: number }) => {
         if (!cancelled) setErrorMsg(
           err?.status === 404
-            ? `${ticker} 종목의 해자 점수가 아직 입력되지 않았습니다. 분석가가 점수를 입력한 후 확인할 수 있습니다.`
+            ? `${ticker} 종목의 해자 점수가 아직 입력되지 않았습니다.`
             : '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
         )
       })
@@ -110,127 +152,174 @@ function MoatContent() {
   }, [ticker, market])
 
   if (isLoading) return <LoadingSkeleton />
-  if (errorMsg) {
-    return (
-      <div className="flex h-60 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <p className="text-sm text-zinc-500">{errorMsg}</p>
-      </div>
-    )
-  }
+  if (errorMsg) return (
+    <div style={{
+      display: 'flex', height: 240, alignItems: 'center', justifyContent: 'center',
+      border: '1px solid var(--line)', borderRadius: 12,
+    }}>
+      <p style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>{errorMsg}</p>
+    </div>
+  )
   if (!data) return null
 
+  const displayName = name ?? data.ticker
+  const scoreMap = Object.fromEntries(data.dimension_scores.map((d) => [d.dimension, d.score])) as Record<MoatDimension, number>
+
   return (
-    <div className="space-y-8">
-      {/* 헤더 */}
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h2 className="text-2xl font-bold">
-          {name ? `${name} (${data.ticker})` : data.ticker}
-        </h2>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GRADE_COLOR[data.grade]}`}>
-          {GRADE_LABEL[data.grade]}
-        </span>
-        <span className="text-sm text-zinc-500">
-          종합 {data.composite_score.toFixed(1)}점 / 10점
-        </span>
+    <div className="eq-tab-body">
+      <TabHead
+        n={2}
+        kicker="Economic Moat · 경제적 해자"
+        title="경쟁 우위의 폭과 지속성"
+        lede="좋은 기업과 위대한 투자처를 가르는 건 '얼마나 오래 초과수익을 지킬 수 있는가'. 다섯 갈래 해자의 너비를 측정하고, 경제적 증거로 검증합니다."
+      />
+
+      {/* Surface — verdict card */}
+      <Card style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 28, alignItems: 'center' }}>
+        <MoatRings grade={data.grade} />
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <Verdict
+              label={GRADE_VERDICT_LABEL[data.grade] ?? data.grade.toUpperCase()}
+              tone={GRADE_TONE[data.grade] ?? 'neutral'}
+              big
+            />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-2)' }}>
+              지속 {GRADE_DURABILITY[data.grade]} · 추세 안정
+            </span>
+          </div>
+          {data.analyst_note && (
+            <p style={{ margin: '14px 0 0', fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink)', maxWidth: 540 }}>
+              {data.analyst_note.split('\n')[0]}
+            </p>
+          )}
+          {/* Compound moats */}
+          {data.compound_moats.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {data.compound_moats.map((m) => (
+                <span key={m.type} style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+                  letterSpacing: '.04em',
+                  border: '1px solid var(--accent)', color: 'var(--accent)',
+                  borderRadius: 999, padding: '3px 10px',
+                }}>
+                  {COMPOUND_EMOJI[m.type]} {m.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ textAlign: 'right', borderLeft: '1px solid var(--line)', paddingLeft: 24 }}>
+          <Stat
+            value={data.composite_score.toFixed(1)}
+            unit="/ 10"
+            label="종합 해자 점수"
+            sub="복합 보너스 포함"
+          />
+        </div>
+      </Card>
+
+      {/* Depth 1 — radar + dimension bars */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,320px) 1fr', gap: 28, marginTop: 22, alignItems: 'start' }}>
+        <Card>
+          <Eyebrow>해자 5원천 · Moat Sources</Eyebrow>
+          <div style={{ marginTop: 8 }}>
+            <RadarChart scores={scoreMap} />
+          </div>
+        </Card>
+        <div>
+          <Eyebrow n={2}>원천별 강도와 근거</Eyebrow>
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column' }}>
+            {data.dimension_scores.map((d, i) => (
+              <div key={d.dimension} style={{
+                padding: '13px 0',
+                borderBottom: i < data.dimension_scores.length - 1 ? '1px solid var(--line)' : 'none',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
+                    {DIMENSION_LABEL[d.dimension]}
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
+                    color: d.score >= 7 ? 'var(--accent)' : 'var(--ink-2)',
+                  }}>
+                    {d.score.toFixed(1)}
+                  </span>
+                </div>
+                <div style={{ margin: '8px 0 7px' }}>
+                  <MetricBar value={d.score * 10} accent={d.score >= 7} />
+                </div>
+                {d.rationale && (
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5 }}>{d.rationale}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* 해자 개념 소개 */}
-      <MoatConceptIntro />
-
-      {/* 차원별 차트 */}
-      <MoatCharts data={data} />
-
-      {/* Analyst Note */}
-      {data.analyst_note && (
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            📝 Analyst Note
-          </p>
-          <div className="space-y-2">
+      {/* Depth 2 — analyst note detail */}
+      <Reveal
+        title="해자 분석 근거 상세"
+        hint="강점 · 개선 필요 항목"
+        depth={2}
+        defaultOpen={false}
+      >
+        {data.analyst_note && (
+          <div style={{ paddingTop: 4 }}>
             {data.analyst_note.split('\n').map((line, i) => (
-              <p
-                key={i}
-                className={`text-sm ${
-                  line.startsWith('✅')
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : line.startsWith('⚠️')
-                      ? 'text-amber-700 dark:text-amber-400'
-                      : 'text-zinc-700 dark:text-zinc-300'
-                }`}
-              >
+              <p key={i} style={{
+                fontSize: 13.5, lineHeight: 1.65, margin: '0 0 10px',
+                color: line.startsWith('⚡') ? 'var(--accent)'
+                  : line.startsWith('✅') ? '#2d6a4f'
+                    : line.startsWith('⚠️') ? '#92400e'
+                      : 'var(--ink-2)',
+              }}>
                 {line}
               </p>
             ))}
           </div>
+        )}
+      </Reveal>
+
+      {/* Depth 3 — methodology */}
+      <Reveal
+        title="측정 방법론 · 임계값 기준"
+        hint="각 해자 원천의 대리 지표와 점수화 논리"
+        depth={3}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, paddingTop: 4 }}>
+          {[
+            { name: '비용 우위', proxy: '영업이익률 + 부채비율', bench: '영업이익률 30%↑ = 10점' },
+            { name: '무형 자산', proxy: 'ROE (브랜드·IP 초과수익)', bench: 'ROE 25%↑ = 10점' },
+            { name: '전환 비용', proxy: '매출 CAGR + 방향성 보정', bench: 'CAGR 12%↑ = 10점' },
+            { name: '네트워크 효과', proxy: 'FCF 마진', bench: 'FCF 마진 15%↑ = 10점' },
+            { name: '효율적 규모', proxy: 'ROA + 이자보상배율(ICR)', bench: 'ROA 15%↑ · ICR 20배↑ = 10점' },
+          ].map((m) => (
+            <div key={m.name} style={{
+              padding: '12px 14px',
+              border: '1px solid var(--line)',
+              borderRadius: 8,
+              background: 'var(--surface)',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>{m.name}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--ink-2)', marginBottom: 4 }}>
+                대리 지표: <Term def="직접 측정이 어려운 해자 원천을 재무 데이터로 근사한 값입니다.">{m.proxy}</Term>
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-3)' }}>{m.bench}</div>
+            </div>
+          ))}
         </div>
-      )}
+      </Reveal>
     </div>
   )
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-8 w-64 rounded bg-zinc-100 dark:bg-zinc-800" />
-      <div className="h-60 rounded bg-zinc-100 dark:bg-zinc-800" />
-    </div>
-  )
-}
-
-function MoatConceptIntro() {
-  return (
-    <div className="space-y-3">
-      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
-          💡 경제적 해자란?
-        </p>
-        <p className="mb-4 text-sm text-indigo-900 dark:text-indigo-200">
-          워런 버핏이 제시한 개념으로, 경쟁자가 쉽게 침범할 수 없는{' '}
-          <strong>구조적 경쟁 우위</strong>를 뜻합니다.
-          해자가 넓을수록 기업은 장기간 초과수익을 유지할 수 있습니다.
-          EquiSense는 아래 5가지 원천을 재무 데이터로 정량화합니다.
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {MOAT_DIMENSIONS.map((d) => (
-            <div
-              key={d.key}
-              className="rounded-md bg-white p-3 dark:bg-indigo-950/50"
-            >
-              <p className="mb-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {d.emoji} {d.name}
-              </p>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">{d.definition}</p>
-              <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                측정: {d.method}
-              </p>
-              <p className="text-xs text-indigo-500 dark:text-indigo-400">{d.benchmark}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-          ⚡ 복합 해자란?
-        </p>
-        <p className="mb-3 text-sm text-emerald-900 dark:text-emerald-200">
-          두 해자가 동시에 강할 때(각 6점↑) 방어력이 곱셈으로 커집니다.
-          복합 해자가 감지되면 종합 점수에 보너스가 반영됩니다.
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {COMPOUND_MOATS.map((m) => (
-            <div key={m.name} className="rounded-md bg-white p-3 dark:bg-emerald-950/50">
-              <p className="mb-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {m.emoji} {m.name}
-              </p>
-              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                {m.description}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{m.detail}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
+      <div style={{ height: 32, width: 256, borderRadius: 6, background: 'var(--surface-2)', marginBottom: 16 }} />
+      <div style={{ height: 240, borderRadius: 12, background: 'var(--surface-2)' }} />
     </div>
   )
 }

@@ -138,19 +138,49 @@ export default function Header() {
   }
 
   return (
-    <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mx-auto flex max-w-6xl items-center gap-6">
+    <header style={{
+      position: 'sticky', top: 0, zIndex: 40,
+      background: 'color-mix(in srgb, var(--bg) 86%, transparent)',
+      backdropFilter: 'blur(12px)',
+      borderBottom: '1px solid var(--line)',
+    }}>
+      <div style={{
+        maxWidth: 1080, margin: '0 auto',
+        padding: '0 32px', height: 60,
+        display: 'flex', alignItems: 'center', gap: 24,
+      }}>
+        {/* Logo */}
         <a
           href={`${BASE_PATH || '/'}`}
-          className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
+          style={{
+            all: 'unset', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0,
+          }}
         >
-          EquiSense
+          <span style={{
+            width: 26, height: 26, borderRadius: 6,
+            background: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="15" height="15" viewBox="0 0 40 40" fill="none"
+              stroke="var(--bg)" strokeWidth="2.4" strokeLinecap="round">
+              <circle cx="20" cy="20" r="13" />
+              <circle cx="20" cy="20" r="4.5" />
+            </svg>
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600,
+            letterSpacing: '-.01em', color: 'var(--ink)', whiteSpace: 'nowrap',
+          }}>
+            Equity<span style={{ color: 'var(--accent)' }}>Sense</span>
+          </span>
         </a>
 
+        {/* Search */}
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          className="relative flex flex-1 items-center gap-2"
+          style={{ position: 'relative', display: 'flex', flex: 1, maxWidth: 480, gap: 8 }}
         >
           <input
             value={query}
@@ -159,35 +189,84 @@ export default function Header() {
             onKeyDown={handleKeyDown}
             placeholder="종목 코드 또는 종목명 (예: AAPL, 삼성전자)"
             autoComplete="off"
-            className="h-9 flex-1 rounded-md border border-zinc-300 bg-white px-3 text-sm placeholder-zinc-400 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder-zinc-500"
+            style={{
+              flex: 1, minWidth: 0,
+              background: 'var(--surface)',
+              border: '1px solid var(--line-2)',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 13.5, color: 'var(--ink)',
+              fontFamily: 'var(--font-ui)',
+              outline: 'none',
+            }}
           />
           <button
             type="submit"
-            className="h-9 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            style={{
+              background: 'var(--ink)', color: 'var(--bg)',
+              border: 'none', borderRadius: 8,
+              padding: '0 18px',
+              fontFamily: 'var(--font-mono)', fontSize: 12.5,
+              fontWeight: 700, letterSpacing: '.05em',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
           >
-            분석
+            분석 →
           </button>
 
           {open && suggestions.length > 0 && (
-            <div className="absolute left-0 top-full z-50 mt-1 w-full max-w-md overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+            <div style={{
+              position: 'absolute', left: 0, top: 'calc(100% + 6px)',
+              zIndex: 50, width: '100%', maxWidth: 420,
+              overflow: 'hidden', borderRadius: 10,
+              border: '1px solid var(--line-2)',
+              background: 'var(--surface)',
+              boxShadow: '0 12px 32px -8px rgba(0,0,0,.18)',
+            }}>
               {suggestions.map((s, i) => (
                 <button
                   key={`${s.market}-${s.ticker}`}
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); navigate(s) }}
                   onMouseEnter={() => setActiveIdx(i)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm ${
-                    i === activeIdx ? 'bg-zinc-100 dark:bg-zinc-800' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                  }`}
+                  style={{
+                    all: 'unset', boxSizing: 'border-box',
+                    display: 'flex', width: '100%',
+                    alignItems: 'center', gap: 12,
+                    padding: '9px 14px',
+                    cursor: 'pointer',
+                    background: i === activeIdx ? 'var(--surface-2)' : 'transparent',
+                  }}
                 >
-                  <span className="w-5 shrink-0 text-base">{s.market === 'KR' ? '🇰🇷' : '🇺🇸'}</span>
-                  <span className="w-16 shrink-0 font-mono text-xs text-zinc-500">{s.ticker}</span>
-                  <span className="truncate text-zinc-800 dark:text-zinc-200">{s.name}</span>
+                  <span style={{ fontSize: 14 }}>{s.market === 'KR' ? '🇰🇷' : '🇺🇸'}</span>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                    color: 'var(--ink-3)', width: 64, flexShrink: 0,
+                  }}>
+                    {s.ticker}
+                  </span>
+                  <span style={{
+                    fontSize: 13, color: 'var(--ink)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {s.name}
+                  </span>
                 </button>
               ))}
             </div>
           )}
         </form>
+
+        {/* Tag */}
+        <div style={{
+          marginLeft: 'auto',
+          fontFamily: 'var(--font-mono)', fontSize: 10.5,
+          letterSpacing: '.12em', color: 'var(--ink-3)',
+          textTransform: 'uppercase', whiteSpace: 'nowrap',
+          display: 'flex',
+        }}>
+          4-Layer Analysis
+        </div>
       </div>
     </header>
   )
