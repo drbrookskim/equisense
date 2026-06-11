@@ -1,5 +1,7 @@
 @import "tailwindcss";
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+/* ── Tailwind v4: class 기반 dark mode 활성화 ── */
+@custom-variant dark (&:is(.dark, .dark *));
 
 @theme inline {
   --font-mono: var(--font-geist-mono);
@@ -18,15 +20,49 @@
   --line-2: rgba(30, 26, 15, 0.18);
   --accent: #1c6e4a;
 
-  --font-display: var(--font-source-serif), 'Noto Serif KR', Georgia, serif;
-  --font-ui: 'Pretendard Variable', 'Pretendard', system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-noto-serif-kr), Georgia, serif;
+  --font-ui: var(--font-space-grotesk), var(--font-noto-serif-kr), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* 수급 상태 표시 색상 */
+  --status-go:       #16a34a;
+  --status-go-bg:    rgba(22, 163, 74, 0.10);
+  --status-warn:     #b45309;
+  --status-warn-bg:  rgba(180, 83, 9, 0.10);
+  --status-stop:     #dc2626;
+  --status-stop-bg:  rgba(220, 38, 38, 0.10);
+  --status-info:     #2563eb;
+  --status-info-bg:  rgba(37, 99, 235, 0.08);
 }
 
 body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-ui);
+}
+
+/* ── Dark theme ── */
+:root[data-theme="dark"] {
+  --bg: #141412;
+  --surface: #1e1e1b;
+  --surface-2: #272724;
+  --surface-3: #2f2f2b;
+  --ink: #f0ece4;
+  --ink-2: #a8a49c;
+  --ink-3: #686460;
+  --line: rgba(240, 236, 228, 0.08);
+  --line-2: rgba(240, 236, 228, 0.15);
+  --accent: #1c8a58;
+
+  /* 다크 모드: 더 밝고 선명한 상태 색상 */
+  --status-go:       #4ade80;
+  --status-go-bg:    rgba(74, 222, 128, 0.12);
+  --status-warn:     #fbbf24;
+  --status-warn-bg:  rgba(251, 191, 36, 0.12);
+  --status-stop:     #f87171;
+  --status-stop-bg:  rgba(248, 113, 113, 0.12);
+  --status-info:     #60a5fa;
+  --status-info-bg:  rgba(96, 165, 250, 0.12);
 }
 
 /* ── Hover lift card ── */
@@ -42,9 +78,44 @@ body {
 .eq-ribbon-scroll::-webkit-scrollbar { display: none; }
 .eq-ribbon-scroll { scrollbar-width: none; }
 
+/* ── Company page main content ── */
+.eq-company-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 30px 32px 80px;
+}
+
+/* ── Landing page layout ── */
+.eq-landing-main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.eq-module-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin: 64px 0 40px;
+}
+
+/* ── Mobile responsive (< 640px) ── */
+@media (max-width: 640px) {
+  .eq-company-main {
+    padding: 20px 16px 80px;
+  }
+  .eq-landing-main {
+    padding: 0 16px;
+  }
+  .eq-module-grid {
+    grid-template-columns: repeat(2, 1fr);
+    margin: 40px 0 30px;
+  }
+}
+
 /* ── Tab content fade-in ── */
 .eq-tab-body { animation: eq-fadein 0.22s ease; }
 @keyframes eq-fadein {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+

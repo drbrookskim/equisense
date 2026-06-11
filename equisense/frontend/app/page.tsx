@@ -36,7 +36,7 @@ export default function Home() {
   return (
     <>
       <Header />
-      <main style={{ maxWidth: 980, margin: '0 auto', padding: '0 32px' }}>
+      <main className="eq-landing-main">
         {/* Hero */}
         <div style={{ textAlign: 'center', paddingTop: '11vh' }}>
           <div style={{
@@ -93,10 +93,7 @@ export default function Home() {
         </div>
 
         {/* Module cards */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(4,1fr)',
-          gap: 14, margin: '64px 0 40px',
-        }}>
+        <div className="eq-module-grid">
           {MODULES.map((m) => (
             <div key={m.n} className="eq-lift" style={{
               background: 'var(--surface)', border: '1px solid var(--line)',

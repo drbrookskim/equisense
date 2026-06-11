@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { useCompanyScores, type TabHref } from '@/contexts/CompanyScoresContext'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 const TABS = [
   {
@@ -55,6 +57,17 @@ const TABS = [
   },
 ]
 
+const BADGE_COLOR: Record<string, string> = {
+  strong: 'var(--accent)',
+  neutral: '#b45309',
+  weak: '#dc2626',
+}
+
+function badgeText(label: string, score?: number): string {
+  if (score != null) return `${score}/100 · ${label}`
+  return label
+}
+
 export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -62,18 +75,29 @@ export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
   const ticker = searchParams.get('ticker') ?? _tickerProp
   const name = searchParams.get('name')
   const nameParam = name ? `&name=${encodeURIComponent(name)}` : ''
+  const { badges } = useCompanyScores()
+  const isMobile = useIsMobile()
 
   return (
     <nav style={{ borderBottom: '1px solid var(--line-2)' }}>
-      <div style={{
-        maxWidth: 1080, margin: '0 auto',
-        padding: '0 32px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-        gap: 4,
-      }}>
+      <div
+        className={isMobile ? 'eq-ribbon-scroll' : undefined}
+        style={isMobile ? {
+          display: 'flex',
+          overflowX: 'auto',
+          padding: '0 16px',
+          gap: 4,
+        } : {
+          maxWidth: 1080, margin: '0 auto',
+          padding: '0 32px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gap: 4,
+        }}
+      >
         {TABS.map((tab) => {
           const isActive = pathname === `/companies/_/${tab.href}`
+          const badge = badges[tab.href as TabHref]
           return (
             <Link
               key={tab.href}
@@ -85,11 +109,13 @@ export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
                 border: '1px solid ' + (isActive ? 'var(--line-2)' : 'transparent'),
                 borderBottom: isActive ? '1px solid var(--surface)' : '1px solid transparent',
                 borderRadius: '10px 10px 0 0',
-                padding: '13px 16px',
+                padding: isMobile ? '10px 14px' : '13px 16px',
                 cursor: 'pointer',
                 position: 'relative',
                 marginBottom: -1,
                 display: 'block',
+                flexShrink: isMobile ? 0 : undefined,
+                minWidth: isMobile ? 110 : undefined,
               }}
             >
               {isActive && (
@@ -99,30 +125,45 @@ export default function TabNav({ ticker: _tickerProp }: { ticker: string }) {
                 }} />
               )}
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
+                display: 'flex', alignItems: 'center', gap: 7,
                 color: isActive ? 'var(--accent)' : 'var(--ink-3)',
                 whiteSpace: 'nowrap',
               }}>
                 <svg
-                  width="18" height="18" viewBox="0 0 40 40"
+                  width="16" height="16" viewBox="0 0 40 40"
                   fill="none" stroke="currentColor"
                   strokeWidth="1.6" strokeLinejoin="round"
                 >
                   {tab.glyph}
                 </svg>
                 <span style={{
-                  fontSize: 13.5, fontWeight: 700,
+                  fontSize: isMobile ? 12.5 : 13.5, fontWeight: 700,
                   color: isActive ? 'var(--ink)' : 'var(--ink-2)',
                 }}>
                   {tab.ko}
                 </span>
               </div>
               <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.08em',
-                color: 'var(--ink-3)', textTransform: 'uppercase',
-                marginTop: 5, whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: 6,
+                marginTop: 4, whiteSpace: 'nowrap',
               }}>
-                {tab.en}
+                {!isMobile && (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.08em',
+                    color: 'var(--ink-3)', textTransform: 'uppercase',
+                  }}>
+                    {tab.en}
+                  </span>
+                )}
+                {badge && (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800,
+                    letterSpacing: '.06em', textTransform: 'uppercase',
+                    color: BADGE_COLOR[badge.tone],
+                  }}>
+                    {isMobile ? badgeText(badge.label, badge.score) : badge.label}
+                  </span>
+                )}
               </div>
             </Link>
           )

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRecentSearches } from '@/lib/hooks/useRecentSearches'
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 const PROXY = process.env.NEXT_PUBLIC_PROXY_URL ?? ''
@@ -52,15 +53,17 @@ async function searchUS(query: string): Promise<Suggestion[]> {
 interface SearchBoxProps {
   variant: 'hero' | 'compact'
   autoFocus?: boolean
+  accentSubmit?: boolean
 }
 
-export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
+export default function SearchBox({ variant, autoFocus, accentSubmit }: SearchBoxProps) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const formRef = useRef<HTMLFormElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { recents, add: addRecent, remove: removeRecent } = useRecentSearches()
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -97,8 +100,9 @@ export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
   function navigate(s: Suggestion) {
     setOpen(false)
     setQuery(s.ticker)
+    addRecent({ ticker: s.ticker, name: s.name, market: s.market })
     const nameParam = s.name ? `&name=${encodeURIComponent(s.name)}` : ''
-    window.location.href = `${BASE_PATH}/companies/_/analysis?ticker=${s.ticker}&market=${s.market}${nameParam}`
+    window.location.href = `${BASE_PATH}/companies/_/analysis?ticker=${s.ticker}&market=${s.market}${nameParam}` // eslint-disable-line react-hooks/immutability
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -108,7 +112,7 @@ export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
     const q = query.trim().toUpperCase()
     if (!q) return
     setOpen(false)
-    window.location.href = `${BASE_PATH}/companies/_/analysis?ticker=${q}&market=${isKrTicker(q) ? 'KR' : 'US'}`
+    window.location.href = `${BASE_PATH}/companies/_/analysis?ticker=${q}&market=${isKrTicker(q) ? 'KR' : 'US'}` // eslint-disable-line react-hooks/immutability
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -119,6 +123,8 @@ export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
   }
 
   const isHero = variant === 'hero'
+  const showRecents = open && query.trim() === '' && recents.length > 0
+  const showSuggestions = open && query.trim() !== '' && suggestions.length > 0
 
   return (
     <form
@@ -129,7 +135,7 @@ export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
       <input
         value={query}
         onChange={handleChange}
-        onFocus={() => { if (query.trim()) setOpen(true) }}
+        onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
         autoFocus={autoFocus}
         autoComplete="off"
@@ -151,7 +157,7 @@ export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
       <button
         type="submit"
         style={{
-          background: 'var(--ink)', color: 'var(--bg)',
+          background: accentSubmit ? 'var(--accent)' : 'var(--ink)', color: 'var(--bg)',
           border: 'none', borderRadius: 8,
           padding: isHero ? '0 28px' : '0 15px',
           fontFamily: 'var(--font-mono)',
@@ -163,7 +169,68 @@ export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
         {isHero ? '분석 →' : '→'}
       </button>
 
-      {open && suggestions.length > 0 && (
+      {/* Recent searches dropdown */}
+      {showRecents && (
+        <div style={{
+          position: 'absolute', left: 0, top: 'calc(100% + 6px)',
+          zIndex: 50, width: '100%', maxWidth: isHero ? '100%' : 420,
+          overflow: 'hidden', borderRadius: 10,
+          border: '1px solid var(--line-2)',
+          background: 'var(--surface)',
+          boxShadow: '0 12px 32px -8px rgba(0,0,0,.18)',
+        }}>
+          <div style={{
+            padding: '7px 14px 5px',
+            fontFamily: 'var(--font-mono)', fontSize: 10,
+            letterSpacing: '.1em', textTransform: 'uppercase',
+            color: 'var(--ink-3)',
+          }}>
+            최근 검색어
+          </div>
+          {recents.map((r) => (
+            <div
+              key={r.ticker}
+              style={{
+                display: 'flex', width: '100%', alignItems: 'center', gap: 12,
+                padding: '8px 14px', boxSizing: 'border-box',
+              }}
+            >
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); navigate(r) }}
+                style={{
+                  all: 'unset', flex: 1, display: 'flex', alignItems: 'center',
+                  gap: 12, cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{r.market === 'KR' ? '🕐' : '🕐'}</span>
+                <span style={{ fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {r.name}
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)', marginLeft: 4 }}>
+                    ({r.ticker})
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); removeRecent(r.ticker) }}
+                style={{
+                  all: 'unset', cursor: 'pointer',
+                  fontSize: 14, color: 'var(--ink-3)',
+                  flexShrink: 0, lineHeight: 1,
+                  padding: '2px 4px',
+                }}
+                title="삭제"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Suggestions dropdown */}
+      {showSuggestions && (
         <div style={{
           position: 'absolute', left: 0, top: 'calc(100% + 6px)',
           zIndex: 50, width: '100%', maxWidth: isHero ? '100%' : 420,
@@ -186,12 +253,12 @@ export default function SearchBox({ variant, autoFocus }: SearchBoxProps) {
                 background: i === activeIdx ? 'var(--surface-2)' : 'transparent',
               }}
             >
-              <span style={{ fontSize: 14 }}>{s.market === 'KR' ? '🇰🇷' : '🇺🇸'}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--ink-3)', width: 64, flexShrink: 0 }}>
-                {s.ticker}
-              </span>
-              <span style={{ fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>{s.market === 'KR' ? '🇰🇷' : '🇺🇸'}</span>
+              <span style={{ fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {s.name}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)', marginLeft: 4 }}>
+                  ({s.ticker})
+                </span>
               </span>
             </button>
           ))}
