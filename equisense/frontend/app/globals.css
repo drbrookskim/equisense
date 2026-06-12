@@ -107,8 +107,18 @@ body {
     padding: 0 16px;
   }
   .eq-module-grid {
-    grid-template-columns: repeat(2, 1fr);
-    margin: 40px 0 30px;
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    gap: 10px;
+    margin: 40px -16px 30px;
+    padding: 0 16px;
+  }
+  .eq-module-grid > * {
+    flex: 0 0 140px;
+    min-width: 0;
   }
 }
 

@@ -9,6 +9,7 @@ import { getFundamentals, getQuarterlyInsights, getQuarterlyPrices } from '@/lib
 import type { FundamentalAnalysis, FundamentalMetrics, Market, QuarterlyInsightMap } from '@/types'
 import FundamentalsCharts from '@/components/charts/FundamentalsCharts'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import { Card, Eyebrow, MetricBar, Reveal, TabHead, Term } from '@/components/ui'
 
 // ── 포맷 헬퍼 ────────────────────────────────────────────
@@ -256,6 +257,7 @@ function FundamentalsContent() {
   const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
   const { setTabBadge } = useCompanyScores()
+  const isMobile = useIsMobile()
 
   const [data, setData] = useState<FundamentalAnalysis | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -330,7 +332,7 @@ function FundamentalsContent() {
       />
 
       {/* Surface — Score Ring + 8Q Chart */}
-      <Card style={{ display: 'grid', gridTemplateColumns: 'minmax(0,220px) 1fr', gap: 28, alignItems: 'center' }}>
+      <Card style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,220px) 1fr', gap: isMobile ? 16 : 28, alignItems: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <RingGauge score={score} grade={grade} />
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-3)', marginTop: 10 }}>
@@ -351,7 +353,7 @@ function FundamentalsContent() {
       {keyRatios.length > 0 && (
         <div style={{ marginTop: 22 }}>
           <Eyebrow n={2}>핵심 지표 · Key Ratios</Eyebrow>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(auto-fill,minmax(180px,1fr))', gap: 12, marginTop: 12 }}>
             {keyRatios.map((m) => <KeyRatioCard key={m.k} {...m} />)}
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 10, lineHeight: 1.6 }}>

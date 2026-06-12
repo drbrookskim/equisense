@@ -10,6 +10,7 @@ import { getMoatScore, getFundamentals } from '@/lib/api-client'
 import type { FundamentalAnalysis, Market, MoatAnalysis, MoatDimension } from '@/types'
 import { Card, Eyebrow, MetricBar, Reveal, Stat, TabHead, Term, Verdict } from '@/components/ui'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 /* ── Fortress rings visualization ── */
 function MoatRings({ grade }: { grade: string }) {
@@ -152,7 +153,7 @@ function RoicWaccChart({ fundamentals }: { fundamentals: FundamentalAnalysis }) 
     : null
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(0,280px)', gap: 24, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 16, alignItems: 'start' }}>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" strokeOpacity={0.5} />
@@ -197,6 +198,7 @@ function MoatContent() {
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
   const name = searchParams.get('name')
   const { setTabBadge } = useCompanyScores()
+  const isMobile = useIsMobile()
 
   const [data, setData] = useState<MoatAnalysis | null>(null)
   const [fundamentals, setFundamentals] = useState<FundamentalAnalysis | null>(null)
@@ -255,7 +257,7 @@ function MoatContent() {
       />
 
       {/* Surface — verdict card */}
-      <Card style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 28, alignItems: 'center' }}>
+      <Card style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'auto 1fr auto', gap: isMobile ? 16 : 28, alignItems: 'center' }}>
         <MoatRings grade={data.grade} />
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -289,7 +291,7 @@ function MoatContent() {
             </div>
           )}
         </div>
-        <div style={{ textAlign: 'right', borderLeft: '1px solid var(--line)', paddingLeft: 24 }}>
+        <div style={{ textAlign: isMobile ? 'left' : 'right', borderLeft: isMobile ? 'none' : '1px solid var(--line)', borderTop: isMobile ? '1px solid var(--line)' : 'none', paddingLeft: isMobile ? 0 : 24, paddingTop: isMobile ? 12 : 0 }}>
           <Stat
             value={data.composite_score.toFixed(1)}
             unit="/ 10"
@@ -300,7 +302,7 @@ function MoatContent() {
       </Card>
 
       {/* Depth 1 — radar + dimension bars */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,320px) 1fr', gap: 28, marginTop: 22, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,320px) 1fr', gap: isMobile ? 16 : 28, marginTop: 22, alignItems: 'start' }}>
         <Card>
           <Eyebrow>해자 5원천 · Moat Sources</Eyebrow>
           <div style={{ marginTop: 8 }}>

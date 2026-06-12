@@ -10,6 +10,7 @@ import { fetchSentimentData, fetchGateAData } from '@/lib/api-client'
 import { Card, Eyebrow, Reveal, TabHead } from '@/components/ui'
 import QualitativeAnalysisView from '@/components/qualitative/QualitativeAnalysisView'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 // ── Fear-Greed 계산 ───────────────────────────────────────
 
@@ -245,6 +246,7 @@ function QualitativeContent() {
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
   const name = searchParams.get('name')
   const { setTabBadge } = useCompanyScores()
+  const isMobile = useIsMobile()
 
   const [sentiment, setSentiment] = useState<SentimentData | null>(null)
   const [sentimentLoading, setSentimentLoading] = useState(true)
@@ -307,7 +309,7 @@ function QualitativeContent() {
       />
 
       {/* Surface — Fear-Greed 게이지 + AI 메모 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,300px) 1fr', gap: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,300px) 1fr', gap: isMobile ? 16 : 28 }}>
         {/* Left: Fear-Greed */}
         <Card style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Eyebrow>시장 심리 지수 · Fear-Greed</Eyebrow>
@@ -346,7 +348,7 @@ function QualitativeContent() {
       </div>
 
       {/* Depth 2 — 심리 추이 + 컨센서스 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(0,340px)', gap: 28, marginTop: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr minmax(0,340px)', gap: isMobile ? 16 : 28, marginTop: 22 }}>
         {/* 심리 추이 12주 */}
         <Card>
           <Eyebrow n={2}>심리 추이 · 12주</Eyebrow>
@@ -418,7 +420,7 @@ function QualitativeContent() {
 
       {/* Depth 3 — 내부자 거래 + 기관 보유 */}
       <Reveal title="내부자 거래 · 기관 보유" hint="원신호 · 90일" depth={3}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 28, marginTop: 8 }}>
           <div>
             <Eyebrow>내부자 거래 · Insider</Eyebrow>
             <div style={{ marginTop: 10 }}>

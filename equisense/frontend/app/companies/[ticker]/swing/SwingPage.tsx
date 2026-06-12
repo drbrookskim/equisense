@@ -20,6 +20,7 @@ import SwingScoreDrawer from '@/components/swing/SwingScoreDrawer'
 import { Card, Eyebrow, Reveal, Stat, TabHead, Verdict } from '@/components/ui'
 import type { VerdictTone } from '@/components/ui'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 function fmtKR(n: number) { return n.toLocaleString('ko-KR') }
 
@@ -221,10 +222,12 @@ function TESBoxes({
   rrInput,
   setRRInput,
   market,
+  isMobile = false,
 }: {
   rrInput: RRInput
   setRRInput: React.Dispatch<React.SetStateAction<RRInput | null>>
   market: Market
+  isMobile?: boolean
 }) {
   const boxes = [
     {
@@ -251,7 +254,7 @@ function TESBoxes({
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 6 }}>
             {b.sub}
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: b.color, lineHeight: 1 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: isMobile ? 16 : 22, fontWeight: 700, color: b.color, lineHeight: 1 }}>
             {b.value}
           </div>
           {b.field && (
@@ -284,6 +287,7 @@ function SwingContent() {
   const ticker = (searchParams.get('ticker') ?? '').toUpperCase()
   const market = (searchParams.get('market') === 'KR' ? 'KR' : 'US') as Market
   const { setTabBadge } = useCompanyScores()
+  const isMobile = useIsMobile()
 
   const [fundamentals, setFundamentals] = useState<FundamentalAnalysis | null>(null)
   const [quarterlyInsights, setQuarterlyInsights] = useState<QuarterlyInsightMap | null>(null)
@@ -369,13 +373,13 @@ function SwingContent() {
 
       {/* Surface — 최종 판정 카드 */}
       {final && (
-        <Card style={{ display: 'grid', gridTemplateColumns: 'auto 1px 1fr', gap: 26, alignItems: 'center', marginBottom: 22 }}>
-          <div style={{ textAlign: 'center', minWidth: 140 }}>
+        <Card style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'auto 1px 1fr', gap: isMobile ? 16 : 26, alignItems: 'center', marginBottom: 22 }}>
+          <div style={{ textAlign: 'center', minWidth: isMobile ? 0 : 140 }}>
             <Verdict label={FINAL_VERDICT_LABEL[final.verdict]} tone={FINAL_VERDICT_TONE[final.verdict]} big />
             <p style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 10, lineHeight: 1.5 }}>{final.summary_line}</p>
           </div>
-          <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--line)' }} />
-          <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+          {!isMobile && <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--line)' }} />}
+          <div style={{ display: 'flex', gap: isMobile ? 20 : 32, flexWrap: 'wrap' }}>
             <Stat
               value={`${sepaScore}/${sepaChecks.filter((c) => c.pass !== null).length || 8}`}
               label="추세 템플릿 동과"
@@ -415,7 +419,7 @@ function SwingContent() {
       {/* T/E/S 박스 */}
       {rrInput && (
         <div style={{ marginBottom: 22 }}>
-          <TESBoxes rrInput={rrInput} setRRInput={setRRInput} market={market} />
+          <TESBoxes rrInput={rrInput} setRRInput={setRRInput} market={market} isMobile={isMobile} />
           {rr && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface)', marginTop: 8 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: rr.verdict === 'PASS' ? 'var(--accent)' : rr.verdict === 'CAUTION' ? '#b45309' : 'var(--ink-2)' }}>
