@@ -8,6 +8,7 @@
 import type {
   AnalysisJob,
   DocType,
+  DualQualitativeResult,
   FundamentalAnalysis,
   GateAData,
   Market,
@@ -18,7 +19,7 @@ import type {
   TechnicalPeriod,
 } from '@/types'
 import { transformDartToFundamentals } from '@/lib/adapters/dart'
-import { transformYahooToFundamentals, transformYahooToTechnical } from '@/lib/adapters/yahoo'
+import { transformYahooToFundamentals, transformYahooToTechnical, parseTimeseries } from '@/lib/adapters/yahoo'
 import { computeQuarterlyInsights } from '@/lib/adapters/quarterly'
 import { calculateMoat } from '@/lib/adapters/moat'
 import { calculateQualitative, lookupJob } from '@/lib/adapters/qualitative'
@@ -98,10 +99,13 @@ export async function getFundamentals(ticker: string, market: Market): Promise<F
     return transformDartToFundamentals(dartDataRecent, dartDataOld, keyStats, ticker, corpName)
   }
 
-  const data = await proxyFetch<unknown>(
-    `/yahoo/summary?symbol=${ticker}&modules=${SUMMARY_MODULES}`,
-  )
-  return transformYahooToFundamentals(data, ticker, market)
+  const [summaryResult, tsResult] = await Promise.allSettled([
+    proxyFetch<unknown>(`/yahoo/summary?symbol=${ticker}&modules=${SUMMARY_MODULES}`),
+    proxyFetch<unknown>(`/yahoo/timeseries?symbol=${ticker}`),
+  ])
+  const data = summaryResult.status === 'fulfilled' ? summaryResult.value : null
+  const tsMap = tsResult.status === 'fulfilled' ? parseTimeseries(tsResult.value) : undefined
+  return transformYahooToFundamentals(data, ticker, market, tsMap)
 }
 
 export async function getMoatScore(ticker: string, market: Market): Promise<MoatAnalysis> {
@@ -127,6 +131,29 @@ export async function getTechnicalData(
   return transformYahooToTechnical(data, ticker, market, period)
 }
 
+export async function getQuarterlyPrices(
+  ticker: string,
+  market: Market,
+): Promise<{ quarter: string; close: number }[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = await proxyFetch<any>(
+    `/yahoo/chart?symbol=${ticker}&market=${market}&range=2y&interval=3mo`,
+  )
+  const result = raw?.chart?.result?.[0]
+  if (!result) return []
+  const timestamps: number[] = result.timestamp ?? []
+  const closes: number[] = result.indicators?.quote?.[0]?.close ?? []
+  const out: { quarter: string; close: number }[] = []
+  timestamps.forEach((ts: number, i: number) => {
+    const c = closes[i]
+    if (c == null || isNaN(c)) return
+    const d = new Date(ts * 1000)
+    const q = Math.ceil((d.getMonth() + 1) / 3)
+    out.push({ quarter: `'${String(d.getFullYear()).slice(2)} Q${q}`, close: c })
+  })
+  return out.slice(-8)
+}
+
 export async function triggerQualitativeAnalysis(
   ticker: string,
   market: Market,
@@ -135,6 +162,17 @@ export async function triggerQualitativeAnalysis(
 ): Promise<AnalysisJob> {
   const fundamentals = await getFundamentals(ticker, market)
   return calculateQualitative(fundamentals, fiscal_year, doc_type, market)
+}
+
+export async function triggerDualQualitativeAnalysis(
+  ticker: string,
+  market: Market,
+  fiscal_year: number,
+): Promise<DualQualitativeResult> {
+  const fundamentals = await getFundamentals(ticker, market)
+  const annual = calculateQualitative(fundamentals, fiscal_year, 'annual_report', market)
+  const earnings = calculateQualitative(fundamentals, fiscal_year, 'earnings_call', market)
+  return { annual: annual.result!, earnings: earnings.result! }
 }
 
 export async function getJobStatus(jobId: string): Promise<AnalysisJob> {

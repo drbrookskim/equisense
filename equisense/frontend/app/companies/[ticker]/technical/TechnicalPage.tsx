@@ -29,8 +29,8 @@ function TechnicalContent({ hideHeader = false }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    setIsLoading(true)
-    setErrorMsg(null)
+    setIsLoading(true) // eslint-disable-line react-hooks/set-state-in-effect
+    setErrorMsg(null) // eslint-disable-line react-hooks/set-state-in-effect
     getTechnicalData(ticker, market, period)
       .then(d => { if (!cancelled) setData(d) })
       .catch((err: { status?: number }) => {

@@ -51,6 +51,29 @@ function yAxisFormatter(format: MetricFormat): (v: unknown) => string {
   }
 }
 
+// ── 테마 컬러 팔레트 ──────────────────────────
+const C1 = '#1c6e4a'  // accent (forest green)
+const C2 = '#b45309'  // warm amber
+const C3 = '#2563eb'  // calm blue
+
+function statusStyle(s: 'pass' | 'warn' | 'fail' | 'na'): React.CSSProperties {
+  if (s === 'pass') return { background: 'rgba(28,110,74,0.10)', color: C1 }
+  if (s === 'warn') return { background: 'rgba(180,83,9,0.10)',  color: C2 }
+  if (s === 'fail') return { background: 'rgba(220,38,38,0.10)', color: '#dc2626' }
+  return { background: 'var(--surface-2)', color: 'var(--ink-3)' }
+}
+
+// ── 차트 공통 스타일 ───────────────────────────
+const GRID_STROKE  = 'rgba(30,26,15,0.14)'
+const TICK_FILL    = '#968f7d'  // --ink-3
+const TOOLTIP_STYLE = {
+  background: 'var(--surface)',
+  border: '1px solid rgba(30,26,15,0.18)',
+  borderRadius: 6,
+  fontSize: 11,
+  color: '#1b1a15',
+}
+
 // ── 타입 ────────────────────────────────────────
 
 type ExpandedKey = 'roe' | 'roa' | 'debt_ratio' | 'operating_margin' | 'per' | 'pbr' | 'fcf' | 'income' | 'margin'
@@ -79,88 +102,80 @@ function healthSignal(
   return 'good'
 }
 
-function pillCls(status: 'pass' | 'warn' | 'fail' | 'na'): string {
-  if (status === 'pass') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400'
-  if (status === 'warn') return 'bg-amber-50  text-amber-700  dark:bg-amber-950/20  dark:text-amber-400'
-  if (status === 'fail') return 'bg-red-50    text-red-700    dark:bg-red-950/20    dark:text-red-400'
-  return 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
-}
-
 // ── 지표 설정 ───────────────────────────────────
 
 const METRIC_CONFIGS: Record<string, { label: string; format: MetricFormat; color: string; description: string }> = {
-  roe:              { label: 'ROE',        format: 'percent', color: '#6366f1', description: '주주 자본으로 얼마나 수익을 냈는지' },
-  roa:              { label: 'ROA',        format: 'percent', color: '#22c55e', description: '보유 자산 대비 수익 창출 효율' },
-  debt_ratio:       { label: '부채비율',   format: 'percent', color: '#f59e0b', description: '낮을수록 재무 안정성 높음' },
-  operating_margin: { label: '영업이익률', format: 'percent', color: '#a78bfa', description: '매출 중 영업이익이 차지하는 비율' },
-  per:              { label: 'PER',        format: 'ratio',   color: '#34d399', description: '현재 주가가 이익의 몇 배인지' },
-  pbr:              { label: 'PBR',        format: 'ratio',   color: '#f87171', description: '주가가 순자산 대비 몇 배인지' },
-  fcf:              { label: 'FCF',        format: 'large',   color: '#fb923c', description: '실제 손에 쥔 잉여현금흐름' },
+  roe:              { label: 'ROE',        format: 'percent', color: C1, description: '주주 자본으로 얼마나 수익을 냈는지' },
+  roa:              { label: 'ROA',        format: 'percent', color: C3, description: '보유 자산 대비 수익 창출 효율' },
+  debt_ratio:       { label: '부채비율',   format: 'percent', color: C2, description: '낮을수록 재무 안정성 높음' },
+  operating_margin: { label: '영업이익률', format: 'percent', color: C1, description: '매출 중 영업이익이 차지하는 비율' },
+  per:              { label: 'PER',        format: 'ratio',   color: C2, description: '현재 주가가 이익의 몇 배인지' },
+  pbr:              { label: 'PBR',        format: 'ratio',   color: C3, description: '주가가 순자산 대비 몇 배인지' },
+  fcf:              { label: 'FCF',        format: 'large',   color: C1, description: '실제 손에 쥔 잉여현금흐름' },
 }
 
-// ── SparklineCard ───────────────────────────────
+// ── QuarterlyOverlay ────────────────────────────
 
 function QuarterlyOverlay({
-  insight,
-  loading,
-  isAnnual,
+  insight, loading, isAnnual,
 }: {
   insight: QuarterlyInsight | null | undefined
   loading: boolean
   isAnnual: boolean
 }) {
   return (
-    <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-700">
+    <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
       {loading ? (
         <div className="animate-pulse space-y-1.5">
-          <div className="h-2.5 w-full rounded bg-zinc-200 dark:bg-zinc-700" />
-          <div className="h-2.5 w-3/4 rounded bg-zinc-200 dark:bg-zinc-700" />
+          <div className="h-2.5 w-full rounded bg-zinc-200" />
+          <div className="h-2.5 w-3/4 rounded bg-zinc-200" />
         </div>
       ) : insight && !insight.insufficient ? (
         <>
-          <div className="flex items-center gap-1.5">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {isAnnual && (
-              <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-zinc-200/60 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
+              <span style={{
+                borderRadius: 4, padding: '1px 6px',
+                fontSize: 10, fontWeight: 500,
+                background: 'var(--surface-2)', color: 'var(--ink-3)',
+              }}>
                 연간
               </span>
             )}
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            <p style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.55 }}>
               {insight.trend_line}
             </p>
           </div>
-          <span className={[
-            'mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wide',
-            insight.direction === 'up'
-              ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40'
+          <span style={{
+            display: 'inline-block', marginTop: 8,
+            borderRadius: 999, padding: '2px 10px',
+            fontSize: 11, fontWeight: 700, letterSpacing: '.04em',
+            ...(insight.direction === 'up'
+              ? { background: 'rgba(28,110,74,0.12)', color: C1, outline: `1px solid rgba(28,110,74,0.3)` }
               : insight.direction === 'down'
-              ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/40'
+              ? { background: 'rgba(220,38,38,0.10)', color: '#dc2626', outline: '1px solid rgba(220,38,38,0.25)' }
               : insight.direction === 'mixed'
-              ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40'
-              : 'bg-zinc-500/10 text-zinc-400 ring-1 ring-zinc-500/20',
-          ].join(' ')}>
+              ? { background: 'rgba(180,83,9,0.10)', color: C2, outline: `1px solid rgba(180,83,9,0.3)` }
+              : { background: 'var(--surface-2)', color: 'var(--ink-3)', outline: '1px solid var(--line)' }
+            ),
+          }}>
             {insight.momentum_label}
           </span>
         </>
       ) : (
-        <p className="text-xs text-zinc-400 dark:text-zinc-500">추이 데이터 없음</p>
+        <p style={{ fontSize: 11, color: 'var(--ink-3)' }}>추이 데이터 없음</p>
       )}
     </div>
   )
 }
 
-// ── 확장 패널 ───────────────────────────────────
+// ── ExpandedPanel ────────────────────────────────
 
 type IncomeRow  = { year: string; revenue: number | null; operating_income: number | null; net_income: number | null }
 type MarginRow  = { year: string; ROE: number | null; ROA: number | null; 영업이익률: number | null }
 
 function ExpandedPanel({
-  expandedKey,
-  sparkDataByKey,
-  incomeData,
-  marginData,
-  uid,
-  onClose,
-  showClose = true,
+  expandedKey, sparkDataByKey, incomeData, marginData, uid, onClose, showClose = true,
 }: {
   expandedKey: ExpandedKey
   sparkDataByKey: Record<string, { year: number; value: number | null }[]>
@@ -171,18 +186,21 @@ function ExpandedPanel({
   showClose?: boolean
 }) {
   const header =
-    expandedKey === 'income' ? '손익 추이 — 연도별 추이' :
-    expandedKey === 'margin' ? '수익성 지표 — 연도별 추이' :
+    expandedKey === 'income' ? '손익 추이 — 연도별' :
+    expandedKey === 'margin' ? '수익성 지표 — 연도별' :
     `${METRIC_CONFIGS[expandedKey].label} — 연도별 추이`
 
   return (
-    <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-      <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{header}</h4>
+    <div style={{
+      borderRadius: 8, border: '1px solid var(--line-2)',
+      padding: '14px 16px', background: 'var(--surface)',
+    }}>
+      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h4 style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{header}</h4>
         {showClose && (
           <button
             onClick={onClose}
-            className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+            style={{ fontSize: 11, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer' }}
           >
             ✕ 닫기
           </button>
@@ -194,31 +212,26 @@ function ExpandedPanel({
           <ComposedChart data={incomeData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
             <defs>
               <linearGradient id={`${uid}-ep-income-revenue`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
+                <stop offset="5%"  stopColor={C1} stopOpacity={0.22} />
+                <stop offset="95%" stopColor={C1} stopOpacity={0}    />
               </linearGradient>
               <linearGradient id={`${uid}-ep-income-op`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}   />
+                <stop offset="5%"  stopColor={C2} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={C2} stopOpacity={0}   />
               </linearGradient>
               <linearGradient id={`${uid}-ep-income-net`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}   />
+                <stop offset="5%"  stopColor={C3} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={C3} stopOpacity={0}   />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" strokeOpacity={0.3} />
-            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-            <YAxis
-              tickFormatter={(v: unknown) => typeof v === 'number' ? formatLargeNumber(v) : ''}
-              tick={{ fontSize: 11 }}
-              width={60}
-              domain={['auto', 'auto']}
-            />
-            <Tooltip formatter={(v) => (typeof v === 'number' ? formatLargeNumber(v) : v)} />
-            <Legend />
-            <Area type="monotone" dataKey="revenue"          name="매출액"   stroke="#6366f1" strokeWidth={2} fill={`url(#${uid}-ep-income-revenue)`} dot={false} connectNulls />
-            <Area type="monotone" dataKey="operating_income" name="영업이익" stroke="#22c55e" strokeWidth={2} fill={`url(#${uid}-ep-income-op)`}      dot={false} connectNulls />
-            <Area type="monotone" dataKey="net_income"       name="순이익"   stroke="#f59e0b" strokeWidth={2} fill={`url(#${uid}-ep-income-net)`}     dot={false} connectNulls />
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+            <XAxis dataKey="year" tick={{ fontSize: 11, fill: TICK_FILL }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v: unknown) => typeof v === 'number' ? formatLargeNumber(v) : ''} tick={{ fontSize: 10, fill: TICK_FILL }} width={60} domain={['auto', 'auto']} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (typeof v === 'number' ? formatLargeNumber(v) : v)} />
+            <Legend wrapperStyle={{ fontSize: 11, color: TICK_FILL }} />
+            <Area type="monotone" dataKey="revenue"          name="매출액"   stroke={C1} strokeWidth={2} fill={`url(#${uid}-ep-income-revenue)`} dot={false} connectNulls />
+            <Area type="monotone" dataKey="operating_income" name="영업이익" stroke={C2} strokeWidth={2} fill={`url(#${uid}-ep-income-op)`}      dot={false} connectNulls />
+            <Area type="monotone" dataKey="net_income"       name="순이익"   stroke={C3} strokeWidth={2} fill={`url(#${uid}-ep-income-net)`}     dot={false} connectNulls />
           </ComposedChart>
         </ResponsiveContainer>
       )}
@@ -228,31 +241,26 @@ function ExpandedPanel({
           <ComposedChart data={marginData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
             <defs>
               <linearGradient id={`${uid}-ep-margin-roe`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
+                <stop offset="5%"  stopColor={C1} stopOpacity={0.22} />
+                <stop offset="95%" stopColor={C1} stopOpacity={0}    />
               </linearGradient>
               <linearGradient id={`${uid}-ep-margin-roa`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}   />
+                <stop offset="5%"  stopColor={C2} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={C2} stopOpacity={0}   />
               </linearGradient>
               <linearGradient id={`${uid}-ep-margin-op`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}   />
+                <stop offset="5%"  stopColor={C3} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={C3} stopOpacity={0}   />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" strokeOpacity={0.3} />
-            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-            <YAxis
-              tickFormatter={(v: unknown) => typeof v === 'number' ? formatPercent(v) : ''}
-              tick={{ fontSize: 11 }}
-              width={52}
-              domain={['auto', 'auto']}
-            />
-            <Tooltip formatter={(v) => (typeof v === 'number' ? formatPercent(v) : v)} />
-            <Legend />
-            <Area type="monotone" dataKey="ROE"       name="ROE"      stroke="#6366f1" strokeWidth={2} fill={`url(#${uid}-ep-margin-roe)`} dot={false} connectNulls />
-            <Area type="monotone" dataKey="ROA"       name="ROA"      stroke="#22c55e" strokeWidth={2} fill={`url(#${uid}-ep-margin-roa)`} dot={false} connectNulls />
-            <Area type="monotone" dataKey="영업이익률" name="영업이익률" stroke="#f59e0b" strokeWidth={2} fill={`url(#${uid}-ep-margin-op)`}  dot={false} connectNulls />
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+            <XAxis dataKey="year" tick={{ fontSize: 11, fill: TICK_FILL }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v: unknown) => typeof v === 'number' ? formatPercent(v) : ''} tick={{ fontSize: 10, fill: TICK_FILL }} width={52} domain={['auto', 'auto']} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (typeof v === 'number' ? formatPercent(v) : v)} />
+            <Legend wrapperStyle={{ fontSize: 11, color: TICK_FILL }} />
+            <Area type="monotone" dataKey="ROE"        name="ROE"       stroke={C1} strokeWidth={2} fill={`url(#${uid}-ep-margin-roe)`} dot={false} connectNulls />
+            <Area type="monotone" dataKey="ROA"        name="ROA"       stroke={C2} strokeWidth={2} fill={`url(#${uid}-ep-margin-roa)`} dot={false} connectNulls />
+            <Area type="monotone" dataKey="영업이익률" name="영업이익률" stroke={C3} strokeWidth={2} fill={`url(#${uid}-ep-margin-op)`}  dot={false} connectNulls />
           </ComposedChart>
         </ResponsiveContainer>
       )}
@@ -265,23 +273,16 @@ function ExpandedPanel({
             <AreaChart data={sparkData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
               <defs>
                 <linearGradient id={`${uid}-ep-metric-${expandedKey}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={cfg.color} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={cfg.color} stopOpacity={0}   />
+                  <stop offset="5%"  stopColor={cfg.color} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={cfg.color} stopOpacity={0}    />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" strokeOpacity={0.3} />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis
-                tickFormatter={yAxisFormatter(cfg.format)}
-                tick={{ fontSize: 11 }}
-                width={cfg.format === 'large' ? 64 : 52}
-                domain={['auto', 'auto']}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+              <XAxis dataKey="year" tick={{ fontSize: 11, fill: TICK_FILL }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={yAxisFormatter(cfg.format)} tick={{ fontSize: 10, fill: TICK_FILL }} width={cfg.format === 'large' ? 64 : 52} domain={['auto', 'auto']} axisLine={false} tickLine={false} />
               <Tooltip
-                formatter={(v) => [
-                  typeof v === 'number' ? formatValue(v, cfg.format) : v,
-                  cfg.label,
-                ]}
+                contentStyle={TOOLTIP_STYLE}
+                formatter={(v) => [typeof v === 'number' ? formatValue(v, cfg.format) : v, cfg.label]}
                 labelFormatter={(label) => `${label}년`}
               />
               <Area
@@ -305,9 +306,7 @@ function ExpandedPanel({
 // ── 메인 컴포넌트 ───────────────────────────────
 
 export default function FundamentalsCharts({
-  data,
-  quarterlyInsights,
-  quarterlyLoading,
+  data, quarterlyInsights, quarterlyLoading,
 }: {
   data: FundamentalAnalysis
   quarterlyInsights: QuarterlyInsightMap | null
@@ -329,9 +328,7 @@ export default function FundamentalsCharts({
 
   const marginData: MarginRow[] = data.metrics_by_year.map(m => ({
     year: String(m.fiscal_year),
-    ROE:      m.roe,
-    ROA:      m.roa,
-    영업이익률: m.operating_margin,
+    ROE: m.roe, ROA: m.roa, 영업이익률: m.operating_margin,
   }))
 
   const sparkDataByKey: Record<string, { year: number; value: number | null }[]> = {
@@ -344,20 +341,13 @@ export default function FundamentalsCharts({
     fcf:              data.metrics_by_year.map(m => ({ year: m.fiscal_year, value: m.fcf })),
   }
 
-  // 손익추이 카드: 대표 스파크라인 = 매출액
   const incomeSpark = data.metrics_by_year.map(m => ({
     year: m.fiscal_year,
     value: data.trends['revenue']?.values.find(([y]) => y === m.fiscal_year)?.[1] ?? null,
   }))
-  const latestRevenue = incomeSpark.at(-1)?.value ?? null
-
-  // 수익성지표 카드: 대표 스파크라인 = ROE
-  const marginSpark = data.metrics_by_year.map(m => ({ year: m.fiscal_year, value: m.roe }))
   const latestROE    = data.metrics_by_year.at(-1)?.roe ?? null
-
   const latestMetrics = data.metrics_by_year.at(-1) ?? null
 
-  // 분기 인사이트가 없거나 부족할 때 연간 데이터로 fallback
   function effectiveInsight(
     key: string,
     annualSpark: { year: number; value: number | null }[],
@@ -369,8 +359,6 @@ export default function FundamentalsCharts({
     return { insight: annual, isAnnual: true }
   }
 
-  // ── 파생 값 ──────────────────────────────────────
-
   const cagr = calcCagr(incomeSpark)
   const validIncomeSpark = incomeSpark.filter(
     (d): d is { year: number; value: number } => d.value != null,
@@ -378,18 +366,14 @@ export default function FundamentalsCharts({
   const maxRevenue = validIncomeSpark.reduce((m, d) => Math.max(m, d.value), 0)
 
   const signal = healthSignal(latestMetrics)
-  const healthBadgeCls =
-    signal === 'good'
-      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400'
-      : signal === 'warn'
-      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400'
-      : 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400'
-  const healthBorderCls =
-    signal === 'good'
-      ? 'border-emerald-500/50 dark:border-emerald-500/40'
-      : signal === 'warn'
-      ? 'border-amber-500/50 dark:border-amber-500/40'
-      : 'border-red-500/50 dark:border-red-500/40'
+  const healthBorderColor = signal === 'good' ? 'rgba(28,110,74,0.45)'
+    : signal === 'warn' ? 'rgba(180,83,9,0.45)'
+    : 'rgba(220,38,38,0.45)'
+  const healthBadgeStyle = signal === 'good'
+    ? { background: 'rgba(28,110,74,0.10)', color: C1 }
+    : signal === 'warn'
+    ? { background: 'rgba(180,83,9,0.10)', color: C2 }
+    : { background: 'rgba(220,38,38,0.10)', color: '#dc2626' }
 
   type PillStatus = 'pass' | 'warn' | 'fail' | 'na'
   const debtStatus: PillStatus = latestMetrics?.debt_ratio == null ? 'na'
@@ -406,51 +390,62 @@ export default function FundamentalsCharts({
 
   const growthInsight = effectiveInsight('income', incomeSpark)
 
+  // ── 공통 카드 스타일 ──────────────────────────
+  const cardBase: React.CSSProperties = {
+    borderRadius: 10,
+    border: '1px solid var(--line-2)',
+    background: 'var(--surface)',
+    transition: 'border-color 0.15s',
+    overflow: 'hidden',
+  }
+  const divider: React.CSSProperties = { borderTop: '1px solid var(--line)' }
+  const pillBase: React.CSSProperties = {
+    borderRadius: 999, padding: '2px 10px',
+    fontSize: 11, fontWeight: 700, display: 'inline-block',
+  }
+
   return (
-    <div className="space-y-3">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 
       {/* ── 1. 성장성 ── */}
-      <section className={[
-        'rounded-lg border transition-colors bg-zinc-50 dark:bg-zinc-900/50',
-        openSection === 'growth'
-          ? 'border-indigo-500/50 dark:border-indigo-500/40'
-          : 'border-zinc-200 dark:border-zinc-800',
-      ].join(' ')}>
+      <section style={{
+        ...cardBase,
+        borderColor: openSection === 'growth' ? C1 : 'var(--line-2)',
+      }}>
         <div
-          className="flex cursor-pointer select-none items-start justify-between px-4 py-3"
+          style={{ display: 'flex', cursor: 'pointer', userSelect: 'none', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 16px' }}
           onClick={() => toggleSection('growth')}
         >
-          <div className="flex items-center gap-3">
-            <span className="text-lg leading-none">🚀</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>🚀</span>
             <div>
-              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">성장성</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">매출 · 영업이익 · 순이익</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>성장성</p>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '2px 0 0' }}>매출 · 영업이익 · 순이익</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-0.5">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
             {cagr != null && (
-              <span className={[
-                'rounded-full px-2.5 py-0.5 text-xs font-bold',
-                cagr >= 0
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400'
-                  : 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400',
-              ].join(' ')}>
+              <span style={{
+                ...pillBase,
+                ...(cagr >= 0
+                  ? { background: 'rgba(28,110,74,0.10)', color: C1 }
+                  : { background: 'rgba(220,38,38,0.10)', color: '#dc2626' }),
+              }}>
                 CAGR {cagr >= 0 ? '+' : ''}{cagr.toFixed(1)}%
               </span>
             )}
-            <span className="text-xs text-zinc-400">{openSection === 'growth' ? '▲' : '▼'}</span>
+            <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>{openSection === 'growth' ? '▲' : '▼'}</span>
           </div>
         </div>
 
         {validIncomeSpark.length >= 2 && (
-          <div className="flex h-5 items-end gap-0.5 px-4 pb-2">
+          <div style={{ display: 'flex', height: 20, alignItems: 'flex-end', gap: 2, padding: '0 16px 8px' }}>
             {validIncomeSpark.map((d, i) => {
               const h = maxRevenue > 0 ? Math.max(3, Math.round((d.value / maxRevenue) * 18)) : 3
               return (
                 <div
                   key={i}
-                  style={{ height: `${h}px` }}
-                  className="flex-1 rounded-sm bg-indigo-400 opacity-70 dark:bg-indigo-500"
+                  style={{ height: h, flex: 1, borderRadius: 2, background: C1, opacity: 0.55 }}
                 />
               )
             })}
@@ -458,7 +453,7 @@ export default function FundamentalsCharts({
         )}
 
         {openSection === 'growth' && (
-          <div className="space-y-4 border-t border-zinc-200 p-4 dark:border-zinc-800">
+          <div style={{ ...divider, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             <ExpandedPanel
               expandedKey="income"
               sparkDataByKey={sparkDataByKey}
@@ -478,35 +473,33 @@ export default function FundamentalsCharts({
       </section>
 
       {/* ── 2. 수익성 ── */}
-      <section className={[
-        'rounded-lg border transition-colors bg-zinc-50 dark:bg-zinc-900/50',
-        openSection === 'profit'
-          ? 'border-emerald-500/50 dark:border-emerald-500/40'
-          : 'border-zinc-200 dark:border-zinc-800',
-      ].join(' ')}>
+      <section style={{
+        ...cardBase,
+        borderColor: openSection === 'profit' ? C1 : 'var(--line-2)',
+      }}>
         <div
-          className="flex cursor-pointer select-none items-start justify-between px-4 py-3"
+          style={{ display: 'flex', cursor: 'pointer', userSelect: 'none', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 16px' }}
           onClick={() => toggleSection('profit')}
         >
-          <div className="flex items-center gap-3">
-            <span className="text-lg leading-none">💎</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>💎</span>
             <div>
-              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">수익성</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">ROE · ROA · 영업이익률</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>수익성</p>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '2px 0 0' }}>ROE · ROA · 영업이익률</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-0.5">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
             {latestROE != null && (
-              <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400">
+              <span style={{ ...pillBase, background: 'rgba(28,110,74,0.10)', color: C1 }}>
                 ROE {formatPercent(latestROE)}
               </span>
             )}
-            <span className="text-xs text-zinc-400">{openSection === 'profit' ? '▲' : '▼'}</span>
+            <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>{openSection === 'profit' ? '▲' : '▼'}</span>
           </div>
         </div>
 
         {latestMetrics && (
-          <div className="grid grid-cols-3 gap-px border-t border-zinc-200 dark:border-zinc-800">
+          <div style={{ ...divider, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1 }}>
             {(
               [
                 { label: 'ROE',       value: latestMetrics.roe,              format: 'percent' },
@@ -514,9 +507,9 @@ export default function FundamentalsCharts({
                 { label: 'ROA',       value: latestMetrics.roa,              format: 'percent' },
               ] as { label: string; value: number | null; format: MetricFormat }[]
             ).map(({ label, value, format }) => (
-              <div key={label} className="px-4 py-2.5 text-center">
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{label}</p>
-                <p className="mt-0.5 text-base font-bold text-zinc-800 dark:text-zinc-200">
+              <div key={label} style={{ padding: '10px 16px', textAlign: 'center' }}>
+                <p style={{ fontSize: 10.5, color: 'var(--ink-3)', margin: 0 }}>{label}</p>
+                <p style={{ marginTop: 3, fontSize: 15, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>
                   {formatValue(value, format)}
                 </p>
               </div>
@@ -525,7 +518,7 @@ export default function FundamentalsCharts({
         )}
 
         {openSection === 'profit' && (
-          <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
+          <div style={{ ...divider, padding: '14px 16px' }}>
             <ExpandedPanel
               expandedKey="margin"
               sparkDataByKey={sparkDataByKey}
@@ -540,72 +533,56 @@ export default function FundamentalsCharts({
       </section>
 
       {/* ── 3. 재무 건전성 ── */}
-      <section className={[
-        'rounded-lg border transition-colors bg-zinc-50 dark:bg-zinc-900/50',
-        openSection === 'health' ? healthBorderCls : 'border-zinc-200 dark:border-zinc-800',
-      ].join(' ')}>
+      <section style={{
+        ...cardBase,
+        borderColor: openSection === 'health' ? healthBorderColor : 'var(--line-2)',
+      }}>
         <div
-          className="flex cursor-pointer select-none items-start justify-between px-4 py-3"
+          style={{ display: 'flex', cursor: 'pointer', userSelect: 'none', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 16px' }}
           onClick={() => toggleSection('health')}
         >
-          <div className="flex items-center gap-3">
-            <span className="text-lg leading-none">🛡️</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>🛡️</span>
             <div>
-              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">재무 건전성</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">부채비율 · FCF · 이자보상 · PER · PBR</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>재무 건전성</p>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '2px 0 0' }}>부채비율 · FCF · 이자보상 · PER · PBR</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-0.5">
-            <span className={['rounded-full px-2.5 py-0.5 text-xs font-bold', healthBadgeCls].join(' ')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
+            <span style={{ ...pillBase, ...healthBadgeStyle }}>
               {signal === 'good' ? '✓ 양호' : signal === 'warn' ? '⚠ 주의' : '✗ 위험'}
             </span>
-            <span className="text-xs text-zinc-400">{openSection === 'health' ? '▲' : '▼'}</span>
+            <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>{openSection === 'health' ? '▲' : '▼'}</span>
           </div>
         </div>
 
         {latestMetrics && (
-          <div className="flex flex-wrap gap-1.5 border-t border-zinc-200 px-4 py-2.5 dark:border-zinc-800">
-            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(debtStatus)].join(' ')}>
-              부채 {formatValue(latestMetrics.debt_ratio, 'percent')}
-            </span>
-            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(fcfStatus)].join(' ')}>
-              FCF {latestMetrics.fcf != null ? formatLargeNumber(latestMetrics.fcf) : '—'}
-            </span>
-            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(icrStatus)].join(' ')}>
-              이자보상 {latestMetrics.icr != null ? `${latestMetrics.icr.toFixed(1)}x` : '—'}
-            </span>
-            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(perStatus)].join(' ')}>
-              PER {formatValue(latestMetrics.per, 'ratio')}
-            </span>
-            <span className={['rounded px-2 py-0.5 text-xs font-medium', pillCls(pbrStatus)].join(' ')}>
-              PBR {formatValue(latestMetrics.pbr, 'ratio')}
-            </span>
+          <div style={{ ...divider, display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 16px' }}>
+            {[
+              { label: `부채 ${formatValue(latestMetrics.debt_ratio, 'percent')}`, s: debtStatus },
+              { label: `FCF ${latestMetrics.fcf != null ? formatLargeNumber(latestMetrics.fcf) : '—'}`, s: fcfStatus },
+              { label: `이자보상 ${latestMetrics.icr != null ? `${latestMetrics.icr.toFixed(1)}x` : '—'}`, s: icrStatus },
+              { label: `PER ${formatValue(latestMetrics.per, 'ratio')}`, s: perStatus },
+              { label: `PBR ${formatValue(latestMetrics.pbr, 'ratio')}`, s: pbrStatus },
+            ].map(({ label, s }) => (
+              <span key={label} style={{
+                borderRadius: 6, padding: '3px 9px',
+                fontSize: 11, fontWeight: 500,
+                ...statusStyle(s),
+              }}>
+                {label}
+              </span>
+            ))}
           </div>
         )}
 
         {openSection === 'health' && latestMetrics && (
-          <div className="space-y-4 border-t border-zinc-200 p-4 dark:border-zinc-800">
-            <div className="grid grid-cols-2 gap-4">
-              <ExpandedPanel
-                expandedKey="debt_ratio"
-                sparkDataByKey={sparkDataByKey}
-                incomeData={incomeData}
-                marginData={marginData}
-                uid={uid}
-                onClose={() => {}}
-                showClose={false}
-              />
-              <ExpandedPanel
-                expandedKey="fcf"
-                sparkDataByKey={sparkDataByKey}
-                incomeData={incomeData}
-                marginData={marginData}
-                uid={uid}
-                onClose={() => {}}
-                showClose={false}
-              />
+          <div style={{ ...divider, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <ExpandedPanel expandedKey="debt_ratio" sparkDataByKey={sparkDataByKey} incomeData={incomeData} marginData={marginData} uid={uid} onClose={() => {}} showClose={false} />
+              <ExpandedPanel expandedKey="fcf"        sparkDataByKey={sparkDataByKey} incomeData={incomeData} marginData={marginData} uid={uid} onClose={() => {}} showClose={false} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
               {(
                 [
                   { label: '이자보상배율', value: latestMetrics.icr, format: 'ratio' },
@@ -613,9 +590,12 @@ export default function FundamentalsCharts({
                   { label: 'PBR',         value: latestMetrics.pbr, format: 'ratio' },
                 ] as { label: string; value: number | null; format: MetricFormat }[]
               ).map(({ label, value, format }) => (
-                <div key={label} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
-                  <p className="mt-1 text-lg font-bold text-zinc-800 dark:text-zinc-200">
+                <div key={label} style={{
+                  borderRadius: 8, border: '1px solid var(--line-2)',
+                  padding: '10px 12px', background: 'var(--surface)',
+                }}>
+                  <p style={{ fontSize: 10.5, color: 'var(--ink-3)', margin: 0 }}>{label}</p>
+                  <p style={{ marginTop: 4, fontSize: 17, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>
                     {formatValue(value, format)}
                   </p>
                 </div>

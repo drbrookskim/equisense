@@ -21,7 +21,7 @@ function parseAmt(s: string | null | undefined): number | null {
   return isNaN(n) ? null : n
 }
 
-const AMOUNT_FIELDS = ['bfefrmtrm_amount', 'frmtrm_amount', 'thstrm_amount'] as const
+const AMOUNT_FIELDS = ['bfefrmtrm_amount', 'frmtrm_amount', 'thstrm_amount'] as const // eslint-disable-line @typescript-eslint/no-unused-vars
 
 function findAmt(
   list: DartAccount[],

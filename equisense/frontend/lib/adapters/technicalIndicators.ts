@@ -188,6 +188,7 @@ export function detectSignals(
 export interface IndicatorRow {
   ma20: number | null
   ma50: number | null
+  ma150: number | null
   ma200: number | null
   bbUpper: number | null
   bbLower: number | null
@@ -205,6 +206,7 @@ export function computeIndicators(dataPoints: TechnicalDataPoint[]): IndicatorRo
 
   const ma20 = calcSMA(closes, 20)
   const ma50 = calcSMA(closes, 50)
+  const ma150 = calcSMA(closes, 150)
   const ma200 = calcSMA(closes, 200)
   const bb = calcBollingerBands(closes)
   const rsi = calcRSI(closes)
@@ -219,6 +221,7 @@ export function computeIndicators(dataPoints: TechnicalDataPoint[]): IndicatorRo
     return {
       ma20: ma20[i],
       ma50: ma50[i],
+      ma150: ma150[i],
       ma200: ma200[i],
       bbUpper: bb.upper[i],
       bbLower: bb.lower[i],

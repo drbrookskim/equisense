@@ -35,7 +35,7 @@ type IndicatorKey = 'MA' | 'BB' | 'RSI' | 'MACD'
 // ── 포맷 헬퍼 ───────────────────────────────────
 
 function formatPrice(value: number): string {
-  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
 }
 
 function formatVolume(value: number): string {
@@ -118,7 +118,7 @@ function SellDot(props: Record<string, unknown>) {
 
 export default function TechnicalCharts({
   data,
-  ticker,
+  ticker: _ticker,
   period: currentPeriod,
   onPeriodChange,
 }: {
@@ -365,58 +365,83 @@ export default function TechnicalCharts({
                 {chartData.map((entry, index) => (
                   <Cell
                     key={`macd-bar-${index}`}
-                    fill={(entry.macdHistogram ?? 0) >= 0 ? '#6366f1' : '#ef4444'}
+                    fill={(entry.macdHistogram ?? 0) >= 0 ? '#dc2626' : '#2563eb'}
                     opacity={0.55}
                   />
                 ))}
               </Bar>
-              <Line type="monotone" dataKey="macd" stroke="#6366f1" strokeWidth={1.8} dot={false} />
+              <Line type="monotone" dataKey="macd" stroke="#dc2626" strokeWidth={1.8} dot={false} />
               <Line type="monotone" dataKey="macdSignal" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
           <div className="mt-1 flex gap-3 text-xs text-zinc-400">
-            <span><span style={{ color: '#6366f1' }}>—</span> MACD</span>
+            <span><span style={{ color: '#dc2626' }}>—</span> MACD</span>
             <span><span style={{ color: '#f59e0b' }}>--</span> Signal</span>
-            <span><span style={{ color: '#6366f1', opacity: 0.6 }}>■</span> 양봉</span>
-            <span><span style={{ color: '#ef4444', opacity: 0.6 }}>■</span> 음봉</span>
+            <span><span style={{ color: '#dc2626', opacity: 0.6 }}>■</span> 양봉</span>
+            <span><span style={{ color: '#2563eb', opacity: 0.6 }}>■</span> 음봉</span>
           </div>
         </section>
       )}
 
       {/* 시그널 요약 박스 */}
-      <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400">📍 현재 시그널 요약</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-md bg-white p-3 dark:bg-zinc-800">
-            <div className="mb-1 text-xs text-zinc-400">MA 크로스</div>
-            <div className={`text-sm font-semibold ${
-              signalSummary.maCross.state === 'golden' ? 'text-emerald-500' :
-              signalSummary.maCross.state === 'dead' ? 'text-red-400' : 'text-amber-400'
-            }`}>
-              {signalSummary.maCross.label}
-            </div>
-            <div className="mt-0.5 text-xs text-zinc-500">{signalSummary.maCross.detail}</div>
-          </div>
-          <div className="rounded-md bg-white p-3 dark:bg-zinc-800">
-            <div className="mb-1 text-xs text-zinc-400">RSI</div>
-            <div className={`text-sm font-semibold ${
-              signalSummary.rsiState.state === 'overbought' ? 'text-red-400' :
-              signalSummary.rsiState.state === 'oversold' ? 'text-emerald-500' : 'text-amber-400'
-            }`}>
-              {signalSummary.rsiState.label}
-            </div>
-            <div className="mt-0.5 text-xs text-zinc-500">{signalSummary.rsiState.detail}</div>
-          </div>
-          <div className="rounded-md bg-white p-3 dark:bg-zinc-800">
-            <div className="mb-1 text-xs text-zinc-400">MACD</div>
-            <div className={`text-sm font-semibold ${
-              signalSummary.macdState.state === 'bullish' ? 'text-emerald-500' :
-              signalSummary.macdState.state === 'bearish' ? 'text-red-400' : 'text-amber-400'
-            }`}>
-              {signalSummary.macdState.label}
-            </div>
-            <div className="mt-0.5 text-xs text-zinc-500">{signalSummary.macdState.detail}</div>
-          </div>
+      <section style={{ padding: '4px 0' }}>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.14em',
+          textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 12,
+        }}>현재 시그널 요약</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {([
+            {
+              label: 'MA 크로스',
+              state: signalSummary.maCross.state,
+              text: signalSummary.maCross.label,
+              detail: signalSummary.maCross.detail,
+              positiveState: 'golden',
+              negativeState: 'dead',
+            },
+            {
+              label: 'RSI',
+              state: signalSummary.rsiState.state,
+              text: signalSummary.rsiState.label,
+              detail: signalSummary.rsiState.detail,
+              positiveState: 'oversold',
+              negativeState: 'overbought',
+            },
+            {
+              label: 'MACD',
+              state: signalSummary.macdState.state,
+              text: signalSummary.macdState.label,
+              detail: signalSummary.macdState.detail,
+              positiveState: 'bullish',
+              negativeState: 'bearish',
+            },
+          ] as const).map((item) => {
+            const stateColor =
+              item.state === item.positiveState ? 'var(--accent)' :
+              item.state === item.negativeState ? '#dc2626' : '#b45309'
+            return (
+              <div key={item.label} style={{
+                borderRadius: 9, border: '1px solid var(--line)',
+                background: 'var(--surface)', padding: '13px 15px',
+              }}>
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 9.5, letterSpacing: '.08em',
+                  textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 5,
+                }}>
+                  {item.label}
+                </div>
+                <div style={{
+                  fontSize: 13, fontWeight: 600, color: stateColor,
+                  fontFamily: 'var(--font-ui)', lineHeight: 1.2, marginBottom: 4,
+                }}>
+                  {item.text}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.4 }}>
+                  {item.detail}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </section>
     </div>

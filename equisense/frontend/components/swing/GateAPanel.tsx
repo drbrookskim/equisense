@@ -57,7 +57,7 @@ export default function GateAPanel({
     }
   }
 
-  useEffect(() => { void load() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load() }, [])   // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   const verdictCls = result?.verdict === 'PASS'
     ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-800'

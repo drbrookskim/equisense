@@ -10,11 +10,11 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { configureAmplify } from '@/lib/auth-config'
-import { isAuthenticated, login as doLogin, logout as doLogout } from '@/lib/auth'
+import { isAuthenticated, login as doLogin, logout as doLogout } from '@/lib/auth' // eslint-disable-line @typescript-eslint/no-unused-vars
 
 configureAmplify()
 
-const PUBLIC_PATHS = ['/login']
+const PUBLIC_PATHS = ['/login'] // eslint-disable-line @typescript-eslint/no-unused-vars
 
 interface AuthState {
   isLoggedIn: boolean
@@ -49,7 +49,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     //     router.replace(`/login`)
     //   }
     // })
-    setIsLoading(false)
+    setIsLoading(false) // eslint-disable-line react-hooks/set-state-in-effect
   }, [pathname, router])
 
   const login = useCallback(async (email: string, password: string) => {

@@ -100,6 +100,46 @@ async function yahooSummaryFetch(symbol, modules) {
   return body
 }
 
+const TS_TYPES = [
+  'annualRevenue',
+  'annualNetIncome',
+  'annualOperatingIncome',
+  'annualGrossProfit',
+  'annualTotalAssets',
+  'annualTotalLiabilitiesNetMinorityInterest',
+  'annualStockholdersEquity',
+  'annualOperatingCashFlow',
+  'annualCapitalExpenditure',
+  'annualInterestExpense',
+].join(',')
+
+async function yahooTimeseriesFetch(symbol) {
+  if (!_crumb) await refreshCrumb()
+
+  const makeUrl = (crumb) =>
+    `https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${encodeURIComponent(symbol)}` +
+    `?type=${encodeURIComponent(TS_TYPES)}&period1=0&period2=9999999999&lang=en-US&region=US&crumb=${encodeURIComponent(crumb)}`
+
+  const res = await fetch(makeUrl(_crumb), { headers: { ...YAHOO_HEADERS, Cookie: _cookieStr } })
+  const body = await res.text()
+
+  let parsed
+  try { parsed = JSON.parse(body) } catch { return body }
+
+  const isUnauth =
+    parsed?.timeseries?.error?.code === 'Unauthorized' ||
+    parsed?.finance?.error?.code === 'Unauthorized'
+
+  if (isUnauth) {
+    _crumb = null
+    _cookieStr = null
+    await refreshCrumb()
+    return (await fetch(makeUrl(_crumb), { headers: { ...YAHOO_HEADERS, Cookie: _cookieStr } })).text()
+  }
+
+  return body
+}
+
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 export default {
@@ -125,9 +165,12 @@ export default {
         }
 
         const body = await yahooSummaryFetch(symbol, modules)
+        // 재무제표 모듈(장기 데이터)은 15분 캐시, 주가 전용은 60초 캐시
+        const isHeavy = modules.includes('incomeStatement') || modules.includes('balanceSheet') || modules.includes('cashflow')
+        const ttl = isHeavy ? 900 : 60
         return new Response(body, {
           status: 200,
-          headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=900' },
+          headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': `public, max-age=${ttl}` },
         })
       }
 
@@ -139,6 +182,22 @@ export default {
         return new Response(await res.text(), {
           status: res.status,
           headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' },
+        })
+      }
+
+      // ── Yahoo Finance: fundamentals timeseries ─────────────────────────────
+      if (url.pathname === '/yahoo/timeseries') {
+        let symbol = p.get('symbol') ?? ''
+        if (p.get('market') === 'KR' && !/\.(KS|KQ)$/i.test(symbol)) {
+          const ksBody = await yahooSummaryFetch(symbol + '.KS', 'financialData')
+          let ksData
+          try { ksData = JSON.parse(ksBody) } catch { ksData = null }
+          symbol = ksData?.quoteSummary?.result ? symbol + '.KS' : symbol + '.KQ'
+        }
+        const body = await yahooTimeseriesFetch(symbol)
+        return new Response(body, {
+          status: 200,
+          headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
         })
       }
 

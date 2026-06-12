@@ -55,8 +55,58 @@ function makeTrend(name: string, vals: [number, number][]): MetricTrend {
   }
 }
 
+// ── Timeseries 파서 ──────────────────────────────────────────────────────────
+
+interface TsEntry {
+  _revenue?: number | null
+  _netIncome?: number | null
+  _opIncome?: number | null
+  _interestExpense?: number | null
+  totalAssets?: number | null
+  totalLiab?: number | null
+  equity?: number | null
+  ocf?: number | null
+  capex?: number | null
+}
+
+const TS_KEY_MAP: Record<string, keyof TsEntry> = {
+  Revenue:                                  '_revenue',
+  NetIncome:                                '_netIncome',
+  OperatingIncome:                          '_opIncome',
+  TotalAssets:                              'totalAssets',
+  TotalLiabilitiesNetMinorityInterest:      'totalLiab',
+  StockholdersEquity:                       'equity',
+  OperatingCashFlow:                        'ocf',
+  CapitalExpenditure:                       'capex',
+  InterestExpense:                          '_interestExpense',
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function transformYahooToFundamentals(data: any, ticker: string, market: Market): FundamentalAnalysis {
+export function parseTimeseries(raw: unknown): Map<number, TsEntry> {
+  const map = new Map<number, TsEntry>()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const results: any[] = (raw as any)?.timeseries?.result ?? []
+  for (const series of results) {
+    const type: string = series?.meta?.type?.[0] ?? ''
+    if (!type.startsWith('annual')) continue
+    const key = TS_KEY_MAP[type.slice('annual'.length)]
+    if (!key) continue
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entries: any[] = series[type] ?? []
+    for (const entry of entries) {
+      if (!entry) continue
+      const yr = parseInt(String(entry.asOfDate).slice(0, 4))
+      if (!yr || isNaN(yr)) continue
+      const val = entry.reportedValue?.raw ?? null
+      if (!map.has(yr)) map.set(yr, {})
+      map.get(yr)![key] = typeof val === 'number' && isFinite(val) ? val : null
+    }
+  }
+  return map
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function transformYahooToFundamentals(data: any, ticker: string, market: Market, tsMap?: Map<number, TsEntry>): FundamentalAnalysis {
   const result = data?.quoteSummary?.result?.[0]
   if (!result) throw new Error(`Yahoo Finance: 데이터 없음 (${ticker})`)
 
@@ -110,6 +160,31 @@ export function transformYahooToFundamentals(data: any, ticker: string, market: 
     const capex = r(s.capitalExpenditures) // negative
     e.fcf = ocf != null ? (capex != null ? ocf + capex : ocf) : null
     map.set(yr, e)
+  }
+
+  // Timeseries 보완: incomeStatementHistory/balanceSheet 공백을 timeseries로 채움
+  if (tsMap) {
+    for (const [yr, ts] of tsMap) {
+      const e = map.get(yr) ?? {}
+      if (ts._revenue != null && e._revenue == null)        e._revenue = ts._revenue
+      if (ts._netIncome != null && e._netIncome == null)    e._netIncome = ts._netIncome
+      if (ts._opIncome != null && e._opIncome == null)      e._opIncome = ts._opIncome
+      if (ts._interestExpense != null && e._interestExpense == null) e._interestExpense = ts._interestExpense
+      // Balance sheet → ROE / ROA / debt_ratio
+      const net  = e._netIncome ?? ts._netIncome ?? null
+      if (ts.totalAssets && ts.totalLiab != null && e.debt_ratio == null)
+        e.debt_ratio = (ts.totalLiab / ts.totalAssets) * 100
+      if (ts.totalAssets && net != null && e.roa == null)
+        e.roa = (net / ts.totalAssets) * 100
+      if (ts.equity && ts.equity !== 0 && net != null && e.roe == null)
+        e.roe = (net / ts.equity) * 100
+      // FCF = OCF − |capex|  (capex may be positive or negative in timeseries)
+      if (ts.ocf != null && e.fcf == null) {
+        const capex = ts.capex != null ? -Math.abs(ts.capex) : 0
+        e.fcf = ts.ocf + capex
+      }
+      map.set(yr, e)
+    }
   }
 
   // financialData 모듈 — incomeStatementHistory/balanceSheet가 비어있을 때 최신 연도 보완

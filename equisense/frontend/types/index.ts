@@ -155,6 +155,11 @@ export interface AnalysisJob {
   error: string | null
 }
 
+export interface DualQualitativeResult {
+  annual: QualitativeResult
+  earnings: QualitativeResult
+}
+
 export interface TriggerQualitativeRequest {
   market: Market
   fiscal_year: number

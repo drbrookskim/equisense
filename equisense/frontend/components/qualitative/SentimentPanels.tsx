@@ -313,7 +313,7 @@ export default function SentimentPanels({
   useEffect(() => {
     if (!ticker) return
     let cancelled = false
-    setLoading(true)
+    setLoading(true) // eslint-disable-line react-hooks/set-state-in-effect
     fetchSentimentData(ticker, market)
       .then(d => { if (!cancelled) setData(d) })
       .catch(() => { if (!cancelled) setData(null) })

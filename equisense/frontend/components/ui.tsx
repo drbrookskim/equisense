@@ -161,8 +161,9 @@ export function TabHead({
       </h2>
       {lede && (
         <p style={{
-          margin: '8px 0 0', fontSize: 14, lineHeight: 1.6,
-          color: 'var(--ink-2)', maxWidth: 720,
+          margin: '8px 0 0', fontSize: 15, lineHeight: 1.5,
+          color: 'var(--ink-2)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {lede}
         </p>
@@ -271,22 +272,24 @@ export function Reveal({
 
 /* ── MetricBar — horizontal progress bar ── */
 export function MetricBar({
-  value, min = 0, max = 100, threshold, accent,
+  value, min = 0, max = 100, threshold, accent, color,
 }: {
   value: number
   min?: number
   max?: number
   threshold?: number
   accent?: boolean
+  color?: string
 }) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
   const thrPct = threshold != null ? ((threshold - min) / (max - min)) * 100 : null
+  const barColor = color ?? (accent ? 'var(--accent)' : 'var(--ink)')
   return (
     <div style={{ position: 'relative', height: 4, borderRadius: 2, background: 'var(--line-2)' }}>
       <div style={{
         position: 'absolute', left: 0, top: 0, bottom: 0,
         width: `${pct}%`, borderRadius: 2,
-        background: accent ? 'var(--accent)' : 'var(--ink)',
+        background: barColor,
         transition: 'width .4s ease',
       }} />
       {thrPct != null && (
