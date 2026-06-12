@@ -153,15 +153,16 @@ export function calculateMoat(fundamentals: FundamentalAnalysis): MoatAnalysis {
   const intangibleScore = score(roe, [5, 10, 15, 25])
 
   // Switching costs: revenue CAGR + trend direction
-  const revCagr = fundamentals.trends.revenue.cagr ?? null
-  const revDirection = fundamentals.trends.revenue.direction
+  const revTrend = fundamentals.trends.revenue ?? null
+  const revCagr = revTrend?.cagr ?? null
+  const revDirection = revTrend?.direction ?? 'stable'
   const cagrScore = score(revCagr, [0, 3, 7, 12])
   const directionBonus = revDirection === 'improving' ? 1 : revDirection === 'deteriorating' ? -1 : 0
   const switchingCosts = Math.min(10, Math.max(0, cagrScore + directionBonus))
 
   // Network effects: FCF margin as proxy
   const fcf = latest?.fcf ?? null
-  const revVal = fundamentals.trends.revenue.values.at(-1)?.[1] ?? null
+  const revVal = revTrend?.values.at(-1)?.[1] ?? null
   const fcfMargin = fcf != null && revVal != null && revVal > 0 ? (fcf / revVal) * 100 : null
   const networkEffects = score(fcfMargin, [-5, 0, 5, 15])
 
