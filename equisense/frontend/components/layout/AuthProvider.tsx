@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import type { Session } from '@supabase/supabase-js'
+import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { login as doLogin, logout as doLogout } from '@/lib/auth'
 
@@ -11,6 +11,7 @@ const PUBLIC_PATHS = ['/login']
 interface AuthState {
   isLoggedIn: boolean
   isLoading: boolean
+  user: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
@@ -18,6 +19,7 @@ interface AuthState {
 const AuthContext = createContext<AuthState>({
   isLoggedIn: false,
   isLoading: true,
+  user: null,
   login: async () => {},
   logout: async () => {},
 })
@@ -77,7 +79,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn: !!session, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn: !!session, isLoading, user: session?.user ?? null, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

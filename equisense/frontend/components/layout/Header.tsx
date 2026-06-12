@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import SearchBox from './SearchBox'
+import { useAuth } from './AuthProvider'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
@@ -14,13 +15,17 @@ export default function Header() {
   const isLanding = pathname === '/' || pathname === ''
   const { theme, toggle: toggleTheme } = useTheme()
   const { favorites } = useFavorites()
+  const { user, logout } = useAuth()
   const [favOpen, setFavOpen] = useState(false)
+  const [userOpen, setUserOpen] = useState(false)
   const favRef = useRef<HTMLDivElement>(null)
+  const userRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobile()
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (favRef.current && !favRef.current.contains(e.target as Node)) setFavOpen(false)
+      if (userRef.current && !userRef.current.contains(e.target as Node)) setUserOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
@@ -157,6 +162,66 @@ export default function Header() {
             }}>
               4-Layer Analysis
             </div>
+
+            {/* User menu */}
+            {user && (
+              <div ref={userRef} style={{ position: 'relative', marginLeft: 4 }}>
+                <button
+                  onClick={() => setUserOpen(v => !v)}
+                  title={user.email}
+                  style={{
+                    all: 'unset', cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: 'var(--accent)', color: '#fff',
+                    fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  {(user.email ?? '?')[0].toUpperCase()}
+                </button>
+
+                {userOpen && (
+                  <div style={{
+                    position: 'absolute', right: 0, top: 'calc(100% + 8px)',
+                    zIndex: 60, minWidth: 200,
+                    borderRadius: 10, border: '1px solid var(--line-2)',
+                    background: 'var(--surface)',
+                    boxShadow: '0 12px 32px -8px rgba(0,0,0,.20)',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      padding: '12px 14px 10px',
+                      borderBottom: '1px solid var(--line)',
+                    }}>
+                      <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', letterSpacing: '.06em', marginBottom: 3 }}>로그인 계정</div>
+                      <div style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {user.email}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setUserOpen(false); logout() }}
+                      style={{
+                        all: 'unset', boxSizing: 'border-box',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        width: '100%', padding: '10px 14px',
+                        cursor: 'pointer', fontSize: 13,
+                        color: '#dc2626', fontFamily: 'var(--font-ui)',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(220,38,38,0.07)' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                      로그아웃
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

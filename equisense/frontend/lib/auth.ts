@@ -5,6 +5,11 @@ export async function login(email: string, password: string) {
   if (error) throw new Error(error.message)
 }
 
+export async function signUp(email: string, password: string) {
+  const { error } = await supabase.auth.signUp({ email, password })
+  if (error) throw new Error(error.message)
+}
+
 export async function logout() {
   await supabase.auth.signOut()
 }
