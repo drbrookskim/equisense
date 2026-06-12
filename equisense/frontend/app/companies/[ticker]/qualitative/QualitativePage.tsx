@@ -395,18 +395,20 @@ function QualitativeContent() {
           <div style={{ marginTop: 8 }}>
             {sentiment.earnings_surprises.map((s, i) => (
               <div key={i} style={{
-                display: 'grid', gridTemplateColumns: '120px 1fr auto auto',
-                alignItems: 'center', gap: 16,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
                 padding: '10px 0', borderBottom: i < sentiment.earnings_surprises.length - 1 ? '1px solid var(--line)' : 'none',
               }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)' }}>{s.quarter}</span>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>예상 {s.eps_estimate != null ? s.eps_estimate.toFixed(2) : '—'}</span>
-                  <span style={{ fontSize: 12, color: 'var(--ink)' }}>실제 {s.eps_actual != null ? s.eps_actual.toFixed(2) : '—'}</span>
-                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>{s.quarter}</span>
+                {!isMobile && (
+                  <div style={{ display: 'flex', gap: 16, flex: 1 }}>
+                    <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>예상 {s.eps_estimate != null ? s.eps_estimate.toFixed(2) : '—'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink)' }}>실제 {s.eps_actual != null ? s.eps_actual.toFixed(2) : '—'}</span>
+                  </div>
+                )}
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700,
                   color: (s.surprise_pct ?? 0) >= 0 ? 'var(--accent)' : 'var(--ink-2)',
+                  flexShrink: 0,
                 }}>
                   {s.surprise_pct != null ? `${s.surprise_pct > 0 ? '+' : ''}${s.surprise_pct.toFixed(1)}%` : '—'}
                 </span>

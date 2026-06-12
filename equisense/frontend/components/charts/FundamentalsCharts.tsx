@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useId } from 'react'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import {
   Area,
   AreaChart,
@@ -313,6 +314,7 @@ export default function FundamentalsCharts({
   quarterlyLoading: boolean
 }) {
   const uid = useId()
+  const isMobile = useIsMobile()
   const [openSection, setOpenSection] = useState<'growth' | 'profit' | 'health' | null>(null)
 
   function toggleSection(key: 'growth' | 'profit' | 'health') {
@@ -499,7 +501,7 @@ export default function FundamentalsCharts({
         </div>
 
         {latestMetrics && (
-          <div style={{ ...divider, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1 }}>
+          <div style={{ ...divider, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 1 }}>
             {(
               [
                 { label: 'ROE',       value: latestMetrics.roe,              format: 'percent' },
@@ -578,11 +580,11 @@ export default function FundamentalsCharts({
 
         {openSection === 'health' && latestMetrics && (
           <div style={{ ...divider, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
               <ExpandedPanel expandedKey="debt_ratio" sparkDataByKey={sparkDataByKey} incomeData={incomeData} marginData={marginData} uid={uid} onClose={() => {}} showClose={false} />
               <ExpandedPanel expandedKey="fcf"        sparkDataByKey={sparkDataByKey} incomeData={incomeData} marginData={marginData} uid={uid} onClose={() => {}} showClose={false} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 10 }}>
               {(
                 [
                   { label: '이자보상배율', value: latestMetrics.icr, format: 'ratio' },

@@ -384,7 +384,7 @@ function MoatContent() {
         hint="각 해자 원천의 대리 지표와 점수화 논리"
         depth={3}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, paddingTop: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, paddingTop: 4 }}>
           {[
             { name: '비용 우위', proxy: '영업이익률 + 부채비율', bench: '영업이익률 30%↑ = 10점' },
             { name: '무형 자산', proxy: 'ROE (브랜드·IP 초과수익)', bench: 'ROE 25%↑ = 10점' },

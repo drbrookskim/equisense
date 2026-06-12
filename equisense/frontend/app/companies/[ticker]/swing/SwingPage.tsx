@@ -245,7 +245,7 @@ function TESBoxes({
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12 }}>
       {boxes.map((b) => (
         <div key={b.k} style={{
           border: `1px solid var(--line)`, borderLeft: `3px solid ${b.color}`,
@@ -535,7 +535,7 @@ function SwingContent() {
       {/* 손절타임 */}
       <Reveal title="Step 6 — 손절타임" hint="보유 기한 · 청산 기준일" depth={3}>
         <div style={{ paddingTop: 8 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px,1fr) 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(160px,1fr) 1fr 1fr', gap: 12 }}>
             <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', background: 'var(--surface)' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>종목 유형</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
