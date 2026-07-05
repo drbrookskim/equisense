@@ -1,4 +1,4 @@
 :HL["/equisense/_next/static/chunks/0acucq4jqmfkq.css","style"]
 :HL["/equisense/_next/static/chunks/09ppzrwojrm7e.css","style"]
 :HL["/equisense/_next/static/chunks/0k_hkze5iaufm.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"QlVYsK6Wo31XYkSMlxSEr"}
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"NZLK83kJZstgzp8FHQD6v"}
