@@ -1,7 +1,7 @@
 :HL["/equisense/_next/static/chunks/13tmg.xg~pajc.css","style"]
 :HL["/equisense/_next/static/chunks/0mhu-sljjznzh.css","style"]
-:HL["/equisense/_next/static/chunks/1869.3sp-ta4z.css","style"]
+:HL["/equisense/_next/static/chunks/0ckadfn7epr2k.css","style"]
 :HL["/equisense/_next/static/media/0c89a48fa5027cee-s.p.0rd3rjvnnhw7n.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 :HL["/equisense/_next/static/media/797e433ab948586e-s.p.08e28id.o-okb.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 :HL["/equisense/_next/static/media/fca78c2ee6cec166-s.p.0ve~0c67tz-d1.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"companies","param":null,"prefetchHints":0,"slots":{"children":{"name":"ticker","param":{"type":"d","key":"_","siblings":null},"prefetchHints":0,"slots":{"children":{"name":"analysis","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}}}},"staleTime":300,"buildId":"NY1tqUo-4Ap5eoykBwve_"}
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"companies","param":null,"prefetchHints":0,"slots":{"children":{"name":"ticker","param":{"type":"d","key":"_","siblings":null},"prefetchHints":0,"slots":{"children":{"name":"analysis","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}}}},"staleTime":300,"buildId":"d-57H5Za1powqAs0Q5ZTs"}
