@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "EquiSense System Architecture",
+    "output": "architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "full-pipeline",
+        "label": "End-to-End Investment Analysis Pipeline",
+        "focus": ["client", "edge", "sync_lambdas", "async_lambdas", "core_engine", "vector_db", "postgres_db", "external_api"],
+        "note": "클라이언트 요청이 Cloudflare Worker 엣지를 거쳐 동기/비동기 AWS Lambda 및 4단계 분석 엔진으로 흐르는 전체 구조"
+      },
+      {
+        "id": "rag-ai-flow",
+        "label": "Qualitative RAG & Ingestion",
+        "focus": ["async_lambdas", "vector_db", "external_api"],
+        "note": "SEC 10-K/10-Q 및 뉴스 데이터를 비동기 수집하여 임베딩 및 벡터 검색을 수행하는 정성적 AI 파이프라인"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "EquiSense UI",
+      "sublabel": "Glassmorphic PWA",
+      "pos": [30, 195],
+      "size": [120, 56]
+    },
+    {
+      "id": "edge",
+      "type": "cloud",
+      "label": "Cloudflare Worker",
+      "sublabel": "Gateway & Cache",
+      "pos": [230, 195],
+      "size": [130, 56],
+      "tag": "CORS / Rate Limit"
+    },
+    {
+      "id": "sync_lambdas",
+      "type": "backend",
+      "label": "Sync API Lambdas",
+      "sublabel": "Fundamentals & Screener",
+      "pos": [440, 90],
+      "size": [140, 56]
+    },
+    {
+      "id": "async_lambdas",
+      "type": "backend",
+      "label": "Async Worker Lambdas",
+      "sublabel": "RAG & Macro Ingester",
+      "pos": [440, 290],
+      "size": [140, 56]
+    },
+    {
+      "id": "core_engine",
+      "type": "backend",
+      "label": "EquiSense Core",
+      "sublabel": "Moat & Valuation Engine",
+      "pos": [660, 90],
+      "size": [140, 56]
+    },
+    {
+      "id": "vector_db",
+      "type": "database",
+      "label": "Vector Database",
+      "sublabel": "Pinecone / Qdrant",
+      "pos": [660, 290],
+      "size": [140, 56]
+    },
+    {
+      "id": "postgres_db",
+      "type": "database",
+      "label": "PostgreSQL (Neon)",
+      "sublabel": "Financial Schemas",
+      "pos": [880, 90],
+      "size": [140, 56]
+    },
+    {
+      "id": "external_api",
+      "type": "external",
+      "label": "Market Data APIs",
+      "sublabel": "FMP, Yahoo, SEC",
+      "pos": [880, 290],
+      "size": [140, 56]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "AWS Serverless & Data Tier (us-east-1)",
+      "wraps": ["sync_lambdas", "async_lambdas", "core_engine", "vector_db", "postgres_db"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "client-edge",
+      "from": "client",
+      "to": "edge",
+      "label": "HTTPS",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-sync",
+      "from": "edge",
+      "to": "sync_lambdas",
+      "label": "REST Query",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-async",
+      "from": "edge",
+      "to": "async_lambdas",
+      "label": "Event Trigger",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "sync-core",
+      "from": "sync_lambdas",
+      "to": "core_engine",
+      "label": "Compute",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "core-pg",
+      "from": "core_engine",
+      "to": "postgres_db",
+      "label": "SQL Query",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "async-vector",
+      "from": "async_lambdas",
+      "to": "vector_db",
+      "label": "RAG Query",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "async-api",
+      "from": "async_lambdas",
+      "to": "external_api",
+      "label": "Ingest SEC",
+      "fromSide": "bottom",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Edge & Client Layer",
+      "items": [
+        "Cloudflare Worker 기반 API 게이트웨이, 엣지 캐싱 및 속도 제한",
+        "PWA 글래스모피즘 SPA (펀더멘털, 해자, RAG, 기술분석 탭)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "4-Tier Analytics Engine",
+      "items": [
+        "Module 1(펀더멘털) → Module 2(경제적 해자) → Module 3(정성적 AI) → Module 4(스윙)",
+        "AWS Lambda 비동기 워커를 통한 거시경제 및 가격 업데이트 자동화"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Data & Vector Infrastructure",
+      "items": [
+        "PostgreSQL (Neon) 관계형 스키마 및 Alembic 마이그레이션",
+        "Pinecone / Qdrant 기반 SEC 10-K/10-Q 공시 문서 시맨틱 RAG 검색"
+      ]
+    }
+  ]
+}

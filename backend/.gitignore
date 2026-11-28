@@ -1,0 +1,13 @@
+.coverage
+coverage.xml
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.serverless/
+.env
+node_modules/
