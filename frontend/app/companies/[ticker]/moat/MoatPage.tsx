@@ -10,6 +10,7 @@ import { getMoatScore, getFundamentals } from '@/lib/api-client'
 import { computeRoicWaccSeries } from '@/lib/adapters/moat'
 import type { FundamentalAnalysis, Market, MoatAnalysis, MoatDimension } from '@/types'
 import { Card, Eyebrow, MetricBar, Reveal, Stat, TabHead, Term, Verdict } from '@/components/ui'
+import DetentDialLoader from '@/components/ui/DetentDialLoader'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
@@ -278,7 +279,7 @@ function MoatContent() {
     setTabBadge('moat', { label, tone, score })
   }, [data, setTabBadge])
 
-  if (isLoading) return <LoadingSkeleton />
+  if (isLoading) return <LoadingSkeleton ticker={ticker} />
   if (errorMsg) return (
     <div style={{
       display: 'flex', height: 240, alignItems: 'center', justifyContent: 'center',
@@ -552,12 +553,12 @@ function MoatContent() {
   )
 }
 
-function LoadingSkeleton() {
+function LoadingSkeleton({ ticker }: { ticker?: string }) {
   return (
-    <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
-      <div style={{ height: 32, width: 256, borderRadius: 6, background: 'var(--surface-2)', marginBottom: 16 }} />
-      <div style={{ height: 240, borderRadius: 12, background: 'var(--surface-2)' }} />
-    </div>
+    <DetentDialLoader
+      label={ticker ? `${ticker} · MOAT` : 'MOAT'}
+      message="경쟁 우위 · 해자 구조 분석 중…"
+    />
   )
 }
 

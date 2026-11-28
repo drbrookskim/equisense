@@ -9,6 +9,7 @@ import type { GateAData, Market, SentimentData } from '@/types'
 import { fetchSentimentData, fetchGateAData } from '@/lib/api-client'
 import { computeFearGreed, computeManagementGrade } from '@/lib/adapters/sentiment'
 import { Card, Eyebrow, Reveal, TabHead } from '@/components/ui'
+import DetentDialLoader from '@/components/ui/DetentDialLoader'
 import QualitativeAnalysisView from '@/components/qualitative/QualitativeAnalysisView'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
@@ -657,10 +658,10 @@ function QualitativeContent() {
 
 function LoadingSkeleton() {
   return (
-    <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
-      <div style={{ height: 32, width: 200, borderRadius: 6, background: 'var(--surface-2)', marginBottom: 16 }} />
-      <div style={{ height: 200, borderRadius: 12, background: 'var(--surface-2)' }} />
-    </div>
+    <DetentDialLoader
+      label="SENTIMENT"
+      message="시장 심리 · 컨센서스 로딩 중…"
+    />
   )
 }
 

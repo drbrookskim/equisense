@@ -324,3 +324,29 @@ button:not([data-no-pill]) {
   padding: 2px 0 !important;
 }
 
+/* ── DetentDialLoader: per-digit vertical roll ── */
+@keyframes eq-dial-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.eq-dial-roll-char {
+  display: inline-block;
+  animation: eq-dial-roll-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eq-dial-roll-char {
+    animation: none;
+  }
+}
+

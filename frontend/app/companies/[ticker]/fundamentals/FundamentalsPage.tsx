@@ -11,6 +11,7 @@ import FundamentalsCharts from '@/components/charts/FundamentalsCharts'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import { Card, Eyebrow, MetricBar, Reveal, TabHead, Term } from '@/components/ui'
+import DetentDialLoader from '@/components/ui/DetentDialLoader'
 
 // ── 포맷 헬퍼 ────────────────────────────────────────────
 
@@ -342,7 +343,7 @@ function FundamentalsContent() {
     return () => { cancelled = true }
   }, [ticker, market])
 
-  if (isLoading) return <LoadingSkeleton />
+  if (isLoading) return <LoadingSkeleton ticker={ticker} />
   if (errorMsg) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: 240, alignItems: 'center', justifyContent: 'center', border: '1px solid var(--line)', borderRadius: 12 }}>
       <p style={{ fontSize: 13.5, color: 'var(--ink-3)', margin: 0 }}>{errorMsg}</p>
@@ -506,12 +507,12 @@ function FundamentalsContent() {
   )
 }
 
-function LoadingSkeleton() {
+function LoadingSkeleton({ ticker }: { ticker?: string }) {
   return (
-    <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
-      <div style={{ height: 32, width: 200, borderRadius: 6, background: 'var(--surface-2)', marginBottom: 16 }} />
-      <div style={{ height: 280, borderRadius: 12, background: 'var(--surface-2)' }} />
-    </div>
+    <DetentDialLoader
+      label={ticker || 'FUNDAMENTAL'}
+      message="재무 · 실적 데이터 불러오는 중…"
+    />
   )
 }
 

@@ -18,6 +18,7 @@ import GateAPanel from '@/components/swing/GateAPanel'
 import GateBPanel from '@/components/swing/GateBPanel'
 import SwingScoreDrawer from '@/components/swing/SwingScoreDrawer'
 import { Card, Eyebrow, Reveal, Stat, TabHead, Verdict } from '@/components/ui'
+import DetentDialLoader from '@/components/ui/DetentDialLoader'
 import type { VerdictTone } from '@/components/ui'
 import { useCompanyScores } from '@/contexts/CompanyScoresContext'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
@@ -581,11 +582,10 @@ function SwingContent() {
 
 function LoadingSkeleton() {
   return (
-    <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
-      <div style={{ height: 32, width: 200, borderRadius: 6, background: 'var(--surface-2)', marginBottom: 16 }} />
-      <div style={{ height: 120, borderRadius: 12, background: 'var(--surface-2)', marginBottom: 10 }} />
-      <div style={{ height: 200, borderRadius: 12, background: 'var(--surface-2)' }} />
-    </div>
+    <DetentDialLoader
+      label="SWING · SEPA"
+      message="스윙 · SEPA 파이프라인 로딩 중…"
+    />
   )
 }
 

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import DetentDialLoader from '@/components/ui/DetentDialLoader'
 import { getTechnicalData } from '@/lib/api-client'
 import type { Market, TechnicalAnalysis, TechnicalPeriod } from '@/types'
 import TechnicalCharts from '@/components/charts/TechnicalCharts'
@@ -44,7 +45,7 @@ function TechnicalContent({ hideHeader = false }: Props) {
     return () => { cancelled = true }
   }, [ticker, market, period])
 
-  if (isLoading) return <LoadingSkeleton />
+  if (isLoading) return <LoadingSkeleton ticker={ticker} compact={hideHeader} />
   if (errorMsg) {
     return (
       <div className="flex h-60 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800">
@@ -74,12 +75,14 @@ function TechnicalContent({ hideHeader = false }: Props) {
   )
 }
 
-function LoadingSkeleton() {
+function LoadingSkeleton({ ticker, compact }: { ticker?: string; compact?: boolean }) {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-8 w-48 rounded bg-zinc-100 dark:bg-zinc-800" />
-      <div className="h-60 rounded bg-zinc-100 dark:bg-zinc-800" />
-    </div>
+    <DetentDialLoader
+      label={ticker ? `${ticker} · TECH` : 'TECHNICAL'}
+      message="주가 · 기술적 지표 불러오는 중…"
+      size={compact ? 164 : 200}
+      compact={compact}
+    />
   )
 }
 
